@@ -192,7 +192,7 @@ a.ch{cursor:pointer;}
     <div class="rack">
 
       <a class="ch a-teal" href="beacon.html">
-        <div class="num">Model 01<small>THE SENTRY</small></div>
+        <div class="num">Model 01</div>
         <div class="body">
           <div class="name">Beacon</div>
           <div class="value">Never Caught Off Guard Again!</div>
@@ -203,7 +203,7 @@ a.ch{cursor:pointer;}
       </a>
 
       <a class="ch a-cyan" href="engine.html">
-        <div class="num">Model 02<small>THE DISPATCHER</small></div>
+        <div class="num">Model 02</div>
         <div class="body">
           <div class="name">Engine</div>
           <div class="value">It Files the Paperwork So You Don't!</div>
@@ -214,7 +214,7 @@ a.ch{cursor:pointer;}
       </a>
 
       <a class="ch a-yellow" href="recon.html">
-        <div class="num">Model 03<small>THE INSPECTOR</small></div>
+        <div class="num">Model 03</div>
         <div class="body">
           <div class="name">Recon</div>
           <div class="value">A Perfect Inspection, Every Time!</div>
@@ -225,7 +225,7 @@ a.ch{cursor:pointer;}
       </a>
 
       <a class="ch a-amber" href="report.html">
-        <div class="num">Model 04<small>THE CORRESPONDENT</small></div>
+        <div class="num">Model 04</div>
         <div class="body">
           <div class="name">Generator</div>
           <div class="value">Half a Day of Writing, Done in Five Minutes!</div>
@@ -236,7 +236,7 @@ a.ch{cursor:pointer;}
       </a>
 
       <a class="ch a-mag" href="tempo.html">
-        <div class="num">Model 05<small>THE COACH</small></div>
+        <div class="num">Model 05</div>
         <div class="body">
           <div class="name">Tempo</div>
           <div class="value">Turn Your Whole Team Into Top Performers!</div>
@@ -247,7 +247,7 @@ a.ch{cursor:pointer;}
       </a>
 
       <div class="ch a-purple">
-        <div class="num">Model 06<small>THE UNDERSTUDY</small></div>
+        <div class="num">Model 06</div>
         <div class="body">
           <div class="name">Ambient</div>
           <div class="value">The Machine That Does Your Logging FOR You!</div>
@@ -268,66 +268,52 @@ a.ch{cursor:pointer;}
       </p>
       <div class="diagram" role="img" aria-label="Signal flow diagram: Engine and Recon feed the shared backbone, Beacon syncs two ways, and Generator and Tempo turn it into client reports and coaching.">
         <svg viewBox="0 0 1000 470" xmlns="http://www.w3.org/2000/svg">
-          <defs>
-            <marker id="ar" markerWidth="12" markerHeight="12" refX="8" refY="4" orient="auto-start-reverse"><path d="M0,0 L9,4 L0,8 Z" fill="#3fe0d8"/></marker>
-            <filter id="glow" x="-50%" y="-50%" width="200%" height="200%"><feDropShadow dx="0" dy="0" stdDeviation="3" flood-color="#3fe0d8" flood-opacity="0.55"/></filter>
-            <style>
-              .nr{fill:rgba(63,224,216,.06);stroke-width:2;}
-              .hub{fill:rgba(63,224,216,.14);stroke:#96fff7;stroke-width:2.5;}
-              .nm{font-family:'Barlow Condensed',sans-serif;font-style:italic;font-weight:800;fill:#ecfffc;}
-              .nk{font-family:'Share Tech Mono',monospace;fill:#3a9690;letter-spacing:.06em;}
-              .rl{font-family:'Share Tech Mono',monospace;fill:#a9ddd7;}
-              .fl{fill:none;stroke:#3fe0d8;stroke-width:2;opacity:.9;}
-              .lb{font-family:'Share Tech Mono',monospace;fill:#3a9690;}
-              .colh{font-family:'Barlow Condensed',sans-serif;font-style:italic;font-weight:800;fill:#3a9690;letter-spacing:.14em;}
-            </style>
-          </defs>
-
-          <text class="colh" x="135" y="22" text-anchor="middle" font-size="15">INPUTS</text>
-          <text class="colh" x="500" y="22" text-anchor="middle" font-size="15">COORDINATE</text>
-          <text class="colh" x="865" y="22" text-anchor="middle" font-size="15">OUTPUTS</text>
-
-          <path class="fl" d="M240,161 C322,170 332,206 398,214" marker-end="url(#ar)"/>
-          <text class="lb" x="298" y="171" font-size="12">outage tickets</text>
-          <path class="fl" d="M240,329 C322,320 332,284 398,256" marker-end="url(#ar)"/>
-          <text class="lb" x="298" y="323" font-size="12">field audits</text>
-          <path class="fl" d="M500,110 L500,188" marker-end="url(#ar)" marker-start="url(#ar)"/>
-          <text class="lb" x="514" y="153" font-size="12">live status, ack sync</text>
-          <path class="fl" d="M602,214 C678,206 688,170 758,161" marker-end="url(#ar)"/>
-          <text class="lb" x="648" y="171" font-size="12">the work</text>
-          <path class="fl" d="M602,256 C678,284 688,320 758,329" marker-end="url(#ar)"/>
-          <text class="lb" x="642" y="323" font-size="12">usage signals</text>
-
-          <rect class="hub" x="400" y="190" width="200" height="90" rx="12" filter="url(#glow)"/>
-          <text class="nm" x="500" y="227" text-anchor="middle" font-size="26">THE BACKBONE</text>
-          <text class="rl" x="500" y="249" text-anchor="middle" font-size="11">system of record</text>
-          <text class="rl" x="500" y="266" text-anchor="middle" font-size="11">every machine reads &amp; writes</text>
-
-          <rect class="nr" x="405" y="32" width="190" height="76" rx="10" stroke="#3fe0d8"/>
-          <text class="nm" x="500" y="63" text-anchor="middle" font-size="22">BEACON</text>
-          <text class="nk" x="500" y="81" text-anchor="middle" font-size="11">THE SENTRY</text>
-          <text class="rl" x="500" y="98" text-anchor="middle" font-size="10.5">live status wall</text>
-
-          <rect class="nr" x="30" y="120" width="210" height="82" rx="10" stroke="#19e3ff"/>
-          <text class="nm" x="135" y="154" text-anchor="middle" font-size="22">ENGINE</text>
-          <text class="nk" x="135" y="172" text-anchor="middle" font-size="11">THE DISPATCHER</text>
-          <text class="rl" x="135" y="189" text-anchor="middle" font-size="10.5">files &amp; clears tickets</text>
-
-          <rect class="nr" x="30" y="288" width="210" height="82" rx="10" stroke="#ffd23f"/>
-          <text class="nm" x="135" y="322" text-anchor="middle" font-size="22">RECON</text>
-          <text class="nk" x="135" y="340" text-anchor="middle" font-size="11">THE INSPECTOR</text>
-          <text class="rl" x="135" y="357" text-anchor="middle" font-size="10.5">files field audits</text>
-
-          <rect class="nr" x="760" y="120" width="210" height="82" rx="10" stroke="#ff9e3d"/>
-          <text class="nm" x="865" y="150" text-anchor="middle" font-size="21">GENERATOR</text>
-          <text class="nk" x="865" y="168" text-anchor="middle" font-size="11">THE CORRESPONDENT</text>
-          <text class="rl" x="865" y="185" text-anchor="middle" font-size="10.5">builds client reports</text>
-
-          <rect class="nr" x="760" y="288" width="210" height="82" rx="10" stroke="#ff2e88"/>
-          <text class="nm" x="865" y="322" text-anchor="middle" font-size="22">TEMPO</text>
-          <text class="nk" x="865" y="340" text-anchor="middle" font-size="11">THE COACH</text>
-          <text class="rl" x="865" y="357" text-anchor="middle" font-size="10.5">measures &amp; coaches</text>
-        </svg>
+  <defs>
+    <marker id="ar" markerWidth="12" markerHeight="12" refX="8" refY="4" orient="auto-start-reverse"><path d="M0,0 L9,4 L0,8 Z" fill="#3fe0d8"/></marker>
+    <filter id="glow" x="-50%" y="-50%" width="200%" height="200%"><feDropShadow dx="0" dy="0" stdDeviation="3" flood-color="#3fe0d8" flood-opacity="0.55"/></filter>
+    <style>
+      .nr{fill:rgba(63,224,216,.06);stroke-width:2;}
+      .hub{fill:rgba(63,224,216,.14);stroke:#96fff7;stroke-width:2.5;}
+      .nm{font-family:'Barlow Condensed',sans-serif;font-style:italic;font-weight:800;fill:#ecfffc;}
+      .rl{font-family:'Share Tech Mono',monospace;fill:#a9ddd7;}
+      .fl{fill:none;stroke:#3fe0d8;stroke-width:2;opacity:.9;}
+      .lb{font-family:'Share Tech Mono',monospace;fill:#3a9690;}
+      .colh{font-family:'Barlow Condensed',sans-serif;font-style:italic;font-weight:800;fill:#3a9690;letter-spacing:.14em;}
+    </style>
+  </defs>
+  <text class="colh" x="135" y="22" text-anchor="middle" font-size="15">INPUTS</text>
+  <text class="colh" x="500" y="22" text-anchor="middle" font-size="15">COORDINATE</text>
+  <text class="colh" x="865" y="22" text-anchor="middle" font-size="15">OUTPUTS</text>
+  <path class="fl" d="M240,161 C322,170 332,206 398,214" marker-end="url(#ar)"/>
+  <text class="lb" x="298" y="171" font-size="12">outage tickets</text>
+  <path class="fl" d="M240,329 C322,320 332,284 398,256" marker-end="url(#ar)"/>
+  <text class="lb" x="298" y="323" font-size="12">field audits</text>
+  <path class="fl" d="M500,110 L500,188" marker-end="url(#ar)" marker-start="url(#ar)"/>
+  <text class="lb" x="514" y="153" font-size="12">live status, ack sync</text>
+  <path class="fl" d="M602,214 C678,206 688,170 758,161" marker-end="url(#ar)"/>
+  <text class="lb" x="648" y="171" font-size="12">the work</text>
+  <path class="fl" d="M602,256 C678,284 688,320 758,329" marker-end="url(#ar)"/>
+  <text class="lb" x="642" y="323" font-size="12">usage signals</text>
+  <rect class="hub" x="400" y="190" width="200" height="90" rx="12" filter="url(#glow)"/>
+  <text class="nm" x="500" y="228" text-anchor="middle" font-size="30">ASANA</text>
+  <text class="rl" x="500" y="250" text-anchor="middle" font-size="11">the shared system of record</text>
+  <text class="rl" x="500" y="266" text-anchor="middle" font-size="11">every app reads &amp; writes</text>
+  <rect class="nr" x="405" y="32" width="190" height="76" rx="10" stroke="#3fe0d8"/>
+      <text class="nm" x="500" y="68.0" text-anchor="middle" font-size="22">BEACON</text>
+      <text class="rl" x="500" y="88.0" text-anchor="middle" font-size="11">live status wall</text>
+  <rect class="nr" x="30" y="120" width="210" height="82" rx="10" stroke="#19e3ff"/>
+      <text class="nm" x="135" y="159.0" text-anchor="middle" font-size="22">ENGINE</text>
+      <text class="rl" x="135" y="179.0" text-anchor="middle" font-size="11">files &amp; clears tickets</text>
+  <rect class="nr" x="30" y="288" width="210" height="82" rx="10" stroke="#ffd23f"/>
+      <text class="nm" x="135" y="327.0" text-anchor="middle" font-size="22">RECON</text>
+      <text class="rl" x="135" y="347.0" text-anchor="middle" font-size="11">files field audits</text>
+  <rect class="nr" x="760" y="120" width="210" height="82" rx="10" stroke="#ff9e3d"/>
+      <text class="nm" x="865" y="159.0" text-anchor="middle" font-size="21">GENERATOR</text>
+      <text class="rl" x="865" y="179.0" text-anchor="middle" font-size="11">builds client reports</text>
+  <rect class="nr" x="760" y="288" width="210" height="82" rx="10" stroke="#ff2e88"/>
+      <text class="nm" x="865" y="327.0" text-anchor="middle" font-size="22">TEMPO</text>
+      <text class="rl" x="865" y="347.0" text-anchor="middle" font-size="11">measures &amp; coaches</text>
+</svg>
       </div>
       <p class="diagram-note">Built decoupled on purpose: every machine stands on its own, so a fault in one never takes the others down.</p>
     </div>
