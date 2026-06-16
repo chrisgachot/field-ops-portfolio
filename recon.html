@@ -1090,7 +1090,7 @@
 <div class="toast" id="toast"></div>
 
 <!-- Demo mode warning banner -->
-<div id="demoBanner" style="display:none;position:fixed;top:0;left:0;right:0;z-index:501;background:#1a0d00;border-bottom:2px solid var(--red);padding:10px 16px;align-items:center;gap:10px;box-shadow:0 4px 20px rgba(255,45,107,0.2);">
+<div id="demoBanner" style="display:none;position:relative;z-index:501;background:#1a0d00;border-bottom:2px solid var(--red);padding:10px 16px;align-items:center;gap:10px;box-shadow:0 4px 20px rgba(255,45,107,0.2);">
   <span style="flex:1;font-family:var(--mono);font-size:12px;color:var(--red);">! DEMO MODE — ASANA_PAT not configured. Submissions will NOT reach Asana.</span>
   <a href="index.html" style="font-family:var(--mono);font-size:11px;color:var(--cyan);text-decoration:none;border:1px solid var(--border);padding:4px 10px;border-radius:4px;margin-right:4px;">← Portfolio</a>
   <button onclick="document.getElementById('demoBanner').style.display='none'" style="background:transparent;color:var(--text-dim);border:1px solid var(--border);font-family:var(--mono);font-size:11px;padding:4px 10px;cursor:pointer;">✕</button>
@@ -1274,8 +1274,8 @@ const ASANA_API        = '/.netlify/functions/asana-proxy';
 // real prod domain; the dev site (dev.#), Netlify previews
 // and localhost all point at a separate TEST project so a test "transmit" can
 // never hit live data.
-const LIVE_PROJECT_ID  = '1209254347016005';       // Technology (production)
-const TEST_PROJECT_ID  = '1215400581986434';       // RECON Staging (dev/test project)
+const LIVE_PROJECT_ID  = '1200000000000001';       // Technology (production)
+const TEST_PROJECT_ID  = '1200000000000002';       // RECON Staging (dev/test project)
 const IS_PROD          = location.hostname === '#';
 const PROJECT_ID       = IS_PROD ? LIVE_PROJECT_ID : TEST_PROJECT_ID;
 
@@ -1726,7 +1726,24 @@ async function submitCheck() {
     setTimeout(() => {
       submitted = true;
       clearSavedState();
-      showSuccess(property, tech, issueCategories);
+      // DEMO: synthesize a filed report task + follow-up Asana tickets so the
+      // confirmation screen matches production exactly.
+      const mkGid = () => '12' + String(Math.floor(Math.random() * 1e14)).padStart(14, '0');
+      const demoParentGid = mkGid();
+      const demoFollowUps = issueCategories.map(cat => {
+        const gid = mkGid();
+        return { cat, gid, url: 'https://app.asana.com/0/' + PROJECT_ID + '/' + gid, name: cat.emoji + ' ' + cat.name };
+      });
+      showSuccess(property, tech, issueCategories, demoParentGid, demoFollowUps);
+      // Demo links shouldn't 404 — intercept clicks and explain instead of navigating.
+      const sc = document.getElementById('successScreen');
+      if (sc && !sc._demoBound) {
+        sc._demoBound = true;
+        sc.addEventListener('click', e => {
+          const a = e.target.closest('a');
+          if (a) { e.preventDefault(); try { showToast('Demo ticket — opens the Asana task in production', ''); } catch (_) {} }
+        });
+      }
     }, 900);
     return;
   }
