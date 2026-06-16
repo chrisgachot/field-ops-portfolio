@@ -1,0 +1,13 @@
+{
+  "name": "Field Ops",
+  "short_name": "Field Ops",
+  "description": "Field Ops, operations technology by Chris Gachot. Five live app demos.",
+  "icons": [
+    { "src": "icon-192.png", "sizes": "192x192", "type": "image/png" },
+    { "src": "icon-512.png", "sizes": "512x512", "type": "image/png" }
+  ],
+  "theme_color": "#04140f",
+  "background_color": "#04140f",
+  "display": "standalone",
+  "start_url": "./"
+}
