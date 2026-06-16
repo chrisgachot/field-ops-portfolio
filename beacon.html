@@ -3,9 +3,7 @@
 <head>
 
 <script>
-/* ===== DEMO DATA LAYER (no live systems). Feeds the real Beacon UI including the
-   History & insights panel (UptimeRobot logs + Asana-history). One property is DEGRADED
-   so the alert + ack flow, ticket link, and incident history all populate. ===== */
+/* DEMO DATA LAYER (no live systems). Feeds the real Beacon UI incl. History & insights; Cedar Ridge degraded. */
 (function(){
   var now=Math.floor(Date.now()/1000), DAY=86400;
   var PROPS=[
@@ -2210,6 +2208,11 @@ function ensureInsightsTip() {
   insightsTip = document.createElement('div');
   insightsTip.id = 'ins-tip';
   document.body.appendChild(insightsTip);
+  // Touch devices never fire mouseleave, so a tapped tooltip can stick. Dismiss it on any
+  // scroll, and on a tap that isn't on a hoverable graph element.
+  const hide = () => { if (insightsTip) insightsTip.style.display = 'none'; };
+  window.addEventListener('scroll', hide, { passive: true });
+  document.addEventListener('touchstart', (e) => { if (!e.target.closest('.scatter-svg, .hgrid, .fleet-trend')) hide(); }, { passive: true });
   return insightsTip;
 }
 function attachHeatHover(host) {
@@ -2437,6 +2440,7 @@ function attachFocusClicks(host) {
   host.querySelectorAll('.sc-dot').forEach(el => {
     el.addEventListener('click', () => {
       const code = el.getAttribute('data-code'); if (!code) return;
+      if (insightsTip) insightsTip.style.display = 'none';  // dismiss the touch-hover tooltip
       const key = 'site:' + code;
       const inAttn = !!host.querySelector(`.aitem[data-key="${key}"]`);
       if (inAttn && !insightsExpanded.has(key)) insightsExpanded.add(key);
@@ -3686,8 +3690,11 @@ async function getJWT() {
 // ─────────────────────────────────────────────────────────────────────────────
 // Bump BUILD on every deploy so the header always reflects what is live.
 // User-facing changelog, newest first; the entry matching BUILD is marked "Now".
-const BUILD = 'v3.2';
+const BUILD = 'v3.3';
 const RELEASE_NOTES = [
+  { v: 'v3.3', d: '2026-06-16 16:33', items: [
+    'Fixed a mobile glitch where tapping a dot on the “Where to focus” chart jumped to the site but left its info popup stuck on screen — popups now dismiss on tap and scroll.',
+  ]},
   { v: 'v3.2', d: '2026-06-16 16:24', items: [
     'History & insights got a visual overhaul. The fleet header now draws a 90-day health trend line — hover it for any day’s fleet uptime.',
     'New “Where to focus” map: every site plotted by how often it goes down vs. how much downtime it racks up. Dots heat up toward the top-right (your real problems), and hovering one shows that site’s last-30-day history and tickets; click to jump to it.',
