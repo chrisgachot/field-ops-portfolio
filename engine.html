@@ -1,0 +1,269 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Engine, Demo</title>
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;600;700&family=Barlow+Condensed:ital,wght@0,700;1,800&display=swap" rel="stylesheet" />
+<style>
+:root{
+  --bg:#0a0c10; --panel:#12161d; --panel-2:#171c24; --border:#232c38; --border-soft:#1b222b;
+  --text:#dfe7f0; --muted:#8a97a8; --dim:#5d6877;
+  --cyan:#43d6c4; --blue:#4aa8ff; --amber:#f5b53f; --red:#ff5d6c; --green:#4bd07b; --violet:#9a7dff;
+  --mono:'JetBrains Mono',ui-monospace,monospace;
+  --disp:'Barlow Condensed',sans-serif;
+}
+*{margin:0;padding:0;box-sizing:border-box;}
+body{background:var(--bg); color:var(--text); font-family:var(--mono); min-height:100vh; font-size:14px;}
+.demobar{display:flex; align-items:center; justify-content:space-between; gap:12px; padding:7px 16px;
+  background:#0d1117; border-bottom:1px solid var(--border); font-size:11px; text-transform:uppercase; letter-spacing:.1em;}
+.demobar .tag{color:var(--amber);}
+.demobar a{color:var(--blue); text-decoration:none; border:1px solid var(--border); padding:4px 10px; border-radius:4px;}
+.demobar a:hover{border-color:var(--blue);}
+header{display:flex; align-items:center; justify-content:space-between; gap:14px; flex-wrap:wrap;
+  padding:18px 24px; border-bottom:1px solid var(--border); background:linear-gradient(180deg,#0e1218,#0a0c10);}
+.brand{display:flex; align-items:center; gap:12px;}
+.brand .mk{font-family:var(--disp); font-style:italic; font-weight:800; font-size:13px; color:#06121a;
+  background:linear-gradient(150deg,var(--cyan),var(--blue)); padding:6px 10px; border-radius:7px; letter-spacing:.04em;}
+.brand h1{font-family:var(--disp); font-style:italic; font-weight:800; text-transform:uppercase; font-size:30px; letter-spacing:.02em;}
+.brand .sub{color:var(--dim); font-size:11px; text-transform:uppercase; letter-spacing:.14em; margin-top:2px;}
+.controls{display:flex; gap:10px; flex-wrap:wrap; align-items:center;}
+.poll{font-family:var(--disp); font-style:italic; font-weight:700; color:var(--cyan); font-size:14px; text-transform:uppercase; letter-spacing:.06em;}
+.btn{background:var(--panel-2); border:1px solid var(--border); color:var(--text); border-radius:7px;
+  padding:9px 14px; cursor:pointer; font-family:var(--mono); font-size:12.5px; font-weight:600; transition:all .12s;}
+.btn:hover{border-color:var(--blue); color:#fff;}
+.btn.danger{color:var(--red); border-color:rgba(255,93,108,.4);}
+.btn.danger:hover{background:rgba(255,93,108,.12);}
+.btn.good{color:var(--green); border-color:rgba(75,208,123,.4);}
+.btn.good:hover{background:rgba(75,208,123,.12);}
+.btn:disabled{opacity:.4; cursor:not-allowed;}
+main{max-width:1280px; margin:0 auto; padding:22px 24px 70px; display:grid; grid-template-columns:1.1fr 1fr; gap:18px;}
+@media(max-width:880px){ main{grid-template-columns:1fr;} }
+.col-h{font-family:var(--disp); font-style:italic; font-weight:700; text-transform:uppercase; letter-spacing:.05em;
+  font-size:16px; color:var(--muted); margin:0 0 10px; display:flex; align-items:center; justify-content:space-between;}
+.col-h .cnt{font-size:12px; color:var(--dim); font-family:var(--mono); font-style:normal;}
+
+/* Pipeline strip */
+.pipe{grid-column:1/-1; display:grid; grid-template-columns:repeat(4,1fr); gap:10px; margin-bottom:4px;}
+.stage{background:var(--panel); border:1px solid var(--border); border-radius:10px; padding:13px 15px; position:relative;}
+.stage .n{font-family:var(--disp); font-style:italic; font-weight:800; font-size:13px; color:var(--cyan); text-transform:uppercase;}
+.stage .d{font-size:11.5px; color:var(--muted); margin-top:4px; line-height:1.4;}
+.stage::after{content:'→'; position:absolute; right:-9px; top:50%; transform:translateY(-50%); color:var(--dim); z-index:2;}
+.stage:last-child::after{display:none;}
+.stage.hot{border-color:var(--blue); box-shadow:0 0 0 1px rgba(74,168,255,.3);}
+
+/* Devices */
+.list{background:var(--panel); border:1px solid var(--border); border-radius:11px; overflow:hidden;}
+.dev{display:grid; grid-template-columns:14px 1fr auto; gap:12px; align-items:center; padding:11px 15px; border-top:1px solid var(--border-soft); font-size:13px;}
+.dev:first-child{border-top:none;}
+.dev .dot{width:9px; height:9px; border-radius:50%; background:var(--green); box-shadow:0 0 7px var(--green);}
+.dev.down .dot{background:var(--red); box-shadow:0 0 7px var(--red); animation:bl .9s steps(2) infinite;}
+.dev.confirming .dot{background:var(--amber); box-shadow:0 0 7px var(--amber);}
+@keyframes bl{50%{opacity:.3;}}
+.dev .meta{color:var(--dim); font-size:11px;}
+.dev .st{font-family:var(--disp); font-style:italic; text-transform:uppercase; font-size:12px; letter-spacing:.04em; color:var(--green);}
+.dev.down .st{color:var(--red);} .dev.confirming .st{color:var(--amber);}
+.dname{color:var(--text);} .dev .meta{display:block; margin-top:2px;}
+
+/* Tickets */
+.ticket{border:1px solid var(--border); border-radius:11px; padding:14px 16px; margin-bottom:11px; background:var(--panel); position:relative; animation:slidein .3s ease;}
+@keyframes slidein{from{opacity:0; transform:translateY(-8px);} to{opacity:1; transform:none;}}
+.ticket::before{content:''; position:absolute; left:0; top:0; bottom:0; width:4px; border-radius:4px 0 0 4px;}
+.ticket.alert::before{background:var(--red);}
+.ticket.recovered::before{background:var(--green);}
+.tk-top{display:flex; align-items:center; gap:10px; flex-wrap:wrap;}
+.tk-badge{font-family:var(--disp); font-style:italic; font-weight:800; text-transform:uppercase; font-size:11px; letter-spacing:.05em; padding:3px 9px; border-radius:5px;}
+.tk-badge.alert{color:var(--red); background:rgba(255,93,108,.13); border:1px solid rgba(255,93,108,.35);}
+.tk-badge.recovered{color:var(--green); background:rgba(75,208,123,.13); border:1px solid rgba(75,208,123,.35);}
+.tk-type{font-size:10.5px; color:var(--dim); text-transform:uppercase; letter-spacing:.08em; border:1px solid var(--border); padding:2px 7px; border-radius:5px;}
+.tk-title{font-weight:600; font-size:14px; margin-top:9px; color:var(--text);}
+.tk-tag{font-size:11px; color:var(--cyan); margin-top:6px; font-family:var(--mono);}
+.tk-foot{font-size:11px; color:var(--dim); margin-top:8px; line-height:1.6;}
+.tk-empty{color:var(--dim); font-size:13px; padding:24px; text-align:center; border:1px dashed var(--border); border-radius:11px;}
+
+/* Log */
+.log{grid-column:1/-1; background:#0b0e13; border:1px solid var(--border); border-radius:11px; padding:14px 16px; height:190px; overflow:auto; font-size:12px; line-height:1.7;}
+.log .ln{white-space:pre-wrap;}
+.log .t{color:var(--dim);}
+.log .ok{color:var(--green);} .log .warn{color:var(--amber);} .log .err{color:var(--red);} .log .info{color:var(--blue);} .log .acc{color:var(--cyan);}
+.note{grid-column:1/-1; color:var(--dim); font-size:12px; line-height:1.6;}
+</style>
+</head>
+<body>
+
+<div class="demobar">
+  <span class="tag">● Demo, fictional data, no live systems</span>
+  <a href="index.html">← Portfolio</a>
+</div>
+
+<header>
+  <div class="brand">
+    <span class="mk">ENG</span>
+    <div>
+      <h1>Engine</h1>
+      <div class="sub">UniFi · Uptime → Asana · auto-ticketing</div>
+    </div>
+  </div>
+  <div class="controls">
+    <span class="poll" id="pollLbl">poll #0 · idle</span>
+    <button class="btn danger" id="knockBtn" onclick="knockOut()">⚡ Knock a site offline</button>
+    <button class="btn good" id="restoreBtn" onclick="restore()" disabled>✓ Bring it back</button>
+  </div>
+</header>
+
+<main>
+
+  <div class="pipe">
+    <div class="stage" id="st1"><div class="n">1 · Poll</div><div class="d">Fetch every device &amp; monitor across all consoles, every 2 min.</div></div>
+    <div class="stage" id="st2"><div class="n">2 · Confirm</div><div class="d">Flap protection, must stay down 2 cycles before filing.</div></div>
+    <div class="stage" id="st3"><div class="n">3 · File</div><div class="d">One incident → one ticket, categorized &amp; tagged.</div></div>
+    <div class="stage" id="st4"><div class="n">4 · Recover</div><div class="d">Clears on its own → ticket auto-closed with a note.</div></div>
+  </div>
+
+  <div>
+    <div class="col-h">Live device feed <span class="cnt" id="devCnt"></span></div>
+    <div class="list" id="devList"></div>
+    <p class="note" style="margin-top:14px;">
+      Knock a whole property offline and watch the engine confirm it across poll cycles, then file a
+      <b>single</b> property-outage ticket, not one per device. Bring it back and the ticket auto-recovers.
+    </p>
+  </div>
+
+  <div>
+    <div class="col-h">Asana ticket queue <span class="cnt" id="tkCnt">0 open</span></div>
+    <div id="tickets"><div class="tk-empty">No open tickets, all systems nominal.</div></div>
+  </div>
+
+  <div class="log" id="log"></div>
+
+  <p class="note">
+    Faithful demo of the Engine service. The real pipeline runs as a scheduled function every 2 minutes, is
+    idempotent (each ticket carries a tag so it can never be duplicated), and is fail-safe (a total source outage
+    writes nothing rather than mass-closing tickets). Time is compressed here so a "cycle" is ~2 seconds.
+  </p>
+
+</main>
+
+<script>
+const DEVICES = [
+  {name:'CR · Gateway',        cls:'gateway'},
+  {name:'CR · Core Switch',    cls:'switch'},
+  {name:'CR · AP, Great Room',cls:'ap'},
+  {name:'CR · AP, Guest Wing',cls:'ap'},
+  {name:'CR · NVR / Cameras',  cls:'nvr'},
+  {name:'CR · Uptime monitor', cls:'monitor'},
+];
+let poll=0, phase='nominal', cycles=0, ticketFiled=false, timer=null;
+
+function log(msg, cls='t'){
+  const el=document.getElementById('log');
+  const ts=new Date().toLocaleTimeString('en-US',{hour12:false});
+  el.insertAdjacentHTML('afterbegin', `<div class="ln"><span class="t">[${ts}] poll#${poll} </span><span class="${cls}">${msg}</span></div>`);
+}
+function renderDevices(){
+  const down = (phase!=='nominal');
+  const confirming = (phase==='confirming');
+  document.getElementById('devCnt').textContent = down ? `${DEVICES.length} offline` : 'all online';
+  document.getElementById('devList').innerHTML = DEVICES.map(d=>{
+    const cls = down ? (confirming?'dev confirming':'dev down') : 'dev';
+    const st  = down ? (confirming?'CONFIRMING':'OFFLINE') : 'ONLINE';
+    return `<div class="${cls}"><span class="dot"></span>
+      <span><span class="dname">${d.name}</span><span class="meta">class: ${d.cls} · keyed by MAC</span></span>
+      <span class="st">${st}</span></div>`;
+  }).join('');
+}
+function renderTickets(){
+  const box=document.getElementById('tickets');
+  if(!ticketFiled && phase!=='recovered'){
+    box.innerHTML='<div class="tk-empty">No open tickets, all systems nominal.</div>';
+    document.getElementById('tkCnt').textContent='0 open'; return;
+  }
+  const recovered = (phase==='recovered');
+  document.getElementById('tkCnt').textContent = recovered ? '0 open' : '1 open';
+  box.innerHTML = `
+    <div class="ticket ${recovered?'recovered':'alert'}">
+      <div class="tk-top">
+        <span class="tk-badge ${recovered?'recovered':'alert'}">${recovered?'● Recovered':'● Alert!'}</span>
+        <span class="tk-type">Task type: ALERT</span>
+        <span class="tk-type">Property Code: CR</span>
+      </div>
+      <div class="tk-title">Cedar Ridge Estate, property network outage</div>
+      <div class="tk-tag">beacon-entity: prop:CR</div>
+      <div class="tk-foot">
+        ${recovered
+          ? 'Condition cleared for 2 clean cycles · moved to Recovered (Done) · recovery comment added · task completed.'
+          : 'Whole site dark, UniFi + uptime monitor agree, coalesced into one ticket. Filed automatically, assigned, awaiting recovery.'}
+      </div>
+    </div>`;
+}
+function setStage(active){
+  ['st1','st2','st3','st4'].forEach((id,i)=>{
+    document.getElementById(id).classList.toggle('hot', i===active);
+  });
+}
+function knockOut(){
+  if(phase!=='nominal') return;
+  phase='confirming'; cycles=0; ticketFiled=false;
+  document.getElementById('knockBtn').disabled=true;
+  document.getElementById('restoreBtn').disabled=false;
+  log('UniFi reports Cedar Ridge (CR), all 5 devices + monitor offline', 'err');
+  log('flap protection engaged, needs 2 confirmed cycles before filing', 'warn');
+  renderDevices(); renderTickets();
+  runLoop();
+}
+function restore(){
+  if(!ticketFiled){ /* still confirming */ }
+  phase='recovering'; cycles=0;
+  document.getElementById('restoreBtn').disabled=true;
+  log('CR devices responding again, starting recovery confirmation', 'ok');
+  renderDevices();
+  runLoop();
+}
+function runLoop(){
+  if(timer) return;
+  timer=setInterval(()=>{
+    poll++;
+    if(phase==='confirming'){
+      cycles++;
+      setStage(1);
+      document.getElementById('pollLbl').textContent=`poll #${poll} · confirming (${cycles}/2)`;
+      log(`CR still offline, confirm cycle ${cycles}/2`, 'warn');
+      if(cycles>=2){
+        phase='alert'; ticketFiled=true; setStage(2);
+        log('confirmed down → filing ONE property-outage ticket (prop:CR)', 'info');
+        log('task created · put on ALERT type · status = Alert! · synced to Beacon', 'acc');
+        renderTickets();
+      } else { renderDevices(); }
+    } else if(phase==='alert'){
+      setStage(2);
+      document.getElementById('pollLbl').textContent=`poll #${poll} · 1 open ticket`;
+      log('CR outage persists, ticket already open, no duplicate filed (idempotent)', 't');
+    } else if(phase==='recovering'){
+      cycles++;
+      setStage(3);
+      document.getElementById('pollLbl').textContent=`poll #${poll} · recovering (${cycles}/2)`;
+      log(`CR clean, recovery cycle ${cycles}/2`, 'ok');
+      if(cycles>=2){
+        phase='recovered';
+        log('every source clear → moving ticket to Recovered + closing', 'ok');
+        renderDevices(); renderTickets();
+        setTimeout(()=>{
+          phase='nominal'; ticketFiled=false; setStage(-1);
+          document.getElementById('pollLbl').textContent=`poll #${poll} · idle · all nominal`;
+          document.getElementById('knockBtn').disabled=false;
+          renderDevices(); renderTickets();
+          clearInterval(timer); timer=null;
+          log('back to nominal, watching.', 'acc');
+        }, 1800);
+        clearInterval(timer); timer=null;
+      }
+    }
+  }, 2000);
+}
+renderDevices(); renderTickets();
+log('engine started · polling UniFi + UptimeRobot every 2 min · 6 entities watched', 'acc');
+</script>
+</body>
+</html>

@@ -1,0 +1,2324 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>// RECON</title>
+  <meta name="description" content="Recon — property technology field checks for the Estate. Network, Sonos, Apple TV and more, logged to Asana."/>
+  <meta name="theme-color" content="#07080f"/>
+
+  <!-- Favicon + iPhone home screen icon -->
+  <link rel="icon" type="image/png" sizes="32x32" href="/favicon-32.png"/>
+  <link rel="apple-touch-icon" sizes="180x180" href="/icon-180.png"/>
+  <link rel="manifest" href="/manifest.webmanifest"/>
+
+  <!-- iOS standalone web app -->
+  <meta name="apple-mobile-web-app-capable" content="yes"/>
+  <meta name="apple-mobile-web-app-title" content="Recon"/>
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent"/>
+  <meta name="mobile-web-app-capable" content="yes"/>
+
+  <!-- Link preview (Open Graph / iMessage / Slack) -->
+  <meta property="og:type" content="website"/>
+  <meta property="og:site_name" content="Recon"/>
+  <meta property="og:title" content="// RECON — LH Systems Audit"/>
+  <meta property="og:description" content="Property technology field checks for the Estate."/>
+  <meta property="og:url" content="https://#/"/>
+  <meta property="og:image" content="https://#/og-image.png"/>
+  <meta property="og:image:width" content="1200"/>
+  <meta property="og:image:height" content="630"/>
+  <meta name="twitter:card" content="summary_large_image"/>
+  <meta name="twitter:title" content="// RECON — LH Systems Audit"/>
+  <meta name="twitter:description" content="Property technology field checks for the Estate."/>
+  <meta name="twitter:image" content="https://#/og-image.png"/>
+
+  <!-- Invite/recovery handling, step 1 of 2 (step 2 is in the init handler below).
+       When an invite_token (or recovery_token) is in the URL hash as the widget
+       initializes, Netlify Identity auto-opens — and in this gated setup that auto-open
+       races its own iframe mount and SPLITS into two broken iframes (one empty+visible
+       at full size, one collapsed to 0px), covering the page so nothing is clickable.
+       Verified via headless Chrome against prod. Fix: strip and stash the token BEFORE
+       the widget script runs so init stays clean and never auto-opens; the gate's
+       SET PASSWORD button restores the hash and re-inits post-mount, which renders a
+       single clean "Complete your signup" form. -->
+  <script>
+    (function () {
+      try {
+        if (location.hash && /(?:invite_token|recovery_token)=/.test(location.hash)) {
+          window.__reconInviteHash = location.hash;
+          history.replaceState(null, '', location.pathname + location.search);
+        }
+      } catch (e) {}
+    })();
+  </script>
+  <!-- identity widget removed for offline demo -->
+  <style>
+    /* Auth gate — shown while checking login state */
+    #authGate {
+      position: fixed; inset: 0; z-index: 9000;
+      background: var(--bg, #07080f);
+      display: flex; align-items: center; justify-content: center;
+      flex-direction: column; gap: 16px;
+      pointer-events: all;
+      touch-action: none;
+    }
+    #authGate.hidden {
+      display: none;
+      pointer-events: none;
+      touch-action: auto;
+    }
+    #authGate p {
+      font-family: 'JetBrains Mono', monospace;
+      color: #4a5280; font-size: 13px; letter-spacing: 1px;
+    }
+    #authGate p::before { content: '> '; color: #00e5ff; }
+    /* The Netlify Identity widget injects its login modal in an iframe at z-index 99.
+       The auth gate above sits at 9000, so without this the modal renders hidden
+       behind the gate. Lift the widget above everything so the modal is visible. */
+    #netlify-identity-widget { z-index: 10000 !important; }
+  </style>
+  <style>
+    @import url('https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;600;700&family=Orbitron:wght@700;900&display=swap');
+
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+
+    :root {
+      --bg:        #07080f;
+      --bg2:       #0d0f1e;
+      --bg3:       #111428;
+      --border:    #1e2240;
+      --cyan:      #00e5ff;
+      --cyan-dim:  rgba(0,229,255,0.12);
+      --cyan-glow: rgba(0,229,255,0.35);
+      --green:     #00ff87;
+      --green-dim: rgba(0,255,135,0.1);
+      --red:       #ff2d6b;
+      --red-dim:   rgba(255,45,107,0.12);
+      --yellow:    #ffe600;
+      --magenta:   #f000ff;
+      --text:      #e2e8ff;
+      --text-dim:  #5a6290;
+      --text-mid:  #9ba5d0;
+      --mono: 'JetBrains Mono', 'Fira Code', 'Courier New', monospace;
+      --display: 'Orbitron', 'Share Tech Mono', monospace;
+    }
+
+    html { background: var(--bg); }
+
+    body {
+      font-family: var(--mono);
+      background: var(--bg);
+      color: var(--text);
+      min-height: 100vh;
+      padding-bottom: 130px;
+      position: relative;
+      overflow-x: hidden;
+    }
+
+    /* Scanlines overlay */
+    body::before {
+      content: '';
+      position: fixed;
+      inset: 0;
+      background: repeating-linear-gradient(
+        0deg,
+        transparent,
+        transparent 2px,
+        rgba(0,0,0,0.18) 2px,
+        rgba(0,0,0,0.18) 4px
+      );
+      pointer-events: none;
+      z-index: 9999;
+    }
+
+    /* Grid background */
+    body::after {
+      content: '';
+      position: fixed;
+      inset: 0;
+      background-image:
+        linear-gradient(rgba(0,229,255,0.03) 1px, transparent 1px),
+        linear-gradient(90deg, rgba(0,229,255,0.03) 1px, transparent 1px);
+      background-size: 40px 40px;
+      pointer-events: none;
+      z-index: 0;
+    }
+
+    /* ─── GLITCH ANIMATION ─────────────────────── */
+    @keyframes glitch {
+      0%   { clip-path: inset(40% 0 61% 0); transform: translate(-2px, 0); }
+      20%  { clip-path: inset(92% 0 1% 0);  transform: translate(2px, 0); }
+      40%  { clip-path: inset(43% 0 55% 0); transform: translate(-1px, 0); }
+      60%  { clip-path: inset(25% 0 58% 0); transform: translate(1px, 0); }
+      80%  { clip-path: inset(54% 0 7% 0);  transform: translate(-2px, 0); }
+      100% { clip-path: inset(58% 0 43% 0); transform: translate(2px, 0); }
+    }
+    @keyframes glitch2 {
+      0%   { clip-path: inset(24% 0 29% 0); transform: translate(2px, 0); }
+      20%  { clip-path: inset(54% 0 21% 0); transform: translate(-2px, 0); }
+      40%  { clip-path: inset(9% 0 38% 0);  transform: translate(1px, 0); }
+      60%  { clip-path: inset(65% 0 1% 0);  transform: translate(-1px, 0); }
+      80%  { clip-path: inset(14% 0 73% 0); transform: translate(2px, 0); }
+      100% { clip-path: inset(31% 0 44% 0); transform: translate(-2px, 0); }
+    }
+    @keyframes flicker {
+      0%, 95%, 100% { opacity: 1; }
+      96% { opacity: 0.4; }
+      97% { opacity: 1; }
+      98% { opacity: 0.2; }
+      99% { opacity: 1; }
+    }
+    @keyframes blink {
+      0%, 100% { opacity: 1; } 50% { opacity: 0; }
+    }
+    @keyframes pulse-border {
+      0%, 100% { box-shadow: 0 0 8px var(--cyan-glow), inset 0 0 8px rgba(0,229,255,0.05); }
+      50% { box-shadow: 0 0 18px var(--cyan-glow), inset 0 0 12px rgba(0,229,255,0.08); }
+    }
+    @keyframes scan {
+      0% { top: -10%; } 100% { top: 110%; }
+    }
+    @keyframes neon-flicker {
+      0%, 19%, 21%, 23%, 25%, 54%, 56%, 100% { text-shadow: 0 0 8px var(--cyan), 0 0 20px var(--cyan), 0 0 40px var(--cyan); }
+      20%, 24%, 55% { text-shadow: none; }
+    }
+
+    /* ─── THEME TOGGLE (pixel moon / sun) ──────────
+       Icon button in the header. The SVGs are pixel art: 1×1 rects on a
+       small viewBox, kept crisp via shape-rendering. fill: currentColor so
+       the icon inherits the button colour in either theme. */
+    .icon-toggle {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      width: 26px; height: 24px;
+      padding: 0;
+      background: transparent;
+      border: 1px solid var(--text-dim);
+      color: var(--cyan);
+      cursor: pointer;
+      transition: color 0.15s, border-color 0.15s, box-shadow 0.15s;
+    }
+    .icon-toggle:hover { border-color: var(--cyan); box-shadow: 0 0 8px var(--cyan-dim); }
+    .icon-toggle svg { display: block; }
+    .icon-toggle svg rect { width: 1px; height: 1px; }
+    body.light .icon-toggle { border-radius: 8px; color: var(--cyan); border-color: var(--border); }
+    body.light .icon-toggle:hover { border-color: var(--cyan); box-shadow: 0 0 0 3px var(--cyan-dim); }
+
+    /* ─── LIGHT MODE ───────────────────────────────
+       A completely separate light theme: clean, high-end web-app styling
+       with none of the glitch/hacker treatment. It re-points the palette
+       tokens to a light scheme and overrides every decorative flourish
+       (scanlines, grid, neon glows, terminal prefixes, monospace, sharp
+       corners, glitch animations). Toggled via #lightBtn (saved to
+       localStorage); auto-on for prefers-reduced-motion. */
+    body.light {
+      --bg:        #f6f7fb;   /* app canvas */
+      --bg2:       #ffffff;   /* cards / surfaces */
+      --bg3:       #eef1f7;   /* subtle fills */
+      --border:    #e4e7ef;
+      --cyan:      #4f46e5;   /* primary accent (indigo) */
+      --cyan-dim:  rgba(79,70,229,0.08);
+      --cyan-glow: rgba(79,70,229,0.18);
+      --green:     #16a34a;
+      --green-dim: rgba(22,163,74,0.10);
+      --red:       #e11d48;
+      --red-dim:   rgba(225,29,72,0.08);
+      --yellow:    #d97706;
+      --magenta:   #7c3aed;
+      --text:      #181c2a;
+      --text-dim:  #6b7280;
+      --text-mid:  #4b5563;
+      --mono:    -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+      --display: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+      color: var(--text);
+    }
+    /* Kill the cyberpunk ambience */
+    body.light::before { display: none; }                                   /* scanlines */
+    body.light::after  { display: none; }                                   /* grid */
+    body.light *, body.light *::before, body.light *::after { animation: none !important; }
+
+    /* Header */
+    body.light .header {
+      background: rgba(255,255,255,0.85);
+      border-bottom: 1px solid var(--border);
+      box-shadow: 0 1px 2px rgba(16,24,40,0.04);
+    }
+    body.light .header-scan { display: none; }
+    body.light .header h1 {
+      color: var(--text);
+      text-shadow: none;
+      font-family: var(--display);
+      font-size: 19px;
+      letter-spacing: -0.3px;
+      text-transform: none;
+    }
+    body.light .header h1::before, body.light .header h1::after { display: none; }
+    body.light .property-badge {
+      color: var(--cyan);
+      background: var(--cyan-dim);
+      border: 1px solid transparent;
+      box-shadow: none;
+      border-radius: 999px;
+      font-family: var(--display);
+      font-weight: 600;
+      letter-spacing: 0.2px;
+      text-transform: none;
+    }
+    body.light .header-meta { letter-spacing: 0.3px; }
+    body.light #userLabel { color: var(--cyan) !important; }
+    body.light #lightBtn, body.light .header-top + div button {
+      border-radius: 8px;
+    }
+
+    /* Progress */
+    body.light .progress-bar-wrap { background: var(--border); border-radius: 999px; }
+    body.light .progress-bar { background: var(--cyan); box-shadow: none; border-radius: 999px; }
+    body.light .progress-bar::after { display: none; }
+
+    /* Cards */
+    body.light .setup-card {
+      background: var(--bg2);
+      border: 1px solid var(--border);
+      border-left: 1px solid var(--border);
+      border-radius: 14px;
+      box-shadow: 0 1px 2px rgba(16,24,40,0.04), 0 1px 3px rgba(16,24,40,0.05);
+    }
+    body.light .setup-card::before { display: none; }
+    body.light .section-label { color: var(--text-dim); letter-spacing: 0.4px; }
+
+    /* Fields */
+    body.light .field label { color: var(--text-dim); text-transform: none; letter-spacing: 0.2px; font-size: 12px; font-weight: 500; }
+    body.light .field label::before { content: none; }
+    body.light .field select, body.light .field input {
+      background: var(--bg2);
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      color: var(--text);
+    }
+    body.light .field select:focus, body.light .field input:focus {
+      border-color: var(--cyan);
+      box-shadow: 0 0 0 3px var(--cyan-dim);
+    }
+    body.light .field select option { background: var(--bg2); }
+
+    /* Category cards */
+    body.light .category {
+      background: var(--bg2);
+      border: 1px solid var(--border);
+      border-left: 1px solid var(--border);
+      border-radius: 14px;
+      box-shadow: 0 1px 2px rgba(16,24,40,0.05);
+    }
+    body.light .category.status-pass   { border-left: 3px solid var(--green); box-shadow: 0 1px 2px rgba(16,24,40,0.05); }
+    body.light .category.status-issues { border-left: 3px solid var(--red);   box-shadow: 0 1px 2px rgba(16,24,40,0.05); }
+    body.light .category.status-na     { border-left: 3px solid var(--border); }
+    body.light .category-title { text-transform: none; letter-spacing: -0.1px; font-weight: 600; font-family: var(--display); }
+
+    /* Status pills */
+    body.light .status-pill { border-radius: 999px; box-shadow: none; text-transform: none; letter-spacing: 0.2px; font-weight: 600; }
+    body.light .pill-pass   { background: var(--green-dim); border-color: transparent; box-shadow: none; }
+    body.light .pill-issues { background: var(--red-dim); border-color: transparent; box-shadow: none; }
+    body.light .pill-pending, body.light .pill-na { background: var(--bg3); border-color: transparent; color: var(--text-dim); }
+
+    /* Status buttons */
+    body.light .status-btn {
+      background: var(--bg2);
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      text-transform: none;
+      letter-spacing: 0.2px;
+      color: var(--text-mid);
+      font-weight: 600;
+    }
+    body.light .status-btn.pass.active   { background: var(--green-dim); border-color: var(--green); color: var(--green); box-shadow: none; }
+    body.light .status-btn.issues.active { background: var(--red-dim); border-color: var(--red); color: var(--red); box-shadow: none; }
+    body.light .status-btn.na.active     { background: var(--bg3); border-color: var(--text-mid); color: var(--text-mid); }
+
+    /* Checklist */
+    body.light .check-item span::before { content: none; }
+    body.light .check-item input[type=checkbox] { accent-color: var(--cyan); border-radius: 4px; }
+
+    /* Notes */
+    body.light .notes-label { text-transform: none; letter-spacing: 0.2px; color: var(--text-dim); font-weight: 500; }
+    body.light .notes-label::before { content: none; }
+    body.light .issues-note::before { content: none; }
+    body.light .notes-field {
+      background: var(--bg2);
+      border: 1px solid var(--border);
+      border-radius: 10px;
+    }
+    body.light .notes-field:focus { border-color: var(--cyan); box-shadow: 0 0 0 3px var(--cyan-dim); }
+    body.light .notes-field.has-content { border-color: var(--yellow); box-shadow: none; }
+
+    /* Footer */
+    body.light .summary-bar {
+      background: rgba(255,255,255,0.92);
+      border-top: 1px solid var(--border);
+      box-shadow: 0 -1px 3px rgba(16,24,40,0.05);
+    }
+    body.light .count-chip { border-radius: 999px; text-transform: none; letter-spacing: 0.2px; font-weight: 600; }
+    body.light .count-pass    { background: var(--green-dim); border-color: transparent; }
+    body.light .count-issues  { background: var(--red-dim); border-color: transparent; }
+    body.light .count-pending { background: var(--bg3); border-color: transparent; }
+
+    /* Submit button */
+    body.light .submit-btn {
+      background: var(--cyan);
+      color: #fff;
+      border: 1px solid var(--cyan);
+      border-radius: 10px;
+      font-family: var(--display);
+      letter-spacing: 0.3px;
+      text-transform: none;
+      font-weight: 600;
+      box-shadow: 0 1px 2px rgba(16,24,40,0.10);
+    }
+    body.light .submit-btn::before { display: none; }
+    body.light .submit-btn:hover { background: #4338ca; box-shadow: 0 4px 12px rgba(79,70,229,0.30); }
+    body.light .submit-btn:disabled { background: var(--bg3); color: var(--text-dim); border-color: var(--border); box-shadow: none; }
+    body.light .submit-btn.loading { background: var(--yellow); border-color: var(--yellow); color: #fff; box-shadow: none; }
+    body.light .submit-btn.success { background: var(--green); border-color: var(--green); color: #fff; box-shadow: none; }
+
+    /* Toast */
+    body.light .toast {
+      background: var(--text);
+      color: #fff;
+      border: none;
+      border-radius: 10px;
+      box-shadow: 0 6px 20px rgba(16,24,40,0.20);
+    }
+    body.light .toast::before { content: none; }
+    body.light .toast.error { background: var(--red); color: #fff; border: none; box-shadow: 0 6px 20px rgba(225,29,72,0.28); }
+
+    /* Success screen */
+    body.light .success-icon { filter: none; color: var(--green); }
+    body.light .success-screen h2 { color: var(--text); text-shadow: none; font-family: var(--display); text-transform: none; letter-spacing: -0.2px; }
+    body.light .success-screen p::before { content: none; }
+    body.light .issue-list {
+      background: var(--bg2);
+      border: 1px solid var(--border);
+      border-left: 3px solid var(--red);
+      border-radius: 12px;
+      box-shadow: 0 1px 3px rgba(16,24,40,0.06);
+    }
+    body.light .issue-list h3 { color: var(--red); text-transform: none; letter-spacing: 0.2px; }
+    body.light .issue-list h3::before { content: none; }
+    body.light .issue-list li { padding-left: 0; }
+    body.light .issue-list li::before { content: none; }
+    body.light .new-check-btn {
+      background: var(--cyan);
+      color: #fff;
+      border-color: var(--cyan);
+      border-radius: 10px;
+      box-shadow: none;
+      font-family: var(--display);
+      text-transform: none;
+      letter-spacing: 0.3px;
+      font-weight: 600;
+    }
+    body.light .new-check-btn:hover { background: #4338ca; box-shadow: 0 4px 12px rgba(79,70,229,0.30); }
+
+    /* Auth gate (pre-app screen) */
+    body.light #authGate { background: var(--bg); }
+    body.light #authGate p { font-family: var(--display); color: var(--text-mid); }
+    body.light #authGate p::before { content: none; }
+    body.light #authLoginBtn {
+      background: var(--cyan) !important;
+      color: #fff !important;
+      border-color: var(--cyan) !important;
+      border-radius: 10px !important;
+      box-shadow: none !important;
+      font-family: var(--display) !important;
+      text-transform: none !important;
+      letter-spacing: 0.3px !important;
+      font-weight: 600 !important;
+    }
+
+    /* Edge-state banners (inline-styled dark backgrounds → light) */
+    body.light #demoBanner  { background: #fff5f5 !important; border-bottom-color: var(--red) !important; box-shadow: 0 2px 8px rgba(16,24,40,0.06) !important; }
+    body.light #draftBanner { background: #fffbeb !important; box-shadow: 0 2px 8px rgba(16,24,40,0.06) !important; }
+    body.light #errorPanel  { background: #fff5f6 !important; box-shadow: 0 4px 16px rgba(225,29,72,0.15) !important; }
+
+    /* ─── HEADER ───────────────────────────────── */
+    .header {
+      position: sticky;
+      top: 0;
+      z-index: 100;
+      background: rgba(7,8,15,0.95);
+      border-bottom: 1px solid var(--cyan);
+      box-shadow: 0 0 24px rgba(0,229,255,0.2);
+      padding: 14px 16px 12px;
+      backdrop-filter: blur(8px);
+      overflow: hidden;
+    }
+    .header-scan {
+      position: absolute;
+      left: 0; right: 0;
+      height: 2px;
+      background: linear-gradient(90deg, transparent, var(--cyan), transparent);
+      animation: scan 3s linear infinite;
+      opacity: 0.6;
+    }
+    .header-top {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      margin-bottom: 6px;
+    }
+    .glitch-wrap {
+      position: relative;
+      display: inline-block;
+    }
+    .header h1 {
+      font-family: var(--display);
+      font-size: 18px;
+      font-weight: 900;
+      color: var(--cyan);
+      letter-spacing: 3px;
+      text-transform: uppercase;
+      animation: neon-flicker 8s infinite;
+      position: relative;
+    }
+    .header h1::before,
+    .header h1::after {
+      content: attr(data-text);
+      position: absolute;
+      top: 0; left: 0;
+      color: var(--cyan);
+      font-family: var(--display);
+      font-size: 18px;
+      font-weight: 900;
+      letter-spacing: 3px;
+    }
+    .header h1::before {
+      color: var(--red);
+      animation: glitch 4s infinite linear alternate-reverse;
+    }
+    .header h1::after {
+      color: var(--magenta);
+      animation: glitch2 3s infinite linear alternate-reverse;
+    }
+    .property-badge {
+      font-family: var(--display);
+      font-size: 12px;
+      font-weight: 700;
+      letter-spacing: 2px;
+      color: var(--cyan);
+      border: 1px solid var(--cyan);
+      padding: 4px 12px;
+      border-radius: 2px;
+      text-transform: uppercase;
+      box-shadow: 0 0 10px var(--cyan-glow), inset 0 0 6px rgba(0,229,255,0.08);
+      animation: flicker 6s infinite;
+    }
+    /* Environment badge — shown only off production (JS sets text + reveals it). */
+    .env-badge {
+      font-family: var(--display);
+      font-size: 10px;
+      font-weight: 700;
+      letter-spacing: 2px;
+      text-transform: uppercase;
+      color: #000;
+      background: var(--yellow);
+      padding: 3px 9px;
+      border-radius: 2px;
+      box-shadow: 0 0 12px rgba(255,230,0,0.55);
+      animation: flicker 5s infinite;
+    }
+    body.light .env-badge {
+      color: #fff;
+      background: var(--yellow);
+      border-radius: 999px;
+      letter-spacing: 1px;
+      box-shadow: none;
+      animation: none;
+    }
+
+    /* Clickable version label (opens release notes) */
+    .version-link { cursor: pointer; border-bottom: 1px dashed currentColor; padding-bottom: 1px; }
+    .version-link:hover { opacity: 0.7; }
+
+    /* ─── RELEASE NOTES MODAL ──────────────────── */
+    .modal-overlay {
+      position: fixed; inset: 0; z-index: 400;
+      display: flex; align-items: center; justify-content: center;
+      padding: 20px;
+      background: rgba(3,4,10,0.80);
+      backdrop-filter: blur(3px);
+    }
+    .modal-card {
+      width: 100%; max-width: 440px; max-height: 80vh;
+      display: flex; flex-direction: column;
+      background: var(--bg2);
+      border: 1px solid var(--cyan);
+      box-shadow: 0 0 40px var(--cyan-glow);
+    }
+    .modal-head {
+      display: flex; align-items: center; justify-content: space-between;
+      padding: 14px 16px; border-bottom: 1px solid var(--border);
+      flex-shrink: 0;
+    }
+    .modal-title {
+      font-family: var(--display); font-size: 14px; font-weight: 700;
+      letter-spacing: 3px; text-transform: uppercase; color: var(--cyan);
+    }
+    .modal-close {
+      background: transparent; border: 1px solid var(--border); color: var(--text-dim);
+      font-size: 13px; line-height: 1; cursor: pointer; padding: 4px 9px;
+    }
+    .modal-close:hover { border-color: var(--cyan); color: var(--cyan); }
+    .modal-body { overflow-y: auto; padding: 4px 16px 12px; }
+
+    .rel { padding: 14px 0; border-bottom: 1px solid var(--border); }
+    .rel:last-child { border-bottom: none; }
+    .rel-head { display: flex; align-items: center; gap: 9px; margin-bottom: 9px; flex-wrap: wrap; }
+    .rel-v {
+      font-family: var(--mono); font-size: 11px; font-weight: 700; letter-spacing: 1px;
+      color: var(--cyan); border: 1px solid var(--cyan); padding: 2px 8px;
+    }
+    .rel-now {
+      font-family: var(--mono); font-size: 9px; font-weight: 700; letter-spacing: 1.5px;
+      color: var(--green); border: 1px solid var(--green); padding: 2px 6px; text-transform: uppercase;
+    }
+    .rel-title { font-family: var(--mono); font-size: 13px; font-weight: 700; color: var(--text); letter-spacing: 0.5px; }
+    .rel-items { list-style: none; margin: 0; padding: 0; }
+    .rel-items li {
+      font-family: var(--mono); font-size: 13px; color: var(--text-mid); line-height: 1.55;
+      padding-left: 16px; position: relative; margin-bottom: 5px;
+    }
+    .rel-items li:last-child { margin-bottom: 0; }
+    .rel-items li::before { content: '▹'; position: absolute; left: 0; color: var(--cyan); }
+
+    body.light .modal-overlay { background: rgba(16,24,40,0.40); }
+    body.light .modal-card { border: 1px solid var(--border); border-radius: 16px; box-shadow: 0 24px 70px rgba(16,24,40,0.28); }
+    body.light .modal-title { color: var(--text); text-transform: none; letter-spacing: -0.2px; font-size: 16px; }
+    body.light .modal-close { border-radius: 8px; }
+    body.light .rel-v { color: #fff; background: var(--cyan); border-color: var(--cyan); border-radius: 999px; }
+    body.light .rel-now { border-radius: 999px; }
+    body.light .rel-items li::before { content: '–'; }
+    body.light .rel-title { letter-spacing: 0; }
+
+    .header-meta {
+      font-size: 10px;
+      color: var(--text-dim);
+      letter-spacing: 1px;
+      text-transform: uppercase;
+    }
+    .header-meta span {
+      color: var(--green);
+      animation: blink 1.2s step-end infinite;
+    }
+
+    /* Progress */
+    .progress-bar-wrap {
+      height: 3px;
+      background: var(--border);
+      margin-top: 10px;
+      position: relative;
+      overflow: visible;
+    }
+    .progress-bar {
+      height: 100%;
+      background: linear-gradient(90deg, var(--cyan), var(--magenta));
+      box-shadow: 0 0 10px var(--cyan);
+      transition: width 0.4s ease;
+      width: 0%;
+      position: relative;
+    }
+    .progress-bar::after {
+      content: '';
+      position: absolute;
+      right: -1px; top: -3px;
+      width: 3px; height: 9px;
+      background: white;
+      box-shadow: 0 0 8px white;
+    }
+
+    /* ─── SETUP CARD ───────────────────────────── */
+    .setup-card {
+      background: var(--bg2);
+      margin: 14px 14px 0;
+      border: 1px solid var(--border);
+      border-left: 2px solid var(--cyan);
+      padding: 14px 16px;
+      position: relative;
+      z-index: 1;
+    }
+    .setup-card::before {
+      content: '';
+      position: absolute;
+      top: 0; left: 0; right: 0;
+      height: 1px;
+      background: linear-gradient(90deg, var(--cyan), transparent);
+    }
+    .section-label {
+      font-size: 10px;
+      letter-spacing: 2px;
+      text-transform: uppercase;
+      color: var(--cyan);
+      margin-bottom: 12px;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+    .section-label::after {
+      content: '';
+      flex: 1;
+      height: 1px;
+      background: linear-gradient(90deg, var(--border), transparent);
+    }
+    .field-row {
+      display: flex;
+      gap: 10px;
+      margin-bottom: 10px;
+    }
+    .field-row:last-child { margin-bottom: 0; }
+    .field { flex: 1; }
+    .field label {
+      display: block;
+      font-size: 10px;
+      letter-spacing: 1.5px;
+      text-transform: uppercase;
+      color: var(--text-dim);
+      margin-bottom: 5px;
+    }
+    .field label::before { content: '> '; color: var(--cyan); }
+    .field select, .field input {
+      width: 100%;
+      padding: 9px 12px;
+      background: var(--bg);
+      border: 1px solid var(--border);
+      border-radius: 0;
+      font-size: 16px;
+      font-family: var(--mono);
+      color: var(--text);
+      appearance: none;
+      -webkit-appearance: none;
+      outline: none;
+      transition: border-color 0.2s, box-shadow 0.2s;
+    }
+    .field select:focus, .field input:focus {
+      border-color: var(--cyan);
+      box-shadow: 0 0 10px var(--cyan-dim);
+    }
+    .field select option { background: var(--bg2); }
+
+    /* ─── CATEGORY CARDS ───────────────────────── */
+    .category {
+      background: var(--bg2);
+      margin: 10px 14px 0;
+      border: 1px solid var(--border);
+      border-left: 2px solid var(--text-dim);
+      position: relative;
+      z-index: 1;
+      transition: border-color 0.2s, box-shadow 0.2s;
+    }
+    .category.status-pass {
+      border-left-color: var(--green);
+      box-shadow: -4px 0 20px rgba(0,255,135,0.15);
+    }
+    .category.status-issues {
+      border-left-color: var(--red);
+      box-shadow: -4px 0 20px rgba(255,45,107,0.2);
+      animation: pulse-border-red 2s ease-in-out infinite;
+    }
+    @keyframes pulse-border-red {
+      0%, 100% { box-shadow: -4px 0 20px rgba(255,45,107,0.2); }
+      50% { box-shadow: -4px 0 30px rgba(255,45,107,0.4); }
+    }
+    .category.status-na {
+      border-left-color: var(--text-dim);
+      opacity: 0.5;
+    }
+
+    .category-header {
+      display: flex;
+      align-items: center;
+      padding: 14px 16px;
+      gap: 10px;
+      cursor: pointer;
+      user-select: none;
+    }
+    .category-emoji { font-size: 20px; }
+    .category-title {
+      flex: 1;
+      font-family: var(--mono);
+      font-size: 15px;
+      font-weight: 700;
+      letter-spacing: 1px;
+      text-transform: uppercase;
+      color: var(--text);
+    }
+    .category-chevron {
+      font-size: 10px;
+      color: var(--text-dim);
+      transition: transform 0.2s;
+      font-family: var(--mono);
+    }
+    .category.open .category-chevron { transform: rotate(180deg); }
+
+    /* Status pills */
+    .status-pill {
+      font-size: 10px;
+      font-weight: 700;
+      padding: 3px 10px;
+      letter-spacing: 1.5px;
+      text-transform: uppercase;
+      border: 1px solid;
+      border-radius: 0;
+      font-family: var(--mono);
+    }
+    .pill-pending { border-color: var(--text-dim); color: var(--text-dim); }
+    .pill-pass { border-color: var(--green); color: var(--green); box-shadow: 0 0 8px rgba(0,255,135,0.3); }
+    .pill-issues { border-color: var(--red); color: var(--red); box-shadow: 0 0 8px rgba(255,45,107,0.3); }
+    .pill-na { border-color: var(--text-dim); color: var(--text-dim); }
+
+    /* Category body */
+    .category-body {
+      display: none;
+      padding: 0 16px 16px;
+      border-top: 1px solid var(--border);
+    }
+    .category.open .category-body { display: block; }
+
+    /* Status buttons */
+    .status-selector {
+      display: flex;
+      gap: 8px;
+      margin: 14px 0 14px;
+    }
+    .status-btn {
+      flex: 1;
+      padding: 14px 4px;
+      min-height: 48px;
+      background: var(--bg);
+      border: 1px solid var(--border);
+      font-family: var(--mono);
+      font-size: 12px;
+      font-weight: 700;
+      letter-spacing: 1px;
+      text-transform: uppercase;
+      cursor: pointer;
+      text-align: center;
+      transition: all 0.15s;
+      color: var(--text-dim);
+      border-radius: 0;
+    }
+    .status-btn:active { transform: scale(0.97); }
+    .status-btn.pass.active {
+      background: var(--green-dim);
+      border-color: var(--green);
+      color: var(--green);
+      box-shadow: 0 0 14px rgba(0,255,135,0.2);
+    }
+    .status-btn.issues.active {
+      background: var(--red-dim);
+      border-color: var(--red);
+      color: var(--red);
+      box-shadow: 0 0 14px rgba(255,45,107,0.2);
+    }
+    .status-btn.na.active {
+      border-color: var(--text-mid);
+      color: var(--text-mid);
+    }
+
+    /* Checklist */
+    .checklist { margin-bottom: 14px; }
+    .check-item {
+      display: flex;
+      align-items: flex-start;
+      gap: 10px;
+      padding: 8px 0;
+      border-bottom: 1px solid var(--border);
+      cursor: pointer;
+    }
+    .check-item:last-child { border-bottom: none; }
+    .check-item input[type=checkbox] {
+      width: 18px;
+      height: 18px;
+      accent-color: var(--cyan);
+      cursor: pointer;
+      flex-shrink: 0;
+      margin-top: 2px;
+    }
+    .check-item span {
+      font-size: 15px;
+      color: var(--text);
+      line-height: 1.6;
+      font-family: var(--mono);
+    }
+    .check-item span::before { content: '// '; color: var(--text-dim); }
+    .check-item.checked span { color: var(--text-dim); text-decoration: line-through; }
+
+    /* Notes */
+    .notes-label {
+      font-size: 10px;
+      letter-spacing: 1.5px;
+      text-transform: uppercase;
+      color: var(--text-dim);
+      margin-bottom: 6px;
+      display: block;
+    }
+    .notes-label::before { content: '> '; color: var(--cyan); }
+    .issues-note {
+      font-size: 11px;
+      color: var(--red);
+      letter-spacing: 0.5px;
+      margin-bottom: 6px;
+    }
+    .issues-note::before { content: '! '; }
+    .notes-field {
+      width: 100%;
+      padding: 10px 12px;
+      background: var(--bg);
+      border: 1px solid var(--border);
+      font-family: var(--mono);
+      font-size: 15px;
+      color: var(--text);
+      resize: none;
+      min-height: 70px;
+      outline: none;
+      transition: border-color 0.2s, box-shadow 0.2s;
+      border-radius: 0;
+    }
+    .notes-field:focus {
+      border-color: var(--cyan);
+      box-shadow: 0 0 12px var(--cyan-dim);
+    }
+    .notes-field.has-content {
+      border-color: var(--yellow);
+      box-shadow: 0 0 10px rgba(255,230,0,0.1);
+    }
+
+    /* ─── FOOTER ───────────────────────────────── */
+    .summary-bar {
+      position: fixed;
+      bottom: 0; left: 0; right: 0;
+      background: rgba(7,8,15,0.97);
+      border-top: 1px solid var(--cyan);
+      box-shadow: 0 -4px 30px rgba(0,229,255,0.15);
+      padding: 10px 14px 14px;
+      z-index: 100;
+      backdrop-filter: blur(8px);
+    }
+    .summary-counts {
+      display: flex;
+      gap: 10px;
+      margin-bottom: 10px;
+    }
+    .count-chip {
+      font-size: 10px;
+      font-weight: 700;
+      letter-spacing: 1.5px;
+      text-transform: uppercase;
+      padding: 3px 10px;
+      border: 1px solid;
+      font-family: var(--mono);
+    }
+    .count-pass { border-color: var(--green); color: var(--green); }
+    .count-issues { border-color: var(--red); color: var(--red); }
+    .count-pending { border-color: var(--text-dim); color: var(--text-dim); }
+
+    .submit-btn {
+      width: 100%;
+      padding: 14px;
+      background: transparent;
+      color: var(--cyan);
+      border: 1px solid var(--cyan);
+      font-family: var(--display);
+      font-size: 14px;
+      font-weight: 700;
+      letter-spacing: 3px;
+      text-transform: uppercase;
+      cursor: pointer;
+      transition: all 0.2s;
+      box-shadow: 0 0 20px var(--cyan-dim), inset 0 0 20px var(--cyan-dim);
+      position: relative;
+      overflow: hidden;
+    }
+    .submit-btn::before {
+      content: '';
+      position: absolute;
+      top: -50%; left: -75%;
+      width: 50%; height: 200%;
+      background: rgba(0,229,255,0.1);
+      transform: skewX(-20deg);
+      transition: left 0.4s;
+    }
+    .submit-btn:hover::before { left: 125%; }
+    .submit-btn:hover {
+      background: var(--cyan-dim);
+      box-shadow: 0 0 30px var(--cyan-glow), inset 0 0 20px var(--cyan-dim);
+    }
+    .submit-btn:active { transform: scale(0.99); }
+    .submit-btn:disabled {
+      border-color: var(--border);
+      color: var(--text-dim);
+      box-shadow: none;
+      cursor: not-allowed;
+    }
+    .submit-btn:disabled::before { display: none; }
+    .submit-btn.loading {
+      border-color: var(--yellow);
+      color: var(--yellow);
+      box-shadow: 0 0 20px rgba(255,230,0,0.2);
+    }
+    .submit-btn.success {
+      border-color: var(--green);
+      color: var(--green);
+      box-shadow: 0 0 30px rgba(0,255,135,0.3);
+    }
+
+    /* ─── TOAST ────────────────────────────────── */
+    .toast {
+      position: fixed;
+      top: 80px; left: 50%;
+      transform: translateX(-50%) translateY(-20px);
+      background: var(--bg2);
+      border: 1px solid var(--cyan);
+      color: var(--cyan);
+      padding: 10px 20px;
+      font-family: var(--mono);
+      font-size: 13px;
+      letter-spacing: 1px;
+      opacity: 0;
+      transition: all 0.3s;
+      pointer-events: none;
+      white-space: nowrap;
+      z-index: 200;
+      box-shadow: 0 0 20px var(--cyan-glow);
+    }
+    .toast::before { content: '> '; color: var(--cyan); }
+    .toast.show { opacity: 1; transform: translateX(-50%) translateY(0); }
+    .toast.error { border-color: var(--red); color: var(--red); box-shadow: 0 0 20px rgba(255,45,107,0.3); }
+    .toast.error::before { color: var(--red); }
+
+    /* ─── SUCCESS SCREEN ───────────────────────── */
+    .success-screen {
+      display: none;
+      text-align: center;
+      padding: 60px 24px;
+      position: relative;
+      z-index: 1;
+    }
+    .success-screen.visible { display: block; }
+    .success-icon {
+      font-size: 56px;
+      margin-bottom: 20px;
+      filter: drop-shadow(0 0 20px var(--green));
+    }
+    .success-screen h2 {
+      font-family: var(--display);
+      font-size: 20px;
+      font-weight: 900;
+      letter-spacing: 4px;
+      text-transform: uppercase;
+      color: var(--green);
+      text-shadow: 0 0 20px var(--green);
+      margin-bottom: 10px;
+    }
+    .success-screen p {
+      color: var(--text-mid);
+      font-size: 14px;
+      line-height: 1.6;
+      font-family: var(--mono);
+    }
+    .success-screen p::before { content: '// '; color: var(--text-dim); }
+    .issue-list {
+      margin-top: 24px;
+      text-align: left;
+      background: var(--bg2);
+      border: 1px solid var(--red);
+      border-left: 3px solid var(--red);
+      padding: 14px 16px;
+      box-shadow: 0 0 20px rgba(255,45,107,0.15);
+    }
+    .issue-list h3 {
+      color: var(--red);
+      font-size: 10px;
+      font-weight: 700;
+      letter-spacing: 2px;
+      text-transform: uppercase;
+      margin-bottom: 10px;
+      font-family: var(--mono);
+    }
+    .issue-list h3::before { content: '! '; }
+    .issue-list li {
+      font-size: 13px;
+      margin-bottom: 6px;
+      color: var(--text);
+      list-style: none;
+      padding-left: 12px;
+      font-family: var(--mono);
+    }
+    .issue-list li::before { content: '> '; color: var(--red); }
+
+    .new-check-btn {
+      margin-top: 28px;
+      padding: 12px 28px;
+      background: transparent;
+      color: var(--cyan);
+      border: 1px solid var(--cyan);
+      font-family: var(--display);
+      font-size: 12px;
+      font-weight: 700;
+      letter-spacing: 3px;
+      text-transform: uppercase;
+      cursor: pointer;
+      box-shadow: 0 0 14px var(--cyan-dim);
+      transition: all 0.2s;
+    }
+    .new-check-btn:hover {
+      background: var(--cyan-dim);
+      box-shadow: 0 0 24px var(--cyan-glow);
+    }
+  </style>
+</head>
+<body>
+
+<!-- Auth gate — covers page until identity confirmed -->
+<div id="authGate">
+  <p id="authMsg">Checking authentication...</p>
+  <button id="authLoginBtn" onclick="netlifyIdentity.open('login')"
+    style="display:none;margin-top:16px;padding:12px 28px;background:transparent;
+    color:#00e5ff;border:1px solid #00e5ff;font-family:'JetBrains Mono',monospace;
+    font-size:14px;font-weight:700;letter-spacing:3px;text-transform:uppercase;
+    cursor:pointer;box-shadow:0 0 20px rgba(0,229,255,0.2);" data-label="LOGIN"></button>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<!-- Demo mode warning banner -->
+<div id="demoBanner" style="display:none;position:fixed;top:0;left:0;right:0;z-index:501;background:#1a0d00;border-bottom:2px solid var(--red);padding:10px 16px;align-items:center;gap:10px;box-shadow:0 4px 20px rgba(255,45,107,0.2);">
+  <span style="flex:1;font-family:var(--mono);font-size:12px;color:var(--red);">! DEMO MODE — ASANA_PAT not configured. Submissions will NOT reach Asana.</span>
+  <a href="index.html" style="font-family:var(--mono);font-size:11px;color:var(--cyan);text-decoration:none;border:1px solid var(--border);padding:4px 10px;border-radius:4px;margin-right:4px;">← Portfolio</a>
+  <button onclick="document.getElementById('demoBanner').style.display='none'" style="background:transparent;color:var(--text-dim);border:1px solid var(--border);font-family:var(--mono);font-size:11px;padding:4px 10px;cursor:pointer;">✕</button>
+</div>
+
+<!-- Draft restore banner -->
+<div id="draftBanner" style="display:none;position:fixed;top:0;left:0;right:0;z-index:500;background:#0d0f1e;border-bottom:1px solid var(--yellow);padding:12px 16px;align-items:center;gap:10px;box-shadow:0 4px 20px rgba(255,230,0,0.15);">
+  <span style="flex:1;font-family:var(--mono);font-size:13px;color:var(--yellow);">⚡ Unsaved draft found — restore?</span>
+  <button onclick="restoreDraft()" style="background:var(--yellow);color:#000;border:none;font-family:var(--mono);font-size:12px;font-weight:700;padding:6px 14px;cursor:pointer;letter-spacing:1px;">RESTORE</button>
+  <button onclick="discardDraft()" style="background:transparent;color:var(--text-dim);border:1px solid var(--border);font-family:var(--mono);font-size:12px;padding:6px 14px;cursor:pointer;letter-spacing:1px;">DISCARD</button>
+</div>
+
+<!-- Error panel -->
+<div id="errorPanel" style="display:none;position:fixed;bottom:130px;left:14px;right:14px;z-index:300;background:#1a0005;border:1px solid var(--red);padding:14px 16px;box-shadow:0 0 24px rgba(255,45,107,0.25);">
+  <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;">
+    <span style="font-family:var(--mono);font-size:10px;letter-spacing:2px;color:var(--red);text-transform:uppercase;">! Transmission Error</span>
+    <button onclick="document.getElementById('errorPanel').style.display='none'" style="background:transparent;color:var(--text-dim);border:none;font-size:16px;cursor:pointer;padding:0 4px;">✕</button>
+  </div>
+  <div id="errorMsg" style="font-family:var(--mono);font-size:13px;color:var(--text);line-height:1.6;"></div>
+  <div style="margin-top:10px;font-family:var(--mono);font-size:11px;color:var(--text-dim);">Check the browser console for full details.</div>
+</div>
+
+<!-- Release notes modal -->
+<div id="releaseModal" class="modal-overlay" style="display:none" onclick="if(event.target===this)closeReleaseNotes()">
+  <div class="modal-card" role="dialog" aria-modal="true" aria-label="Release notes">
+    <div class="modal-head">
+      <span class="modal-title">Release Notes</span>
+      <button class="modal-close" onclick="closeReleaseNotes()" aria-label="Close">✕</button>
+    </div>
+    <div class="modal-body" id="releaseBody"></div>
+  </div>
+</div>
+
+<!-- Success screen -->
+<div class="success-screen" id="successScreen">
+  <div class="success-icon">◈</div>
+  <h2>System Clear</h2>
+  <p id="successMsg">Results transmitted to Asana.</p>
+  <div class="issue-list" id="issueList" style="display:none">
+    <h3>Follow-up tasks created</h3>
+    <ul id="issueItems"></ul>
+  </div>
+  <button class="new-check-btn" onclick="resetForm()" data-label="Run New Check"></button>
+</div>
+
+<!-- Main form -->
+<div id="mainForm">
+
+  <!-- Header -->
+  <div class="header">
+    <div class="header-scan"></div>
+    <div class="header-top">
+      <div style="display:flex;align-items:center;gap:10px;">
+        <div class="glitch-wrap">
+          <h1 data-text="// RECON">//&nbsp;RECON</h1>
+        </div>
+        <span class="env-badge" id="envBadge" style="display:none"></span>
+      </div>
+      <span class="property-badge" id="propertyLabel">NO_SIG</span>
+    </div>
+    <div style="display:flex;align-items:center;justify-content:space-between;gap:8px;">
+      <div class="header-meta">LH_SYSTEMS_AUDIT &nbsp;|&nbsp; <span id="buildLabel" class="version-link" onclick="openReleaseNotes()" onkeydown="if(event.key==='Enter'||event.key===' ')openReleaseNotes()" role="button" tabindex="0" title="View release notes"></span></div>
+      <div style="display:flex;gap:8px;align-items:center;">
+        <span style="font-family:var(--mono);font-size:9px;color:var(--text-dim);letter-spacing:2px;">OPERATOR</span>
+        <span id="userLabel" style="font-family:var(--mono);font-size:11px;color:var(--cyan);letter-spacing:1px;"></span>
+        <button id="lightBtn" onclick="toggleLight()" class="icon-toggle" aria-label="Toggle light mode" title="Toggle light mode"></button>
+        <button onclick="loadDemo()" style="font-family:var(--mono);font-size:10px;letter-spacing:1.5px;padding:3px 10px;background:transparent;border:1px solid var(--text-dim);color:var(--text-dim);cursor:pointer;text-transform:uppercase;">DEMO</button>
+        <button onclick="doLogout()" style="font-family:var(--mono);font-size:10px;letter-spacing:1.5px;padding:3px 10px;background:transparent;border:1px solid var(--red);color:var(--red);cursor:pointer;text-transform:uppercase;">LOGOUT</button>
+      </div>
+    </div>
+    <div class="progress-bar-wrap">
+      <div class="progress-bar" id="progressBar"></div>
+    </div>
+  </div>
+
+  <!-- Setup -->
+  <div class="setup-card">
+    <div class="section-label">Init Parameters</div>
+    <div class="field-row">
+      <div class="field">
+        <label>Property</label>
+        <select id="propertySelect" onchange="updateProperty()">
+          <option value="">NULL</option>
+          <option value="CR12">CR12</option>
+          <option value="HP08">HP08</option>
+          <option value="AH21">AH21</option>
+          <option value="LK33">LK33</option>
+          <option value="SV45">SV45</option>
+          <option value="OL52">OL52</option>
+          <option value="BH14">BH14</option>
+          <option value="ML19">ML19</option>
+          <option value="FR27">FR27</option>
+          <option value="FR31">FR31</option>
+          <option value="HR06">HR06</option>
+          <option value="WR23">WR23</option>
+          <option value="SM40">SM40</option>
+          <option value="BY18">BY18</option>
+          <option value="CN55">CN55</option>
+          <option value="PT37">PT37</option>
+        </select>
+      </div>
+      <!-- Operator selector removed: the signed-in user is the operator, shown in the header. -->
+      <div class="field">
+        <label>Date</label>
+        <input type="date" id="dateField"/>
+      </div>
+    </div>
+  </div>
+
+  <!-- Categories injected here -->
+  <div id="categories"></div>
+
+  <!-- Spacer -->
+  <div style="height:10px"></div>
+
+</div><!-- /mainForm -->
+
+<!-- Footer -->
+<div class="summary-bar">
+  <div class="summary-counts" id="summaryCounts">
+    <span class="count-chip count-pending" id="countPending">7 pending</span>
+    <span class="count-chip count-pass" id="countPass" style="display:none">0 pass</span>
+    <span class="count-chip count-issues" id="countIssues" style="display:none">0 issues</span>
+  </div>
+  <div id="blockerMsg" style="font-family:var(--mono);font-size:11px;color:var(--yellow);letter-spacing:0.8px;margin-bottom:8px;min-height:16px;"></div>
+  <button class="submit-btn" id="submitBtn" onclick="submitCheck()" disabled data-label="TRANSMIT TO ASANA"></button>
+</div>
+
+<script>
+// ─── CONFIG ────────────────────────────────────────────────
+// ── Version ──────────────────────────────────────────────
+// Bump BUILD on every deploy so the header always reflects what is live.
+// v1.0  Initial build.
+// v1.1  Recon rename; Identity modal fix (z-index + no init race);
+//       operator derived from signed-in user, selector removed;
+//       operator shown in header; Property and Date side by side.
+// v1.2  Operator displays last name only (Avery / Brandt).
+// v1.3  Home screen icon (apple-touch-icon), favicon, web manifest, and
+//       Open Graph/Twitter link-preview image for shared links.
+// v1.4  Icon redrawn without the square frame (cleaner on iOS);
+//       manifest served with correct content type via netlify.toml.
+// v1.5  Authorization: only allowlisted operator emails may enter (gate denies and
+//       signs out others) and may call the Asana proxy (server-side allowlist).
+// v1.6  Robust operator-email resolution (email or user_metadata, trimmed/lowercased)
+//       so Google logins match the allowlist; diagnostic breadcrumb on denial.
+// v1.7  Decode operator email from the JWT for Google logins (the login event returns a
+//       partial user with no top-level email); fixes false "access denied" for Google.
+// v1.8  showApp uses the token-aware email resolver too, so the operator shows and submit
+//       works on the first Google login without needing a refresh.
+// v1.9  Hide "Built with Netlify" branding in the Identity login modal; set due_on on the
+//       Recon report and follow-up tasks to the submission date.
+// v2.0  Fix proxy 401s: getJWT() now uses currentUser().jwt() to refresh expired tokens
+//       instead of sending the stale access_token; clearer 401 messaging.
+// v2.1  Netlify branding hide now re-asserts the injected style for ~3s and matches
+//       the .callOut class, so the logo stays hidden after the iframe re-renders.
+// v2.2  Correct the tech's operator email to brandt@example.com (was the wrong
+//       operator@example.com domain, which denied his login). Synced in asana-proxy.js.
+// v2.3  Add Calm mode: a CALM/GLITCH header toggle that disables all animations,
+//       scanlines and glow and lifts contrast for field readability. Persists to
+//       localStorage; auto-on for prefers-reduced-motion. Default stays cyberpunk.
+// v2.4  Verbose Asana report: parent task now uses rich html_notes — ASCII-art
+//       banner, h1/h2 headers, every checklist item shown with ✅/⬜ state, notes,
+//       follow-up links and a summary section. (buildNotes returns HTML.)
+// v2.5  Calm mode is now a full light theme — clean, high-end web-app styling
+//       (light palette, system sans, rounded cards, soft shadows) with all the
+//       glitch/hacker treatment removed; wordmark drops the "//" tag in calm.
+// v2.6  Rename Calm → Light mode; replace the text toggle with a pixel-art
+//       icon (moon in dark/glitch, sun in light). Storage key recon_theme,
+//       migrating the old recon_calm preference.
+// v2.7  Release notes: click the version label in the header to open a themed
+//       modal of recent changes (RELEASE_NOTES data + openReleaseNotes). Also
+//       added a separate dev environment with a host-aware Asana project + DEV badge.
+// v2.8  Follow-up tasks are titled with the issue described during the check
+//       ("{emoji} {System} — {issue}") instead of a generic "Follow-up at
+//       {code} — {date}" label; falls back to "{emoji} {System}" when no note.
+const BUILD = 'v2.8';
+// PAT is NOT stored here — it lives in Netlify environment variables.
+// The page calls /.netlify/functions/asana-proxy, which holds the PAT server-side.
+const ASANA_API        = '/.netlify/functions/asana-proxy';
+// Environment-aware Asana target. Production data is only ever touched from the
+// real prod domain; the dev site (dev.#), Netlify previews
+// and localhost all point at a separate TEST project so a test "transmit" can
+// never hit live data.
+const LIVE_PROJECT_ID  = '1209254347016005';       // Technology (production)
+const TEST_PROJECT_ID  = '1215400581986434';       // RECON Staging (dev/test project)
+const IS_PROD          = location.hostname === '#';
+const PROJECT_ID       = IS_PROD ? LIVE_PROJECT_ID : TEST_PROJECT_ID;
+
+// Operators keyed by the email they sign in with. The logged-in user IS the operator;
+// there is no manual selector. name = label shown in the UI and report; gid = Asana user
+// added as a follower so the task lands in their inbox.
+const OPERATORS = {
+  'avery@example.com': { name: 'Avery', gid: '1209094674863983' },
+  'brandt@example.com': { name: 'Brandt', gid: '1210319087305399' },
+  'castellano@example.com': { name: 'Castellano', gid: '457634425705785' },
+};
+let currentOperator = null; // set on login from OPERATORS[email]
+function operatorName() { return currentOperator ? currentOperator.name : ''; }
+
+// Always added as a follower on every task — guarantees inbox notification
+const ALWAYS_NOTIFY_GID = '1209094674863983'; // Chris
+
+// Custom field GIDs (pre-mapped from your workspace)
+const CF = {
+  taskCategory:  '1210430763441188',
+  propertyCode:  '1209254351488110',
+  performedBy:   '1211764239535959',
+  recurringType: '1213892404077714',
+  status:        '1211403608757738',
+};
+
+// Custom field option GIDs
+const CF_VAL = {
+  taskCategory_technology: '1210430763441198',
+  performedBy_self:        '1211764239535962',
+  recurringType_adhoc:     '1213892404077715',
+  status_inProgress:       '1211403608757742',
+  status_complete:         '1211403608757743',
+};
+
+// Property code → Asana custom field enum GID
+const PROPERTY_CODE_GIDS = {};
+// ───────────────────────────────────────────────────────────
+
+// ─── NETLIFY IDENTITY ───────────────────────────────────────
+function initAuth() {
+  if (window.location.protocol === 'file:') {
+    showApp(null);
+    return;
+  }
+  if (typeof netlifyIdentity === 'undefined') {
+    document.getElementById('authGate').querySelector('p').textContent =
+      '! Auth script failed to load';
+    return;
+  }
+
+  // Register handlers BEFORE init() so no events are missed
+  netlifyIdentity.on('init', user => {
+    if (user) {
+      handleUser(user);
+      return;
+    }
+    // Invite/recovery handling, step 2 of 2 (step 1 stripped + stashed the token in
+    // the <head> before the widget loaded, so this clean init never auto-opens/splits).
+    // Detect the invite from the stash and give the gate a SET PASSWORD button. On click
+    // we restore the hash and re-init: the widget is mounted by now, so it parses the
+    // token and renders a single clean "Complete your signup" form (verified on prod).
+    const inviteFlow = !!window.__reconInviteHash;
+    const btn = document.getElementById('authLoginBtn');
+    if (inviteFlow) {
+      document.getElementById('authMsg').textContent = 'Welcome — set your password to finish signing up.';
+      btn.setAttribute('data-label', 'SET PASSWORD');
+      btn.onclick = () => {
+        try { location.hash = window.__reconInviteHash; } catch (e) {}
+        netlifyIdentity.init();
+      };
+    } else {
+      // Show the login button and let the user click it. Do NOT auto-open here:
+      // calling open() on a timer right after init races the widget's iframe mount
+      // and splits it into two broken iframes (one empty + visible, one full-size 0px).
+      // Opening on an explicit click happens after the widget is fully mounted.
+      document.getElementById('authMsg').textContent = 'Authentication required.';
+    }
+    btn.textContent = bracket(btn.getAttribute('data-label'));
+    btn.style.display = 'block';
+  });
+
+  netlifyIdentity.on('login', user => {
+    netlifyIdentity.close();
+    handleUser(user);
+  });
+
+  // Hide the "Built with Netlify" branding (the .callOut link) in the widget's
+  // login modal. The widget renders into a same-origin about:blank iframe
+  // (#netlify-identity-widget), so page CSS can't reach it — inject a <style>
+  // into the iframe's document instead. That document is created on the iframe's
+  // load and can be replaced/re-rendered as the modal mounts, so re-assert the
+  // style on a short interval rather than once (a one-shot injection can land in
+  // a document that's immediately discarded, letting the logo reappear).
+  function hideNetlifyBranding() {
+    const iframe = document.getElementById('netlify-identity-widget');
+    const doc = iframe && iframe.contentDocument;
+    if (!doc || !doc.head || doc.getElementById('hideNetlifyBranding')) return;
+    const style = doc.createElement('style');
+    style.id = 'hideNetlifyBranding';
+    style.textContent = '.callOut, a[href*="netlify.com"] { display: none !important; }';
+    doc.head.appendChild(style);
+  }
+  netlifyIdentity.on('open', () => {
+    let tries = 0;
+    const timer = setInterval(() => {
+      hideNetlifyBranding();
+      if (++tries > 60) clearInterval(timer); // ~3s of re-asserting
+    }, 50);
+  });
+
+  // Logout: clear all GoTrue tokens and hard reload
+  netlifyIdentity.on('logout', () => forceLogout());
+
+  netlifyIdentity.init();
+}
+
+// Authentication is not authorization. Any Google account can authenticate with Identity,
+// so we additionally require the email to be an authorized operator (in OPERATORS).
+// Unauthorized accounts are denied and signed out. NOTE: this is the UX gate only — the
+// real security boundary is the same allowlist enforced server-side in asana-proxy.js.
+// Decode the email from the Identity JWT. On Google logins the init/login event hands back
+// a partial user (only api/url/audience/token, no top-level email), so we read the email
+// out of the access token's payload.
+function jwtEmail(u) {
+  try {
+    let t = u && u.token && (u.token.access_token || u.token);
+    if (typeof t === 'string' && t.split('.').length === 3) {
+      const p = JSON.parse(decodeURIComponent(escape(atob(t.split('.')[1].replace(/-/g, '+').replace(/_/g, '/')))));
+      return p.email || (p.user_metadata && p.user_metadata.email) || '';
+    }
+  } catch (e) {}
+  return '';
+}
+
+// Resolve the operator email from wherever Identity puts it (top-level for email logins,
+// the JWT for Google logins). Trim + lowercase so stray case/whitespace can't deny a match.
+function userEmail(u) {
+  if (!u) return '';
+  const e = u.email || (u.user_metadata && u.user_metadata.email) || jwtEmail(u);
+  return String(e || '').trim().toLowerCase();
+}
+
+function handleUser(user) {
+  const email = userEmail(user);
+  if (OPERATORS[email]) showApp(user);
+  else denyAccess(user, email);
+}
+
+function denyAccess(user, email) {
+  currentOperator = null;
+  // Breadcrumb that survives forceLogout (which only clears gotrue* keys), so if a known
+  // account is wrongly denied we can read back exactly what Identity returned.
+  try { localStorage.setItem('recon_diag', JSON.stringify({
+    resolved: email, rawEmail: user && user.email, jwt: jwtEmail(user),
+    metaEmail: user && user.user_metadata && user.user_metadata.email,
+    keys: user ? Object.keys(user) : null, ts: new Date().toISOString()
+  })); } catch (e) {}
+  const gate = document.getElementById('authGate');
+  if (gate) gate.classList.remove('hidden');
+  const msg = document.getElementById('authMsg');
+  if (msg) msg.textContent = 'Access denied — ' + (email || 'this account') + ' is not authorized. Signing out.';
+  const btn = document.getElementById('authLoginBtn');
+  if (btn) btn.style.display = 'none';
+  // Tear down the session so no valid token lingers in the browser.
+  setTimeout(() => { try { netlifyIdentity.logout(); } catch (e) {} }, 1800);
+}
+
+function showApp(user) {
+  document.getElementById('authGate').classList.add('hidden');
+  if (user) {
+    // Use the same token-aware resolver as the gate, so the operator is set on the FIRST
+    // Google login (when user.email is still empty), not only after a refresh.
+    const email = userEmail(user);
+    currentOperator = OPERATORS[email] || null;
+    const display = currentOperator ? currentOperator.name : (email || '');
+    const label   = document.getElementById('userLabel');
+    if (label) label.textContent = display || '';
+    if (!currentOperator) console.warn('Signed-in email is not mapped to an operator:', email);
+  }
+  loadProjectFields();
+  try { updateSummary(); } catch (e) {}
+}
+
+function doLogout() {
+  try { netlifyIdentity.logout(); } catch(e) {}
+  // Belt-and-suspenders: clear GoTrue tokens and reload after short delay
+  setTimeout(forceLogout, 800);
+}
+
+function forceLogout() {
+  try {
+    Object.keys(localStorage)
+      .filter(k => k.startsWith('gotrue') || k === 'netlify-identity-widget')
+      .forEach(k => localStorage.removeItem(k));
+  } catch(e) {}
+  window.location.reload();
+}
+
+async function getJWT() {
+  try {
+    const user = netlifyIdentity.currentUser();
+    // Use .jwt() rather than reading token.access_token directly: it returns a
+    // valid token, refreshing via the refresh_token when the stored access_token
+    // has expired (GoTrue tokens last ~1h). A stale token makes Netlify reject the
+    // request — clientContext.user comes back null and the proxy 401s with
+    // "you must be logged in", even though the user is still signed in.
+    return user ? await user.jwt() : '';
+  } catch (e) { return ''; }
+}
+
+// Asana API helper — calls the Netlify proxy function with auth token
+async function asana(method, path, body) {
+  const headers = { 'Content-Type': 'application/json' };
+  const jwt = await getJWT();
+  if (jwt) headers['Authorization'] = `Bearer ${jwt}`;
+
+  const res = await fetch(ASANA_API, {
+    method: 'POST',
+    headers,
+    body: JSON.stringify({ method, path, body }),
+  });
+  const data = await res.json().catch(() => ({}));
+  if (!res.ok) {
+    const asanaMsg = data?.errors?.[0]?.message || data?.error || '';
+    const err = new Error(`HTTP ${res.status} on ${method} ${path}: ${asanaMsg}`);
+    err.status = res.status;
+    err.path = path;
+    err.asanaMsg = asanaMsg;
+    err.full = JSON.stringify(data, null, 2);
+    throw err;
+  }
+  return data;
+}
+
+const CATEGORIES = [
+  { id: 'network',    emoji: '🌐', name: 'Network',
+    items: ['Router & modem on — status lights normal','WiFi networks (2.4GHz + 5GHz) broadcasting','Device connects with internet access','Speed test complete — result noted'] },
+  { id: 'sonos',      emoji: '🔊', name: 'Sonos',
+    items: ['All speakers appear in Sonos app','Audio plays in each zone','No firmware updates pending'] },
+  { id: 'appletv',    emoji: '📺', name: 'Apple TVs',
+    items: ['Each unit reaches home screen','Remote is responsive','Correct Apple ID signed in','No software updates pending','Streaming apps load correctly'] },
+  { id: 'locks',      emoji: '🔒', name: 'Smart Locks',
+    items: ['Keypad code works on each lock','Battery level checked (replace if <20%)','Remote lock/unlock works via app','Guest codes are current'] },
+  { id: 'cameras',    emoji: '📷', name: 'Cameras & Alarm',
+    items: ['All camera feeds live in app','No cameras showing offline','Motion alerts active','Alarm arms and disarms correctly'] },
+  { id: 'lighting',   emoji: '💡', name: 'Smart Lighting',
+    items: ['All zones visible in lighting app','Key scenes load (All On / All Off)','Physical keypads respond','No burned out bulbs noted'] },
+  { id: 'thermostats',emoji: '🌡️', name: 'Thermostats',
+    items: ['Each thermostat powered on and displaying','Schedules correct for current season','Remote control works via app','HVAC responds when activated'] }
+];
+
+let state = {};
+
+const STORAGE_KEY = 'lh_recon_draft';
+let submitted = false;
+
+function initState() {
+  CATEGORIES.forEach(cat => {
+    state[cat.id] = { status: 'pending', notes: '', checks: {} };
+    cat.items.forEach((_, i) => { state[cat.id].checks[i] = false; });
+  });
+}
+
+// ─── PERSISTENCE ────────────────────────────────────────────
+function saveState() {
+  try {
+    localStorage.setItem(STORAGE_KEY, JSON.stringify({
+      state,
+      property: document.getElementById('propertySelect').value,
+      tech:     operatorName(),
+      date:     document.getElementById('dateField').value,
+      savedAt:  new Date().toISOString(),
+    }));
+  } catch(e) {}
+}
+
+function clearSavedState() {
+  try { localStorage.removeItem(STORAGE_KEY); } catch(e) {}
+}
+
+function hasDraft() {
+  try {
+    const d = JSON.parse(localStorage.getItem(STORAGE_KEY) || 'null');
+    return d && Object.values(d.state || {}).some(s => s.status !== 'pending' || s.notes);
+  } catch(e) { return false; }
+}
+
+function loadDraft() {
+  try { return JSON.parse(localStorage.getItem(STORAGE_KEY) || 'null'); }
+  catch(e) { return null; }
+}
+
+// Warn before navigating away if form has progress and hasn't been submitted
+window.addEventListener('beforeunload', e => {
+  if (!submitted && hasDraft()) {
+    e.preventDefault();
+    e.returnValue = '';
+  }
+});
+
+// Set today's date
+document.getElementById('dateField').value = new Date().toISOString().split('T')[0];
+
+// URL params
+const params = new URLSearchParams(window.location.search);
+if (params.get('property')) { document.getElementById('propertySelect').value = params.get('property'); updateProperty(); }
+// Operator is derived from the signed-in user, not a URL param.
+
+function updateProperty() {
+  const v = document.getElementById('propertySelect').value;
+  document.getElementById('propertyLabel').textContent = v || 'NO_SIG';
+  saveState();
+  updateSummary();
+}
+
+function renderCategories() {
+  initState();
+  const container = document.getElementById('categories');
+  container.innerHTML = '';
+  CATEGORIES.forEach(cat => {
+    const div = document.createElement('div');
+    div.className = 'category';
+    div.id = 'cat-' + cat.id;
+    const itemsHTML = cat.items.map((item, i) => `
+      <label class="check-item" id="ci-${cat.id}-${i}">
+        <input type="checkbox" onchange="toggleCheck('${cat.id}',${i},this.checked)"/>
+        <span>${item}</span>
+      </label>`).join('');
+    div.innerHTML = `
+      <div class="category-header" onclick="toggleCategory('${cat.id}')">
+        <span class="category-emoji">${cat.emoji}</span>
+        <span class="category-title">${cat.name}</span>
+        <span class="status-pill pill-pending" id="pill-${cat.id}">PENDING</span>
+        <span class="category-chevron">▼</span>
+      </div>
+      <div class="category-body">
+        <div class="status-selector">
+          <button class="status-btn pass" onclick="setStatus('${cat.id}','pass',event)">✓ PASS</button>
+          <button class="status-btn issues" onclick="setStatus('${cat.id}','issues',event)">! ISSUES</button>
+          <button class="status-btn na" onclick="setStatus('${cat.id}','na',event)">– N/A</button>
+        </div>
+        <div class="checklist">${itemsHTML}</div>
+        <span class="notes-label">Notes</span>
+        <p class="issues-note" id="inote-${cat.id}" style="display:none">Describe issue — follow-up task will be created in Asana</p>
+        <textarea class="notes-field" id="notes-${cat.id}" placeholder="// enter notes..." rows="3"
+          oninput="updateNotes('${cat.id}',this.value)"></textarea>
+      </div>`;
+    container.appendChild(div);
+  });
+  updateSummary();
+}
+
+function toggleCategory(id) {
+  document.getElementById('cat-' + id).classList.toggle('open');
+}
+
+function setStatus(id, status, e) {
+  e.stopPropagation();
+  state[id].status = status;
+  const catEl = document.getElementById('cat-' + id);
+  const pill = document.getElementById('pill-' + id);
+
+  pill.className = 'status-pill';
+  const labels = { pass: ['PASS','pill-pass'], issues: ['ISSUES','pill-issues'], na: ['N/A','pill-na'] };
+  pill.textContent = labels[status][0];
+  pill.classList.add(labels[status][1]);
+
+  catEl.className = 'category open status-' + status;
+  document.getElementById('inote-' + id).style.display = status === 'issues' ? 'block' : 'none';
+  catEl.querySelectorAll('.status-btn').forEach(b => b.classList.remove('active'));
+  catEl.querySelector('.status-btn.' + status).classList.add('active');
+  saveState();
+  updateSummary();
+}
+
+function toggleCheck(catId, idx, checked) {
+  state[catId].checks[idx] = checked;
+  document.getElementById('ci-' + catId + '-' + idx).classList.toggle('checked', checked);
+  saveState();
+}
+
+function updateNotes(id, value) {
+  state[id].notes = value;
+  document.getElementById('notes-' + id).classList.toggle('has-content', value.trim().length > 0);
+  saveState();
+}
+
+function updateSummary() {
+  let pass = 0, issues = 0, pending = 0;
+  CATEGORIES.forEach(c => {
+    const s = state[c.id].status;
+    if (s === 'pass' || s === 'na') pass++;
+    else if (s === 'issues') issues++;
+    else pending++;
+  });
+  const total = CATEGORIES.length;
+  document.getElementById('progressBar').style.width = ((total - pending) / total * 100) + '%';
+  const cp = document.getElementById('countPending');
+  const cpa = document.getElementById('countPass');
+  const ci = document.getElementById('countIssues');
+  cp.style.display = pending > 0 ? '' : 'none'; cp.textContent = pending + ' pending';
+  cpa.style.display = pass > 0 ? '' : 'none'; cpa.textContent = pass + ' pass';
+  ci.style.display = issues > 0 ? '' : 'none'; ci.textContent = issues + ' issues';
+
+  const prop = document.getElementById('propertySelect').value;
+  const tech = operatorName();
+  const blockers = [];
+  if (!prop)    blockers.push('no property selected');
+  if (!tech)    blockers.push('not signed in as a known operator');
+  if (pending)  blockers.push(`${pending} categor${pending === 1 ? 'y' : 'ies'} not reviewed`);
+
+  const blocker = document.getElementById('blockerMsg');
+  const btn     = document.getElementById('submitBtn');
+  if (blockers.length) {
+    blocker.textContent = '! ' + blockers.join(' · ');
+    btn.disabled = true;
+  } else {
+    blocker.textContent = '';
+    btn.disabled = false;
+  }
+}
+
+function showToast(msg, type = '') {
+  const t = document.getElementById('toast');
+  t.textContent = msg;
+  t.className = 'toast show' + (type ? ' ' + type : '');
+  setTimeout(() => t.className = 'toast', 2800);
+}
+
+async function submitCheck() {
+  const property = document.getElementById('propertySelect').value;
+  const tech     = operatorName();
+  const date     = document.getElementById('dateField').value;
+  if (!property || !tech) { showToast('NULL property or operator', 'error'); return; }
+
+  const issueCategories = CATEGORIES.filter(c => state[c.id].status === 'issues');
+  const allClear        = issueCategories.length === 0;
+
+  const btn = document.getElementById('submitBtn');
+  btn.textContent = bracket('TRANSMITTING...');
+  btn.className   = 'submit-btn loading';
+  btn.disabled    = true;
+
+  // Demo mode — running locally outside Netlify
+  if (window.location.protocol === 'file:') {
+    console.log('DEMO MODE — open via Netlify to go live');
+    setTimeout(() => {
+      submitted = true;
+      clearSavedState();
+      showSuccess(property, tech, issueCategories);
+    }, 900);
+    return;
+  }
+
+  try {
+    // 1. Build followers list — always notify Chris; add technician if different
+    const followers = [ALWAYS_NOTIFY_GID];
+    const techGid   = currentOperator ? currentOperator.gid : null;
+    if (techGid && techGid !== ALWAYS_NOTIFY_GID) followers.push(techGid);
+
+    const followUpCustomFields = filterFields({
+      [CF.taskCategory]:  CF_VAL.taskCategory_technology,
+      [CF.performedBy]:   CF_VAL.performedBy_self,
+      [CF.recurringType]: CF_VAL.recurringType_adhoc,
+      [CF.status]:        CF_VAL.status_inProgress,
+      ...(PROPERTY_CODE_GIDS[property] ? { [CF.propertyCode]: PROPERTY_CODE_GIDS[property] } : {}),
+    });
+
+    // 2. Create follow-up tasks FIRST so we can link them in the report
+    let followUpTasks = [];
+    if (issueCategories.length > 0) {
+      showToast(`Creating ${issueCategories.length} follow-up task(s)...`);
+      followUpTasks = await Promise.all(issueCategories.map(async cat => {
+        // Title = brief, issue-based description: emoji (auto-created signal) +
+        // system + the tech's note. Property code and date are omitted — they're
+        // already fields on the Asana ticket. First line only, capped, so a long
+        // or multi-line note doesn't blow up the title (full text stays in notes).
+        const issueRaw = (state[cat.id].notes || '').trim().split('\n')[0].trim();
+        const issue    = issueRaw.length > 80 ? issueRaw.slice(0, 79).trimEnd() + '…' : issueRaw;
+        const res = await asana('POST', '/tasks', {
+          name:          issue ? `${cat.emoji} ${cat.name} — ${issue}` : `${cat.emoji} ${cat.name}`,
+          notes:         state[cat.id].notes || `Issue found during Recon on ${date}.`,
+          due_on:        date,
+          projects:      [PROJECT_ID],
+          assignee:      techGid || null,
+          followers,
+          custom_fields: followUpCustomFields,
+        });
+        return {
+          cat,
+          gid:  res.data.gid,
+          url:  `https://app.asana.com/0/${PROJECT_ID}/${res.data.gid}`,
+          name: `${cat.emoji} ${cat.name}`,
+        };
+      }));
+    }
+
+    // 3. Build report notes with follow-up links embedded
+    showToast('Creating log task...');
+    const customFields = filterFields({
+      [CF.taskCategory]:  CF_VAL.taskCategory_technology,
+      [CF.performedBy]:   CF_VAL.performedBy_self,
+      [CF.recurringType]: CF_VAL.recurringType_adhoc,
+      [CF.status]:        allClear ? CF_VAL.status_complete : CF_VAL.status_inProgress,
+      ...(PROPERTY_CODE_GIDS[property] ? { [CF.propertyCode]: PROPERTY_CODE_GIDS[property] } : {}),
+    });
+
+    const parentRes = await asana('POST', '/tasks', {
+      name:          `🖥️ Recon — ${property} — ${date}`,
+      html_notes:    buildNotes(property, tech, date, followUpTasks),
+      due_on:        date,
+      projects:      [PROJECT_ID],
+      assignee:      techGid || null,
+      followers,
+      custom_fields: customFields,
+    });
+    const parentGid = parentRes.data.gid;
+
+    submitted = true;
+    clearSavedState();
+    showSuccess(property, tech, issueCategories, parentGid, followUpTasks);
+
+  } catch (err) {
+    console.error('Asana API error:', err);
+    btn.textContent = bracket('TRANSMIT TO ASANA');
+    btn.className   = 'submit-btn';
+    btn.disabled    = false;
+
+    // Show detailed error panel
+    const panel = document.getElementById('errorPanel');
+    const msg   = document.getElementById('errorMsg');
+
+    let detail = '';
+    if (err.status === 401) {
+      // 401 has two sources: the proxy's own login gate (JWT missing/expired —
+      // "you must be logged in") or Asana rejecting the PAT. Show the server's
+      // actual message so they're not conflated.
+      const why = err.asanaMsg || '';
+      detail = /log ?in|logged in/i.test(why)
+        ? `401 Unauthorized — your login session expired. Log out and back in, then retry.\n\nServer said: "${why}"`
+        : `401 Unauthorized — Asana rejected the PAT (invalid or expired).\n\nServer said: "${why || 'no detail'}"`;
+    }
+    else if (err.status === 403) detail = '403 Forbidden — PAT lacks permission for this project.';
+    else if (err.status === 404) detail = `404 Not Found on: ${err.path || '?'}\n\nAsana said: "${err.asanaMsg || 'no detail'}"\n\nFull response:\n${err.full || err.message}`;
+    else if (err.status === 400) detail = `400 Bad Request on: ${err.path || '?'}\n\nAsana said: "${err.asanaMsg || 'no detail'}"\n\nFull response:\n${err.full || err.message}`;
+    else if (!err.status) detail = 'Network error — could not reach the proxy. Check your internet connection.';
+    else detail = err.message;
+
+    msg.style.whiteSpace = 'pre-wrap';
+    msg.textContent = detail;
+    console.error('Full error:', err);
+    panel.style.display = 'block';
+  }
+}
+
+// Builds the Asana task description as rich text (html_notes). Asana accepts
+// only a small tag whitelist — <body>, <h1>, <h2>, <ul>/<ol>/<li>, <strong>,
+// <em>, <u>, <s>, <code>, <pre>, <hr>, <a> — so the report is built from those.
+// The ASCII banner lives in <pre> to keep the box-drawing art monospaced.
+function buildNotes(property, tech, date, followUpTasks = []) {
+  // Escape anything that lands in the HTML so operator-entered notes / property
+  // names can't break the markup (Asana rejects malformed html_notes).
+  const esc = s => String(s)
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;');
+
+  const STATUS_LABEL = { pass: 'PASS', issues: 'ISSUES FOUND', na: 'N/A', pending: 'NOT CHECKED' };
+  const STATUS_ICON  = { pass: '✅', issues: '⚠️', na: '⏭️', pending: '⬜' };
+
+  const banner =
+`   ██████╗ ███████╗ ██████╗ ██████╗ ███╗   ██╗
+   ██╔══██╗██╔════╝██╔════╝██╔═══██╗████╗  ██║
+   ██████╔╝█████╗  ██║     ██║   ██║██╔██╗ ██║
+   ██╔══██╗██╔══╝  ██║     ██║   ██║██║╚██╗██║
+   ██║  ██║███████╗╚██████╗╚██████╔╝██║ ╚████║
+   ╚═╝  ╚═╝╚══════╝ ╚═════╝ ╚═════╝ ╚═╝  ╚═══╝
+   // LH SYSTEMS AUDIT — FIELD RECON REPORT`;
+
+  // Roll up totals across every system for the header + summary.
+  let totalItems = 0, totalChecked = 0, passCount = 0, issuesCount = 0, naCount = 0, pendingCount = 0;
+  CATEGORIES.forEach(cat => {
+    const s = state[cat.id];
+    totalItems   += cat.items.length;
+    totalChecked += Object.values(s.checks).filter(Boolean).length;
+    if (s.status === 'pass')        passCount++;
+    else if (s.status === 'issues') issuesCount++;
+    else if (s.status === 'na')     naCount++;
+    else                            pendingCount++;
+  });
+
+  const overall = issuesCount > 0
+    ? `⚠️ ${issuesCount} SYSTEM(S) FLAGGED`
+    : `✅ ALL SYSTEMS NOMINAL`;
+
+  const html = [];
+  html.push('<body>');
+
+  // ── Header ──────────────────────────────────────────────
+  html.push(`<pre>${esc(banner)}</pre>`);
+  html.push('<h1>📋 Recon Report</h1>');
+  html.push('<ul>');
+  html.push(`<li><strong>Property:</strong> ${esc(property)}</li>`);
+  html.push(`<li><strong>Operator:</strong> ${esc(tech)}</li>`);
+  html.push(`<li><strong>Date:</strong> ${esc(date)}</li>`);
+  html.push(`<li><strong>Overall status:</strong> ${overall}</li>`);
+  html.push(`<li><strong>Coverage:</strong> ${totalChecked}/${totalItems} checks complete across ${CATEGORIES.length} systems</li>`);
+  html.push('</ul>');
+  html.push('<hr>');
+
+  // ── Per-system breakdown ────────────────────────────────
+  html.push('<h1>🔎 Systems Audit</h1>');
+  CATEGORIES.forEach(cat => {
+    const s       = state[cat.id];
+    const checked = Object.values(s.checks).filter(Boolean).length;
+    const icon    = STATUS_ICON[s.status] || '⬜';
+    const label   = STATUS_LABEL[s.status] || 'NOT CHECKED';
+
+    html.push(`<h2>${icon} ${cat.emoji} ${esc(cat.name)}</h2>`);
+    html.push(`<strong>Status: ${label} — ${checked}/${cat.items.length} checks</strong>`);
+
+    // Every checklist item, marked checked (✅) or not (⬜).
+    html.push('<ul>');
+    cat.items.forEach((item, i) => {
+      const mark = s.checks[i] ? '✅' : '⬜';
+      html.push(`<li>${mark} ${esc(item)}</li>`);
+    });
+    html.push('</ul>');
+
+    if (s.notes && s.notes.trim()) {
+      html.push(`<strong>📝 Notes:</strong> <em>${esc(s.notes.trim())}</em>`);
+    }
+
+    const linked = followUpTasks.find(t => t.cat.id === cat.id);
+    if (linked) {
+      html.push(`<strong>⚠️ Follow-up task created:</strong> <a href="${esc(linked.url)}">${esc(linked.name)}</a>`);
+    }
+  });
+  html.push('<hr>');
+
+  // ── Summary ─────────────────────────────────────────────
+  html.push('<h1>📊 Summary</h1>');
+  html.push('<ul>');
+  html.push(`<li>✅ <strong>${passCount}</strong> system(s) passed</li>`);
+  html.push(`<li>⚠️ <strong>${issuesCount}</strong> system(s) with issues</li>`);
+  if (naCount)      html.push(`<li>⏭️ <strong>${naCount}</strong> system(s) marked N/A</li>`);
+  if (pendingCount) html.push(`<li>⬜ <strong>${pendingCount}</strong> system(s) not checked</li>`);
+  html.push(`<li>📈 <strong>${totalChecked}/${totalItems}</strong> individual checks completed</li>`);
+  html.push('</ul>');
+
+  if (followUpTasks.length === 0) {
+    html.push('<strong>✅ All systems nominal. No follow-up required.</strong>');
+  } else {
+    html.push(`<strong>⚠️ ${followUpTasks.length} follow-up task(s) created:</strong>`);
+    html.push('<ul>');
+    followUpTasks.forEach(t => {
+      html.push(`<li><a href="${esc(t.url)}">${esc(t.name)}</a></li>`);
+    });
+    html.push('</ul>');
+  }
+
+  html.push('</body>');
+  return html.join('\n');
+}
+
+function showSuccess(property, tech, issueCategories, parentGid, followUpTasks = []) {
+  document.getElementById('mainForm').style.display = 'none';
+  document.querySelector('.summary-bar').style.display = 'none';
+  const screen = document.getElementById('successScreen');
+  screen.classList.add('visible');
+
+  document.getElementById('successMsg').textContent = issueCategories.length === 0
+    ? `All systems nominal at ${property}. Report logged to Asana.`
+    : `${issueCategories.length} issue(s) flagged at ${property}. Follow-up tasks created and assigned to ${tech}.`;
+
+  // Follow-up task links
+  if (followUpTasks.length > 0) {
+    document.getElementById('issueList').style.display = 'block';
+    document.getElementById('issueItems').innerHTML = followUpTasks.map(t =>
+      `<li>${t.cat.emoji} ${t.cat.name}${state[t.cat.id].notes ? ' — ' + state[t.cat.id].notes : ''}
+        <a href="${t.url}" target="_blank" style="display:inline-block;margin-left:8px;color:var(--cyan);font-size:11px;text-decoration:none;letter-spacing:1px;border:1px solid var(--cyan);padding:1px 7px;">VIEW →</a>
+      </li>`
+    ).join('');
+  }
+
+  // Links section — report + follow-ups
+  const linksWrap = document.createElement('div');
+  linksWrap.style.cssText = 'margin-top:20px;display:flex;flex-direction:column;gap:8px;';
+
+  const linkStyle = 'color:var(--cyan);font-family:var(--mono);font-size:12px;text-decoration:none;letter-spacing:1px;border:1px solid var(--cyan);padding:6px 14px;display:block;text-align:center;';
+
+  if (parentGid) {
+    const a = document.createElement('a');
+    a.href = `https://app.asana.com/0/${PROJECT_ID}/${parentGid}`;
+    a.target = '_blank'; a.style.cssText = linkStyle;
+    a.textContent = bracket('View Full Report in Asana →');
+    linksWrap.appendChild(a);
+  }
+
+  followUpTasks.forEach(t => {
+    const a = document.createElement('a');
+    a.href = t.url; a.target = '_blank';
+    a.style.cssText = linkStyle.replace('var(--cyan)', 'var(--yellow)').replace('var(--cyan)', 'var(--yellow)');
+    a.textContent = bracket(`${t.cat.emoji} ${t.cat.name} Follow-up →`);
+    linksWrap.appendChild(a);
+  });
+
+  screen.appendChild(linksWrap);
+}
+
+function applyDraftToUI(draft) {
+  // Restore dropdowns and date
+  if (draft.property) { document.getElementById('propertySelect').value = draft.property; updateProperty(); }
+  // Operator is from the signed-in user, not restored from the draft.
+  if (draft.date)     { document.getElementById('dateField').value = draft.date; }
+
+  // Restore category state
+  state = draft.state;
+  CATEGORIES.forEach(cat => {
+    const s = state[cat.id];
+    if (!s || s.status === 'pending') return;
+
+    // Re-apply status
+    const catEl = document.getElementById('cat-' + cat.id);
+    const pill  = document.getElementById('pill-' + cat.id);
+    const labels = { pass:['PASS','pill-pass'], issues:['ISSUES','pill-issues'], na:['N/A','pill-na'] };
+    if (labels[s.status]) {
+      pill.className = 'status-pill ' + labels[s.status][1];
+      pill.textContent = labels[s.status][0];
+      catEl.className = 'category status-' + s.status;
+      catEl.querySelectorAll('.status-btn').forEach(b => b.classList.remove('active'));
+      const activeBtn = catEl.querySelector('.status-btn.' + s.status);
+      if (activeBtn) activeBtn.classList.add('active');
+      if (s.status === 'issues') document.getElementById('inote-' + cat.id).style.display = 'block';
+    }
+
+    // Restore notes
+    if (s.notes) {
+      const ta = document.getElementById('notes-' + cat.id);
+      ta.value = s.notes;
+      ta.classList.add('has-content');
+    }
+
+    // Restore checkboxes
+    Object.entries(s.checks || {}).forEach(([i, checked]) => {
+      if (!checked) return;
+      const el = document.getElementById('ci-' + cat.id + '-' + i);
+      if (el) { el.querySelector('input').checked = true; el.classList.add('checked'); }
+    });
+  });
+  updateSummary();
+}
+
+function restoreDraft() {
+  const draft = loadDraft();
+  document.getElementById('draftBanner').style.display = 'none';
+  if (draft) applyDraftToUI(draft);
+  showToast('Draft restored');
+}
+
+function discardDraft() {
+  clearSavedState();
+  document.getElementById('draftBanner').style.display = 'none';
+  showToast('Draft discarded');
+}
+
+function resetForm() {
+  submitted = false;
+  clearSavedState();
+  document.getElementById('successScreen').classList.remove('visible');
+  document.getElementById('mainForm').style.display = 'block';
+  document.querySelector('.summary-bar').style.display = 'block';
+  // Remove dynamically added links
+  document.getElementById('successScreen').querySelectorAll('a, div').forEach(el => el.remove());
+  document.getElementById('issueList').style.display = 'none';
+  document.getElementById('issueItems').innerHTML = '';
+  renderCategories();
+}
+
+function loadDemo() {
+  // Fill header fields
+  document.getElementById('propertySelect').value = 'CR12';
+  document.getElementById('dateField').value = new Date().toISOString().split('T')[0];
+  updateProperty();
+
+  // Set category statuses
+  const demoData = {
+    network:     { status: 'pass',   notes: '' },
+    sonos:       { status: 'issues', notes: 'Living room speaker not showing in app. Tried power cycling — still offline.' },
+    appletv:     { status: 'pass',   notes: '' },
+    locks:       { status: 'issues', notes: 'Front door battery at 12% — needs replacement.' },
+    cameras:     { status: 'pass',   notes: '' },
+    lighting:    { status: 'na',     notes: '' },
+    thermostats: { status: 'pass',   notes: '' },
+  };
+
+  CATEGORIES.forEach(cat => {
+    const d = demoData[cat.id];
+    if (!d) return;
+
+    // Check all items
+    cat.items.forEach((_, i) => {
+      const el = document.getElementById('ci-' + cat.id + '-' + i);
+      if (el && d.status !== 'na') {
+        el.querySelector('input').checked = true;
+        el.classList.add('checked');
+        state[cat.id].checks[i] = true;
+      }
+    });
+
+    // Set status (simulate button click without event)
+    state[cat.id].status = d.status;
+    state[cat.id].notes  = d.notes;
+
+    const catEl = document.getElementById('cat-' + cat.id);
+    const pill  = document.getElementById('pill-' + cat.id);
+    const labels = { pass:['PASS','pill-pass'], issues:['ISSUES','pill-issues'], na:['N/A','pill-na'] };
+    pill.className = 'status-pill ' + labels[d.status][1];
+    pill.textContent = labels[d.status][0];
+    catEl.className = 'category status-' + d.status;
+    catEl.querySelectorAll('.status-btn').forEach(b => b.classList.remove('active'));
+    catEl.querySelector('.status-btn.' + d.status).classList.add('active');
+
+    if (d.status === 'issues') {
+      document.getElementById('inote-' + cat.id).style.display = 'block';
+      const ta = document.getElementById('notes-' + cat.id);
+      ta.value = d.notes;
+      ta.classList.add('has-content');
+    }
+  });
+
+  saveState();
+  updateSummary();
+  showToast('Demo data loaded');
+}
+
+// Custom fields actually on the Technology project — populated on load
+let validProjectFieldGids = new Set();
+
+async function loadProjectFields() {
+  if (window.location.protocol === 'file:') return; // skip in demo mode
+  try {
+    const res = await asana('GET', `/projects/${PROJECT_ID}?opt_fields=custom_field_settings.custom_field.gid,custom_field_settings.custom_field.name`);
+    const settings = res?.data?.custom_field_settings || [];
+    settings.forEach(s => validProjectFieldGids.add(s.custom_field.gid));
+    console.log('Custom fields on Technology project:', [...validProjectFieldGids]);
+  } catch(e) {
+    console.warn('Could not load project custom fields — will attempt all fields:', e.message);
+  }
+}
+
+function filterFields(fields) {
+  // If we couldn't load project fields, send all and let Asana reject what it doesn't know
+  if (validProjectFieldGids.size === 0) return fields;
+  return Object.fromEntries(
+    Object.entries(fields).filter(([gid]) => validProjectFieldGids.has(gid))
+  );
+}
+
+// ─── Light mode ──────────────────────────────────────────
+// Light is a separate theme (clean, high-end web-app look) — not just a
+// toned-down glitch theme. The class swaps the whole palette via CSS; here we
+// also swap the wordmark ("// RECON" glitch tag → plain "Recon") and the header
+// toggle icon (pixel moon while in dark/glitch, pixel sun while in light).
+
+// Pixel-art icons: 1×1 rects on a small viewBox, sized + kept crisp via CSS.
+const PIXEL_MOON =
+  '<svg viewBox="0 0 7 7" width="15" height="15" shape-rendering="crispEdges" aria-hidden="true" focusable="false"><g fill="currentColor">' +
+  '<rect x="3" y="0"/><rect x="4" y="0"/>' +
+  '<rect x="2" y="1"/><rect x="3" y="1"/><rect x="4" y="1"/><rect x="5" y="1"/>' +
+  '<rect x="1" y="2"/><rect x="2" y="2"/><rect x="3" y="2"/>' +
+  '<rect x="1" y="3"/><rect x="2" y="3"/>' +
+  '<rect x="1" y="4"/><rect x="2" y="4"/><rect x="3" y="4"/>' +
+  '<rect x="2" y="5"/><rect x="3" y="5"/><rect x="4" y="5"/><rect x="5" y="5"/>' +
+  '<rect x="3" y="6"/><rect x="4" y="6"/>' +
+  '</g></svg>';
+const PIXEL_SUN =
+  '<svg viewBox="0 0 7 7" width="15" height="15" shape-rendering="crispEdges" aria-hidden="true" focusable="false"><g fill="currentColor">' +
+  '<rect x="3" y="0"/>' +
+  '<rect x="1" y="1"/><rect x="5" y="1"/>' +
+  '<rect x="2" y="2"/><rect x="3" y="2"/><rect x="4" y="2"/>' +
+  '<rect x="0" y="3"/><rect x="2" y="3"/><rect x="3" y="3"/><rect x="4" y="3"/><rect x="6" y="3"/>' +
+  '<rect x="2" y="4"/><rect x="3" y="4"/><rect x="4" y="4"/>' +
+  '<rect x="1" y="5"/><rect x="5" y="5"/>' +
+  '<rect x="3" y="6"/>' +
+  '</g></svg>';
+
+// The icon shows the mode a click switches TO: moon = go to dark, sun = go to
+// light. So light mode shows the moon, dark/glitch mode shows the sun.
+function updateLightBtn(on) {
+  const b = document.getElementById('lightBtn');
+  if (!b) return;
+  b.innerHTML = on ? PIXEL_MOON : PIXEL_SUN;
+  const next = on ? 'glitch' : 'light';
+  b.setAttribute('aria-label', 'Switch to ' + next + ' mode');
+  b.setAttribute('title', 'Switch to ' + next + ' mode');
+}
+// Terminal-style [ brackets ] are part of the glitch look — wrap labels in them
+// only in glitch mode; light mode shows the plain label.
+function bracket(text) {
+  return document.body.classList.contains('light') ? text : '[ ' + text + ' ]';
+}
+// Re-stamp every static [data-label] button for the current mode.
+function refreshLabels() {
+  document.querySelectorAll('[data-label]').forEach(el => {
+    el.textContent = bracket(el.getAttribute('data-label'));
+  });
+}
+// Notes placeholder loses its "//" code-comment styling in light mode.
+function refreshPlaceholders() {
+  const light = document.body.classList.contains('light');
+  document.querySelectorAll('.notes-field').forEach(t => {
+    t.placeholder = light ? 'Enter notes…' : '// enter notes...';
+  });
+}
+function setWordmark(light) {
+  const h1 = document.querySelector('.header h1');
+  if (!h1) return;
+  if (light) {
+    h1.textContent = 'Recon';
+    h1.removeAttribute('data-text');       // disables the glitch pseudo-layers
+  } else {
+    h1.innerHTML = '//&nbsp;RECON';
+    h1.setAttribute('data-text', '// RECON');
+  }
+}
+function applyLight(on) {
+  document.body.classList.toggle('light', on);
+  setWordmark(on);
+  updateLightBtn(on);
+  refreshLabels();
+  refreshPlaceholders();
+}
+function toggleLight() {
+  const on = !document.body.classList.contains('light');
+  try { localStorage.setItem('recon_theme', on ? 'light' : 'glitch'); } catch (e) {}
+  applyLight(on);
+}
+function initLight() {
+  let pref = null;
+  try {
+    pref = localStorage.getItem('recon_theme');
+    // Migrate the old key from when this was called "Calm" mode.
+    if (pref === null) {
+      const old = localStorage.getItem('recon_calm');
+      if (old === '1') pref = 'light';
+      else if (old === '0') pref = 'glitch';
+    }
+  } catch (e) {}
+  // Default to light only when the user has asked the OS for reduced motion.
+  const on = pref === 'light' || (pref === null &&
+    window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches);
+  applyLight(on);
+}
+
+// ─── Release notes ───────────────────────────────────────
+// User-facing changelog shown when the version label is clicked. Newest first;
+// the entry matching BUILD is marked "now". Keep to the last several releases.
+const RELEASE_NOTES = [
+  { v: 'v2.8', items: [
+    'Follow-up tasks are now named after the issue you describe, so they’re easier to scan in Asana.',
+  ]},
+  { v: 'v2.7', items: [
+    'Release notes: click the version number any time to see what’s changed.',
+    'Added a separate dev environment so new versions are tested before going live.',
+  ]},
+  { v: 'v2.6', items: [
+    'Renamed “Calm” mode to Light mode.',
+    'New pixel-art theme toggle in the header — a moon for dark, a sun for light.',
+  ]},
+  { v: 'v2.5', items: [
+    'Light mode is now a full, high-end light theme rather than a dimmed version of the dark UI.',
+  ]},
+  { v: 'v2.4', items: [
+    'The Asana report is now richly formatted — an ASCII header, sections, every checklist item with its status, your notes, and follow-up links.',
+  ]},
+  { v: 'v2.3', items: [
+    'Added an opt-in calmer theme for easier reading in the field (now Light mode).',
+  ]},
+  { v: 'v2.2', items: [
+    'Fixed the tech’s login (operator email corrected).',
+  ]},
+];
+
+function renderReleaseNotes() {
+  const body = document.getElementById('releaseBody');
+  if (!body) return;
+  body.innerHTML = RELEASE_NOTES.map(r => {
+    const now = (r.v === BUILD) ? '<span class="rel-now">Now</span>' : '';
+    const items = r.items.map(i => `<li>${i}</li>`).join('');
+    return `<div class="rel"><div class="rel-head"><span class="rel-v">${r.v}</span>${now}</div><ul class="rel-items">${items}</ul></div>`;
+  }).join('');
+}
+function openReleaseNotes() {
+  renderReleaseNotes();
+  document.getElementById('releaseModal').style.display = 'flex';
+}
+function closeReleaseNotes() {
+  document.getElementById('releaseModal').style.display = 'none';
+}
+document.addEventListener('keydown', e => {
+  if (e.key === 'Escape') closeReleaseNotes();
+});
+
+// On load
+document.getElementById('buildLabel').textContent = BUILD;
+
+// Environment badge — make it obvious when this isn't production (and which
+// non-prod env it is). Also flags the browser tab so it's clear at a glance.
+if (!IS_PROD) {
+  const h = location.hostname;
+  const envLabel =
+    (h === 'localhost' || h === '127.0.0.1' || location.protocol === 'file:') ? 'LOCAL' :
+    h.endsWith('.netlify.app') ? 'PREVIEW' : 'DEV';
+  const badge = document.getElementById('envBadge');
+  if (badge) {
+    badge.textContent = envLabel;
+    badge.title = 'Non-production environment — submissions go to the RECON Staging Asana project, not the live one.';
+    badge.style.display = 'inline-block';
+  }
+  document.title = '[' + envLabel + '] ' + document.title;
+}
+
+initLight();
+initAuth();
+renderCategories();
+refreshPlaceholders(); // notes fields are created above; sync to current mode
+if (window.location.protocol === 'file:') {
+  document.getElementById('demoBanner').style.display = 'flex';
+  loadProjectFields(); // safe in demo mode, will fail silently
+}
+if (hasDraft()) {
+  document.getElementById('draftBanner').style.display = 'flex';
+}
+
+/* DEMO: seed an operator so the local (file://) simulated transmit works. */
+if (window.location.protocol === 'file:') {
+  try {
+    currentOperator = { name: 'A. Rivera', gid: '0' };
+    var _ul = document.getElementById('userLabel'); if (_ul) _ul.textContent = 'A. Rivera';
+  } catch (e) {}
+}
+</script>
+</body>
+</html>

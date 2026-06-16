@@ -1,0 +1,287 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Chris Gachot, Operations Technology Portfolio</title>
+<meta name="theme-color" content="#0c0d11" />
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:ital,wght@0,500;0,600;0,700;0,800;1,700;1,800&display=swap" rel="stylesheet" />
+<style>
+:root{
+  --bg:#0c0d11; --panel:#15171d; --panel-2:#1b1e26; --panel-hover:#232732;
+  --border:#2b303b; --border-soft:#21252e; --track:#2f3440;
+  --text:#f2f5f9; --text-muted:#a5adbb; --text-dim:#6d7684;
+  --accent:#2aa3e6; --accent-soft:rgba(42,163,230,.13); --accent-line:rgba(42,163,230,.38);
+  --g-s:#2fd6c0; --g-a:#4296f0; --g-b:#f5c84a; --g-c:#f08a3c; --g-d:#e8478f;
+  --shadow:0 1px 2px rgba(0,0,0,.5),0 16px 44px rgba(0,0,0,.4);
+  --font-display:'Barlow Condensed','Arial Narrow',-apple-system,sans-serif;
+}
+*{box-sizing:border-box;}
+html,body{height:100%;}
+body{
+  margin:0; background:var(--bg); color:var(--text);
+  font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;
+  -webkit-font-smoothing:antialiased;
+}
+body::before{
+  content:''; position:fixed; inset:0; pointer-events:none; z-index:0;
+  background:
+    radial-gradient(120% 75% at 88% -12%, rgba(232,48,86,.22), transparent 55%),
+    radial-gradient(90% 60% at 6% 112%, rgba(120,60,200,.12), transparent 60%);
+}
+.app{position:relative; z-index:1; max-width:1180px; margin:0 auto; padding:46px 28px 90px;}
+a{color:inherit; text-decoration:none;}
+
+/* Header */
+.app-header{display:flex; align-items:flex-end; justify-content:space-between; gap:16px; margin-bottom:8px;}
+.brand h1{
+  margin:0; font-family:var(--font-display); font-style:italic; font-weight:800;
+  text-transform:uppercase; letter-spacing:.01em; line-height:.95;
+  font-size:46px; display:inline-flex; align-items:center; gap:13px;
+}
+.logo-mark{width:34px; height:34px; color:var(--accent); flex:none; filter:drop-shadow(0 0 12px var(--accent-line));}
+.subtitle{margin:7px 0 0; color:var(--text-muted); font-size:13px; letter-spacing:.14em; text-transform:uppercase; font-family:var(--font-display);}
+.subtitle .crumb{color:var(--accent); margin:0 6px; font-weight:800;}
+.badge{
+  display:inline-flex; align-items:center; gap:7px; border-radius:999px; padding:6px 13px;
+  font-size:11px; font-weight:700; letter-spacing:.06em; text-transform:uppercase;
+  border:1px solid rgba(66,150,240,.3); background:var(--panel-2); color:var(--g-a); font-family:var(--font-display);
+}
+.badge::before{content:''; width:6px; height:6px; border-radius:50%; background:var(--g-a); box-shadow:0 0 8px var(--g-a);}
+
+/* Intro */
+.lede{
+  margin:30px 0 6px; max-width:760px; color:var(--text-muted); font-size:16.5px; line-height:1.62;
+}
+.lede b{color:var(--text); font-weight:600;}
+
+/* Stat strip */
+.statline{display:flex; flex-wrap:wrap; gap:10px; margin:24px 0 36px;}
+.statchip{
+  background:var(--panel-2); border:1px solid var(--border); border-radius:10px; padding:9px 15px;
+  font-family:var(--font-display); text-transform:uppercase; letter-spacing:.05em; font-size:14px; color:var(--text-dim);
+}
+.statchip b{color:var(--text); font-weight:800; font-style:italic; margin-right:6px; font-size:17px; font-variant-numeric:tabular-nums;}
+
+/* Section heads */
+.sec-h{display:flex; align-items:baseline; gap:12px; margin:14px 0 16px;}
+.sec-h .t{font-family:var(--font-display); font-style:italic; font-weight:800; text-transform:uppercase; letter-spacing:.03em; font-size:24px;}
+.sec-h .s{color:var(--text-dim); font-size:12.5px; letter-spacing:.1em; text-transform:uppercase; font-family:var(--font-display);}
+
+/* Roster */
+.records{background:var(--panel); border:1px solid var(--border); border-radius:14px; overflow:hidden; box-shadow:var(--shadow);}
+.rec{
+  display:grid; grid-template-columns:34px 50px minmax(180px,1.1fr) 1.5fr auto; align-items:center; gap:18px;
+  padding:18px 22px; border-top:1px solid var(--border-soft); position:relative; cursor:pointer;
+  transition:background .12s ease; text-align:left; width:100%;
+}
+.rec:first-child{border-top:none;}
+.rec:hover{background:var(--panel-hover);}
+.rec::before{content:''; position:absolute; left:0; top:0; bottom:0; width:4px; background:var(--track);}
+.rec.t-s::before{background:var(--g-s);} .rec.t-a::before{background:var(--g-a);}
+.rec.t-b::before{background:var(--g-b);} .rec.t-c::before{background:var(--g-c);} .rec.t-d::before{background:var(--g-d);}
+.rk{font-family:var(--font-display); font-style:italic; font-weight:800; font-size:18px; color:var(--text-dim); font-variant-numeric:tabular-nums;}
+.glyph{
+  width:42px; height:42px; border-radius:9px; display:inline-flex; align-items:center; justify-content:center;
+  font-family:var(--font-display); font-style:italic; font-weight:800; font-size:19px; transform:skewX(-7deg);
+  border:1px solid var(--border); background:var(--panel-2);
+}
+.t-s .glyph{color:var(--g-s); border-color:rgba(47,214,192,.5); background:rgba(47,214,192,.12);}
+.t-a .glyph{color:var(--g-a); border-color:rgba(66,150,240,.45); background:rgba(66,150,240,.1);}
+.t-b .glyph{color:var(--g-b); border-color:rgba(245,200,74,.45); background:rgba(245,200,74,.1);}
+.t-c .glyph{color:var(--g-c); border-color:rgba(240,138,60,.45); background:rgba(240,138,60,.1);}
+.t-d .glyph{color:var(--g-d); border-color:rgba(232,71,143,.45); background:rgba(232,71,143,.1);}
+.who{min-width:0;}
+.who .nm{font-family:var(--font-display); font-weight:700; text-transform:uppercase; letter-spacing:.02em; font-size:21px; line-height:1;}
+.who .tg{color:var(--accent); font-size:12.5px; margin-top:4px; font-weight:600;}
+.desc{color:var(--text-muted); font-size:14px; line-height:1.5;}
+.go{
+  justify-self:end; display:inline-flex; align-items:center; gap:8px; white-space:nowrap;
+  font-family:var(--font-display); font-style:italic; font-weight:800; text-transform:uppercase; letter-spacing:.05em;
+  font-size:15px; color:#fff; background:var(--accent); border:1px solid var(--accent);
+  border-radius:9px; padding:9px 16px; box-shadow:0 0 14px rgba(42,163,230,.32); transition:filter .12s ease;
+}
+.rec:hover .go{filter:brightness(1.1);}
+.go .stat-pill{
+  font-style:normal; font-weight:700; font-size:10.5px; letter-spacing:.05em; color:var(--text);
+}
+.statusword{
+  font-family:var(--font-display); font-weight:700; text-transform:uppercase; letter-spacing:.05em; font-size:11px;
+  padding:3px 9px; border-radius:999px; display:inline-block; margin-top:7px;
+}
+.sw-live{color:var(--g-a); border:1px solid rgba(66,150,240,.4); background:rgba(66,150,240,.1);}
+.sw-beta{color:var(--g-b); border:1px solid rgba(245,200,74,.4); background:rgba(245,200,74,.1);}
+
+/* Connect */
+.connect{margin-top:46px; background:var(--panel); border:1px solid var(--border); border-radius:14px; padding:26px 28px 30px; box-shadow:var(--shadow);}
+.flow{display:grid; grid-template-columns:1fr 1fr 1fr; gap:16px; margin-top:20px;}
+.fcol{display:flex; flex-direction:column; gap:12px;}
+.fcol .lab{text-align:center; font-family:var(--font-display); text-transform:uppercase; letter-spacing:.12em; font-size:11px; color:var(--text-dim); font-weight:700;}
+.node{background:var(--panel-2); border:1px solid var(--border); border-radius:10px; padding:13px 15px;}
+.node b{display:block; font-family:var(--font-display); text-transform:uppercase; letter-spacing:.02em; font-size:15px;}
+.node span{font-size:12.5px; color:var(--text-muted);}
+.hub{
+  display:flex; flex-direction:column; justify-content:center; text-align:center; border-radius:10px; padding:16px;
+  background:linear-gradient(150deg,#36b0ef,var(--accent)); color:#04121f;
+}
+.hub b{font-family:var(--font-display); font-style:italic; text-transform:uppercase; font-size:16px;}
+.hub span{font-size:12px; color:#0a2436;}
+.closing{margin-top:24px; color:var(--text-muted); font-size:15px; line-height:1.6; max-width:780px;}
+
+/* Footer */
+.foot{margin-top:34px; color:var(--text-dim); font-size:12.5px; line-height:1.6; border-top:1px solid var(--border-soft); padding-top:20px;}
+
+@media(max-width:820px){
+  .rec{grid-template-columns:26px 44px 1fr; row-gap:10px;}
+  .desc{grid-column:1/-1;} .go{grid-column:1/-1; justify-self:start;}
+  .flow{grid-template-columns:1fr;}
+}
+</style>
+</head>
+<body>
+<div class="app">
+
+  <header class="app-header">
+    <div class="brand">
+      <h1>
+        <svg class="logo-mark" viewBox="0 0 32 32" fill="none" aria-hidden="true">
+          <path d="M3 20 L11 20 L15 8 L21 26 L25 14 L29 14" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"/>
+        </svg>
+        Portfolio
+      </h1>
+      <p class="subtitle">Chris Gachot <span class="crumb">/</span> Operations Technology <span class="crumb">/</span> 5 Shipped Apps</p>
+    </div>
+    <span class="badge">Live demos inside</span>
+  </header>
+
+  <p class="lede">
+    Five connected applications I designed, built, and shipped to run technology operations across a portfolio of
+    luxury estates. Each one took a manual, reactive process, <b>missed outages, hand-written reports, inconsistent
+    field work</b>, and made it automated and proactive. Click any app to open a working, interactive demo.
+  </p>
+
+  <div class="statline">
+    <span class="statchip"><b>5</b> apps shipped end-to-end</span>
+    <span class="statchip"><b>24/7</b> portfolio monitoring</span>
+    <span class="statchip"><b>~0</b> manual steps once deployed</span>
+    <span class="statchip"><b>1</b> shared operations backbone</span>
+  </div>
+
+  <div class="sec-h"><span class="t">The Roster</span><span class="s">Tap to launch a demo</span></div>
+
+  <div class="records">
+
+    <a class="rec t-a" href="beacon.html">
+      <span class="rk">01</span>
+      <span class="glyph">B</span>
+      <span class="who">
+        <span class="nm">Beacon</span>
+        <span class="tg">Live status wall</span>
+        <span class="statusword sw-live">In production</span>
+      </span>
+      <span class="desc">Always-on operations dashboard. Calm when healthy, impossible to miss when something breaks. Cuts outage detection from "when the client calls" to seconds.</span>
+      <span class="go">Launch demo →</span>
+    </a>
+
+    <a class="rec t-s" href="engine.html">
+      <span class="rk">02</span>
+      <span class="glyph">E</span>
+      <span class="who">
+        <span class="nm">Engine</span>
+        <span class="tg">Auto-ticketing pipeline</span>
+        <span class="statusword sw-live">In production</span>
+      </span>
+      <span class="desc">Watches every device and monitor, files a clean ticket the moment something goes down, and closes it when the issue clears. One incident, one ticket, no human in the loop.</span>
+      <span class="go">Launch demo →</span>
+    </a>
+
+    <a class="rec t-b" href="recon.html">
+      <span class="rk">03</span>
+      <span class="glyph">R</span>
+      <span class="who">
+        <span class="nm">Recon</span>
+        <span class="tg">Field audit app</span>
+        <span class="statusword sw-live">In production</span>
+      </span>
+      <span class="desc">Walks a technician through every technology system on site, then files a structured audit automatically. Every property checked the same way, every time. No paperwork.</span>
+      <span class="go">Launch demo →</span>
+    </a>
+
+    <a class="rec t-c" href="report.html">
+      <span class="rk">04</span>
+      <span class="glyph">T</span>
+      <span class="who">
+        <span class="nm">Generator</span>
+        <span class="tg">Client-ready visit reports</span>
+        <span class="statusword sw-live">In production</span>
+      </span>
+      <span class="desc">Pulls a visit's work, lets you select and reword it, and exports a premium PDF from a locked template. Hours of manual write-up become a short review pass.</span>
+      <span class="go">Launch demo →</span>
+    </a>
+
+    <a class="rec t-d" href="tempo.html">
+      <span class="rk">05</span>
+      <span class="glyph">T</span>
+      <span class="who">
+        <span class="nm">Tempo</span>
+        <span class="tg">Adoption scoring &amp; coaching</span>
+        <span class="statusword sw-beta">Phase 1 live</span>
+      </span>
+      <span class="desc">Scores how well each team member uses the work platform against role benchmarks, and auto-generates coaching. Makes team accountability measurable with near-zero manager effort.</span>
+      <span class="go">Launch demo →</span>
+    </a>
+
+    <div class="rec t-s" style="cursor:default;">
+      <span class="rk">06</span>
+      <span class="glyph">A</span>
+      <span class="who">
+        <span class="nm">Ambient</span>
+        <span class="tg">Passive field documentation</span>
+        <span class="statusword sw-beta" style="color:#9a7dff;border-color:rgba(154,125,255,.4);background:rgba(154,125,255,.1);">Ideation / concept</span>
+      </span>
+      <span class="desc">The next idea: a phone (and eventually smart-glasses) app that passively captures a technician's workday, then uses AI to draft work logs and tickets into a review queue. Nothing posts without human approval, and raw capture is purged within 24 hours. Removes logging effort entirely.</span>
+      <span class="go" style="background:var(--panel-2);border-color:var(--border);color:var(--text-dim);box-shadow:none;cursor:default;">Concept &middot; no demo yet</span>
+    </div>
+
+  </div>
+
+  <div class="connect">
+    <div class="sec-h" style="margin:0;"><span class="t">Systems Thinking</span><span class="s">Five tools, one platform</span></div>
+    <p class="closing" style="margin-top:10px;">
+      Each app does one job well, but the value is in how they connect around a shared work-management backbone:
+      detection flows into ticketing, field work flows into records, and records flow back out to clients.
+    </p>
+    <div class="flow">
+      <div class="fcol">
+        <span class="lab">Detect &amp; capture</span>
+        <div class="node"><b>Engine</b><span>Spots outages, files &amp; clears tickets</span></div>
+        <div class="node"><b>Recon</b><span>Captures on-site audits as records</span></div>
+      </div>
+      <div class="fcol">
+        <span class="lab">Coordinate</span>
+        <div class="hub"><b>Shared work backbone</b><span>The system of record every app reads &amp; writes</span></div>
+        <div class="node"><b>Beacon</b><span>Live status wall, two-way ticket sync</span></div>
+      </div>
+      <div class="fcol">
+        <span class="lab">Report &amp; improve</span>
+        <div class="node"><b>Generator</b><span>Turns the work into client reports</span></div>
+        <div class="node"><b>Tempo</b><span>Measures &amp; coaches how it's all used</span></div>
+      </div>
+    </div>
+    <p class="closing">
+      I built them as decoupled, independent services on purpose, so a fault in one can never cascade into the others , 
+      while still sharing a common spine. That balance of integration and resilience is the part I'm proudest of.
+    </p>
+  </div>
+
+  <p class="foot">
+    Interactive portfolio by Chris Gachot. Built for a luxury residential property-management operation; client and
+    company specifics intentionally generalized, and all demo data is fictional. Demos run entirely in your browser , 
+    no live systems or real data are connected.
+  </p>
+
+</div>
+</body>
+</html>

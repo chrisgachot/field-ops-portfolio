@@ -1,0 +1,2971 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+
+<script>
+/* ===== DEMO DATA LAYER (no live systems). Intercepts the app's proxy calls and
+   returns fictional fixtures so the real Beacon UI renders. One property
+   (Cedar Ridge Estate) is intentionally DEGRADED to show the alert + ack flow,
+   the click-for-details expander, its Asana ticket, and down-event history. ===== */
+(function(){
+  var NAMES = ["Cedar Ridge Estate", "Harbor Point House", "Aspen Hollow Lodge", "Lakeside Compound", "Summit View Villa", "Orchard Lane Manor", "Birch Hollow Retreat", "Marsh Landing House"];
+  var now = Math.floor(Date.now()/1000), DAY=86400;
+  var devCounts=[24,18,31,22,16,27,14,19];
+  // Cedar Ridge (index 0): one offline device + recent outage history + lower 90d uptime.
+  var degradedName = NAMES[0];
+  function ratio(){ return (99.9+Math.random()*0.09).toFixed(2)+'-'+(99.9+Math.random()*0.08).toFixed(2)+'-'+(99.8+Math.random()*0.15).toFixed(2); }
+  var monitors = NAMES.map(function(n,i){
+    var m = { id:1000+i, friendly_name:n, url:'https://example.com', type:1, status:2,
+              custom_uptime_ratio:ratio(), create_datetime: now-200*DAY, logs:[] };
+    if(i===0){
+      m.custom_uptime_ratio='99.61-98.92-98.77';
+      m.logs=[
+        { type:1, datetime: now-2*DAY-3600,  duration:2640 },  // 44m
+        { type:1, datetime: now-4*DAY-7200,  duration:1320 },  // 22m
+        { type:1, datetime: now-9*DAY,       duration:5400 },  // 1h30m
+      ];
+    }
+    return m;
+  });
+  var ovrc={ items:[{ displayAs:'Estate Portfolio', locations: NAMES.map(function(n,i){
+    return { name:n, deviceCount:devCounts[i], offlineDeviceCount:0 }; }) }] };
+  var unifi={ hosts: NAMES.map(function(n,i){
+    if(i===0) return { name:n, deviceCount:devCounts[0], offlineDeviceCount:1,
+      offlineDevices:[{ mac:'a1:b2:c3:d4:e5:f6', name:'Boathouse Camera' }] };
+    return { name:n, deviceCount:devCounts[i], offlineDeviceCount:0, offlineDevices:[] }; }) };
+  var slack={ ok:true, messages: NAMES.map(function(n){ return { type:'message', text:'UPS: '+n+' | online' }; }) };
+  var tickets={}; tickets[degradedName]=[{
+    gid:'1208887766', title:degradedName+' — network device offline (Boathouse Camera)',
+    statusName:'Alert!', kind:'unifi', permalink:'#' }];
+
+  function J(obj){ return new Response(JSON.stringify(obj), {status:200, headers:{'Content-Type':'application/json'}}); }
+  var realFetch = window.fetch ? window.fetch.bind(window) : null;
+  window.fetch = function(url, opts){
+    try{
+      var u=(typeof url==='string')?url:(url&&url.url)||'';
+      if(u.indexOf('/.netlify/functions/')!==-1){
+        if(u.indexOf('uptimerobot')!==-1) return Promise.resolve(J({stat:'ok', monitors:monitors}));
+        if(u.indexOf('ovrc')!==-1)        return Promise.resolve(J(ovrc));
+        if(u.indexOf('unifi')!==-1)       return Promise.resolve(J(unifi));
+        if(u.indexOf('slack')!==-1)       return Promise.resolve(J(slack));
+        if(u.indexOf('asana-tickets')!==-1) return Promise.resolve(J({ok:true, tickets:tickets}));
+        if(u.indexOf('acks')!==-1)        return Promise.resolve(J({ok:true, acks:{}}));
+        if(u.indexOf('ignores')!==-1)     return Promise.resolve(J({ok:true, ignores:{}}));
+        if(u.indexOf('asana')!==-1)       return Promise.resolve(J({ok:true, commented:1, test:false}));
+        return Promise.resolve(J({ok:true}));
+      }
+    }catch(e){}
+    return realFetch ? realFetch(url, opts) : Promise.reject(new Error('offline demo'));
+  };
+  window.netlifyIdentity = window.netlifyIdentity || { on:function(){}, init:function(){}, open:function(){}, close:function(){}, logout:function(){}, currentUser:function(){return null;} };
+})();
+</script>
+
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+  <title>Beacon — the Estate Status</title>
+
+  <!-- Theme / PWA -->
+  <meta name="theme-color" content="#04100f">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <meta name="apple-mobile-web-app-title" content="Beacon">
+  <link rel="manifest" href="/manifest.webmanifest">
+  <link rel="icon" type="image/svg+xml" href="/favicon.svg">
+  <link rel="icon" type="image/png" sizes="32x32" href="/favicon-32.png">
+  <link rel="apple-touch-icon" href="/apple-touch-icon.png">
+
+  <!-- Social sharing -->
+  <meta property="og:type" content="website">
+  <meta property="og:title" content="Beacon — the Estate Status">
+  <meta property="og:description" content="Live infrastructure monitoring for the Estate.">
+  <meta property="og:url" content="https://#/">
+  <meta property="og:image" content="https://#/og-image.png">
+  <meta property="og:image:width" content="1200">
+  <meta property="og:image:height" content="630">
+  <meta name="twitter:card" content="summary_large_image">
+  <meta name="twitter:title" content="Beacon — the Estate Status">
+  <meta name="twitter:description" content="Live infrastructure monitoring for the Estate.">
+  <meta name="twitter:image" content="https://#/og-image.png">
+
+  <!-- Invite/recovery flow, step 1 of 2: if Identity sends an invite or recovery
+       token in the URL hash, stash it and strip the hash BEFORE the widget loads so
+       init() stays clean and never auto-opens a split modal (see recon). -->
+  <script>
+    (function () {
+      try {
+        if (location.hash && /(?:invite_token|recovery_token)=/.test(location.hash)) {
+          window.__beaconInviteHash = location.hash;
+          history.replaceState(null, '', location.pathname + location.search);
+        }
+      } catch (e) {}
+    })();
+  </script>
+  <!-- identity widget removed for offline demo -->
+
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+
+    /* ── Auth gate — covers the page until login is confirmed ── */
+    #authGate {
+      position: fixed; inset: 0; z-index: 9000;
+      background: #0f1117;
+      display: flex; align-items: center; justify-content: center;
+      flex-direction: column; gap: 16px;
+      pointer-events: all; touch-action: none;
+      padding: 24px; text-align: center;
+    }
+    #authGate.hidden { display: none; pointer-events: none; touch-action: auto; }
+    #authGate p {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+      color: #718096; font-size: 0.92rem; letter-spacing: 0.02em;
+    }
+    /* The widget injects its login modal in an iframe at z-index 99; lift it above the gate. */
+    #netlify-identity-widget { z-index: 10000 !important; }
+
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+      background: #0f1117;
+      color: #e2e8f0;
+      min-height: 100vh;
+    }
+
+    /* ── Header ── */
+    header {
+      background: #141622;
+      border-bottom: 1px solid #2d3748;
+      padding: 14px 24px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      position: sticky;
+      top: 0;
+      z-index: 20;
+    }
+    h1 { font-size: 1.15rem; font-weight: 600; color: #f7fafc; letter-spacing: -0.01em; }
+    .header-right { display: flex; align-items: center; gap: 10px; }
+    #last-refresh { font-size: 0.78rem; color: #718096; }
+    .icon-btn {
+      background: #2d3748;
+      border: 1px solid #4a5568;
+      color: #e2e8f0;
+      padding: 5px 12px;
+      border-radius: 6px;
+      cursor: pointer;
+      font-size: 0.8rem;
+      transition: background 0.15s;
+      white-space: nowrap;
+    }
+    .icon-btn:hover { background: #4a5568; }
+    .icon-btn:disabled { opacity: 0.5; cursor: default; }
+
+    /* ── Main ── */
+    main { padding: 20px 24px; max-width: 1600px; margin: 0 auto; }
+
+    /* ── Cards ── */
+    .cards {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(190px, 1fr));
+      gap: 12px;
+      margin-bottom: 18px;
+    }
+    .card {
+      background: #1a1d2e;
+      border: 1px solid #2d3748;
+      border-radius: 10px;
+      padding: 14px 16px;
+    }
+    .card-label {
+      font-size: 0.68rem;
+      color: #718096;
+      text-transform: uppercase;
+      letter-spacing: 0.08em;
+      margin-bottom: 7px;
+    }
+    .card-value { font-size: 1.9rem; font-weight: 700; line-height: 1; }
+    .card-sub { font-size: 0.76rem; color: #718096; margin-top: 5px; }
+    .card-status-line {
+      display: flex;
+      align-items: center;
+      font-size: 0.92rem;
+      font-weight: 600;
+      margin-bottom: 5px;
+    }
+    .card-link {
+      font-size: 0.72rem;
+      color: #4299e1;
+      text-decoration: none;
+      display: inline-block;
+      margin-right: 8px;
+    }
+    .card-link:hover { text-decoration: underline; }
+    .card-actions { display: flex; align-items: center; gap: 6px; flex-wrap: wrap; }
+    .mini-btn {
+      background: none;
+      border: 1px solid #4a5568;
+      color: #a0aec0;
+      padding: 2px 8px;
+      border-radius: 4px;
+      cursor: pointer;
+      font-size: 0.68rem;
+      transition: all 0.15s;
+    }
+    .mini-btn:hover { border-color: #718096; color: #e2e8f0; }
+    .warn-badge {
+      font-size: 0.68rem;
+      background: #744210;
+      color: #fef3c7;
+      padding: 2px 6px;
+      border-radius: 4px;
+    }
+
+    /* ── Status indicators ── */
+    .dot {
+      display: inline-block;
+      width: 9px; height: 9px;
+      border-radius: 50%;
+      margin-right: 7px;
+      flex-shrink: 0;
+    }
+    .dot-up      { background: #48bb78; box-shadow: 0 0 7px #48bb7870; }
+    .dot-down    { background: #fc8181; box-shadow: 0 0 7px #fc818170; }
+    .dot-warn    { background: #f6ad55; box-shadow: 0 0 7px #f6ad5570; }
+    .dot-paused  { background: #4a5568; }
+    .dot-checking{ background: #f6ad55; animation: blink 1.2s ease-in-out infinite; }
+    .dot-na      { background: #2d3748; }
+
+    @keyframes blink { 0%,100%{opacity:1} 50%{opacity:.35} }
+    @keyframes spin   { to{transform:rotate(360deg)} }
+
+    .text-up       { color: #68d391; }
+    .text-down     { color: #fc8181; }
+    .text-warn     { color: #f6ad55; }
+    .text-paused   { color: #718096; }
+    .text-checking { color: #f6ad55; }
+    .text-na       { color: #4a5568; }
+
+    /* ── Controls ── */
+    .controls {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      margin-bottom: 12px;
+      flex-wrap: wrap;
+    }
+    .filter-btn {
+      background: #1a1d2e;
+      border: 1px solid #2d3748;
+      color: #a0aec0;
+      padding: 5px 13px;
+      border-radius: 6px;
+      cursor: pointer;
+      font-size: 0.8rem;
+      transition: all 0.15s;
+      min-height: 36px;
+    }
+    .filter-btn:hover { border-color: #4a5568; color: #e2e8f0; }
+    .filter-btn.active { background: #2d3748; border-color: #718096; color: #f7fafc; }
+    .filter-count { font-size: 0.7rem; margin-left: 4px; opacity: 0.6; }
+    .search-box {
+      background: #1a1d2e;
+      border: 1px solid #2d3748;
+      color: #e2e8f0;
+      padding: 5px 12px;
+      border-radius: 6px;
+      font-size: 0.8rem;
+      outline: none;
+      margin-left: auto;
+      width: 200px;
+      min-height: 36px;
+      transition: border-color 0.15s;
+    }
+    .search-box::placeholder { color: #4a5568; }
+    .search-box:focus { border-color: #4299e1; }
+
+    /* ── Table ── */
+    .table-wrap {
+      background: #1a1d2e;
+      border: 1px solid #2d3748;
+      border-radius: 10px;
+      overflow: hidden;
+    }
+    table { width: 100%; border-collapse: collapse; font-size: 0.83rem; }
+    thead { }
+    th {
+      background: #141622;
+      color: #718096;
+      font-size: 0.68rem;
+      text-transform: uppercase;
+      letter-spacing: 0.07em;
+      padding: 10px 13px;
+      text-align: left;
+      border-bottom: 1px solid #2d3748;
+      white-space: nowrap;
+    }
+    th.sortable { cursor: pointer; user-select: none; }
+    th.sortable:hover { color: #cbd5e0; }
+    th.sorted { color: #63b3ed; }
+    .sort-icon { margin-left: 3px; }
+
+    td {
+      padding: 9px 13px;
+      border-top: 1px solid #1e2235;
+      white-space: nowrap;
+    }
+    tr:hover td { background: #1e2235; }
+    tr.paused-row td { opacity: 0.42; }
+
+    .status-cell { display: flex; align-items: center; font-weight: 500; }
+
+    .uptime-good { color: #68d391; }
+    .uptime-ok   { color: #9ae6b4; }
+    .uptime-warn { color: #f6ad55; }
+    .uptime-bad  { color: #fc8181; }
+
+    /* ── Uptime history bars ── */
+    .uptime-bars-cell { padding: 7px 10px !important; vertical-align: middle; }
+    .uptime-bars { display: flex; flex-direction: column; gap: 3px; }
+    .ubar-track {
+      display: flex;
+      gap: 1.5px;
+      height: 26px;
+      align-items: stretch;
+    }
+    .ubar {
+      flex: 1;
+      min-width: 2px;
+      border-radius: 2px;
+      cursor: default;
+      transition: opacity 0.1s;
+    }
+    .ubar:hover { opacity: 0.75; }
+    .ubar-up      { background: #48bb78; }
+    .ubar-warn    { background: #f6ad55; }
+    .ubar-down    { background: #fc8181; }
+    .ubar-unknown { background: #2d3748; }
+    .ubar-footer {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      font-size: 0.6rem;
+      color: #4a5568;
+      white-space: nowrap;
+      line-height: 1;
+    }
+    .ubar-pct { color: #718096; font-weight: 500; }
+    th.col-7d  { min-width: 90px; }
+    th.col-30d { min-width: 150px; }
+    th.col-90d { min-width: 240px; width: 100%; }
+    td.col-7d  { min-width: 90px; }
+    td.col-30d { min-width: 150px; }
+    td.col-90d { min-width: 240px; width: 100%; }
+    .table-wrap { overflow-x: auto; }
+
+    .service-cell { text-align: center; }
+    .service-badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 5px;
+      font-size: 0.76rem;
+      font-weight: 500;
+    }
+    .service-na { color: #2d3748; font-size: 0.76rem; }
+
+    /* ── Status banner ── */
+    .status-banner {
+      font-size: 1.05rem;
+      font-weight: 500;
+      padding: 12px 18px;
+      border-radius: 10px;
+      margin-bottom: 16px;
+      border: 1px solid transparent;
+      min-height: 46px;
+      transition: color 0.3s, background 0.3s, border-color 0.3s;
+    }
+    .status-banner.banner-all-good {
+      color: #68d391;
+      background: #1a2e23;
+      border-color: #2f5440;
+    }
+    .status-banner.banner-degraded {
+      color: #f6ad55;
+      background: #2d2010;
+      border-color: #6b4a1e;
+    }
+    .status-banner.banner-down {
+      color: #fc8181;
+      background: #2d1515;
+      border-color: #6b2020;
+    }
+
+    /* ── Loading / Error ── */
+    .loading-wrap { padding: 48px; text-align: center; color: #718096; }
+    .spinner {
+      width: 26px; height: 26px;
+      border: 3px solid #2d3748;
+      border-top-color: #4299e1;
+      border-radius: 50%;
+      animation: spin 0.7s linear infinite;
+      margin: 0 auto 12px;
+    }
+
+    /* ── Modals ── */
+    .modal-overlay {
+      display: none;
+      position: fixed; inset: 0;
+      background: rgba(0,0,0,0.65);
+      z-index: 100;
+      align-items: center;
+      justify-content: center;
+    }
+    .modal-overlay.open { display: flex; }
+    .modal {
+      background: #1a1d2e;
+      border: 1px solid #2d3748;
+      border-radius: 12px;
+      padding: 24px;
+      width: 480px;
+      max-width: 95vw;
+    }
+    .modal h2 { font-size: 1rem; margin-bottom: 4px; color: #f7fafc; }
+    .modal p  { font-size: 0.82rem; color: #718096; margin-bottom: 14px; line-height: 1.5; }
+    .modal label { display: block; font-size: 0.76rem; color: #a0aec0; margin-bottom: 5px; }
+    .modal input, .modal textarea {
+      width: 100%;
+      background: #141622;
+      border: 1px solid #4a5568;
+      color: #e2e8f0;
+      padding: 8px 10px;
+      border-radius: 6px;
+      font-size: 0.82rem;
+      outline: none;
+      margin-bottom: 14px;
+      font-family: 'SF Mono', Menlo, monospace;
+    }
+    .modal textarea { height: 110px; resize: vertical; font-size: 0.75rem; }
+    .modal input:focus, .modal textarea:focus { border-color: #4299e1; }
+    .modal-actions { display: flex; gap: 8px; justify-content: flex-end; }
+    .btn-primary {
+      background: #3182ce;
+      border: none;
+      color: #fff;
+      padding: 7px 18px;
+      border-radius: 6px;
+      cursor: pointer;
+      font-size: 0.82rem;
+      font-weight: 500;
+    }
+    .btn-primary:hover { background: #2b6cb0; }
+    .btn-cancel {
+      background: #2d3748;
+      border: 1px solid #4a5568;
+      color: #a0aec0;
+      padding: 7px 18px;
+      border-radius: 6px;
+      cursor: pointer;
+      font-size: 0.82rem;
+    }
+    .btn-cancel:hover { background: #4a5568; }
+    .modal-error { font-size: 0.78rem; color: #fc8181; margin-top: -8px; margin-bottom: 10px; display: none; }
+    .modal-step { font-size: 0.78rem; color: #718096; background: #141622; border-radius: 6px; padding: 10px 12px; margin-bottom: 14px; line-height: 1.7; }
+    .modal-step a { color: #4299e1; }
+    .modal-step code { background: #2d3748; padding: 1px 5px; border-radius: 3px; font-size: 0.75rem; }
+    .apc-stale-note { font-size: 0.72rem; color: #f6ad55; margin-top: 4px; }
+
+    /* ── Version link + release notes ── */
+    .version-link {
+      cursor: pointer;
+      font-size: 0.72rem;
+      color: #718096;
+      border-bottom: 1px dashed currentColor;
+      padding-bottom: 1px;
+      white-space: nowrap;
+    }
+    .version-link:hover { color: #a0aec0; }
+    .rel { padding: 12px 0; border-bottom: 1px solid #2d3748; }
+    .rel:first-child { padding-top: 4px; }
+    .rel:last-child { border-bottom: none; padding-bottom: 0; }
+    .rel-head { display: flex; align-items: center; gap: 9px; margin-bottom: 8px; flex-wrap: wrap; }
+    .rel-v {
+      font-size: 0.72rem; font-weight: 700; color: #cbd5e0;
+      background: #2d3748; border: 1px solid #4a5568;
+      border-radius: 5px; padding: 2px 8px;
+      font-family: 'SF Mono', Menlo, monospace;
+    }
+    .rel-now {
+      font-size: 0.6rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.06em;
+      color: #0f1117; background: #48bb78; border-radius: 4px; padding: 2px 7px;
+    }
+    .rel-items { list-style: none; margin: 0; padding: 0; }
+    .rel-items li {
+      position: relative; padding-left: 18px; margin-bottom: 6px;
+      font-size: 0.82rem; color: #a0aec0; line-height: 1.5;
+    }
+    .rel-items li:last-child { margin-bottom: 0; }
+    .rel-items li::before { content: '▹'; position: absolute; left: 0; color: #4299e1; }
+    .modal-head { display: flex; align-items: center; justify-content: space-between; margin-bottom: 10px; }
+    .modal-body { max-height: 60vh; overflow-y: auto; }
+
+    /* ── Tile view ── */
+    .tile-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+      gap: 12px;
+    }
+    .tile {
+      background: #1a1d2e;
+      border: 1px solid #2d3748;
+      border-radius: 10px;
+      padding: 16px;
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+      transition: border-color 0.15s;
+    }
+    .tile:hover { border-color: #4a5568; }
+    .tile.tile-down  { border-left: 3px solid #fc8181; }
+    .tile.tile-warn  { border-left: 3px solid #f6ad55; }
+    .tile.tile-up    { border-left: 3px solid #48bb78; }
+    .tile.tile-paused { opacity: 0.45; }
+    .tile-name {
+      font-size: 0.88rem;
+      font-weight: 600;
+      color: #f7fafc;
+      line-height: 1.3;
+      word-break: break-word;
+    }
+    .tile-status { display: flex; align-items: center; font-size: 0.82rem; font-weight: 500; }
+    .tile-services {
+      display: flex;
+      gap: 10px;
+      flex-wrap: wrap;
+    }
+    .tile-svc {
+      display: flex;
+      align-items: center;
+      gap: 4px;
+      font-size: 0.74rem;
+      color: #a0aec0;
+    }
+    .tile-svc-label { color: #718096; margin-right: 2px; }
+    .tile-uptime {
+      font-size: 0.72rem;
+      color: #718096;
+    }
+    .tile-uptime span { font-weight: 500; }
+    .view-toggle-btn {
+      background: #1a1d2e;
+      border: 1px solid #2d3748;
+      color: #a0aec0;
+      padding: 5px 13px;
+      border-radius: 6px;
+      cursor: pointer;
+      font-size: 0.8rem;
+      transition: all 0.15s;
+      margin-left: auto;
+      min-height: 36px;
+    }
+    .view-toggle-btn:hover { border-color: #4a5568; color: #e2e8f0; }
+
+    /* ── Mobile responsive ── */
+    @media (max-width: 640px) {
+      header {
+        padding: 12px 16px;
+        flex-wrap: wrap;
+        gap: 8px;
+      }
+      h1 { font-size: 1rem; }
+      #last-refresh { display: none; }
+      .icon-btn { padding: 7px 12px; min-height: 38px; font-size: 0.82rem; }
+
+      main { padding: 12px 12px; }
+
+      .cards {
+        grid-template-columns: repeat(2, 1fr);
+        gap: 10px;
+        margin-bottom: 14px;
+      }
+      .card { padding: 12px 12px; }
+      .card-value { font-size: 1.6rem; }
+
+      .controls {
+        gap: 6px;
+      }
+      .filter-btn { padding: 7px 10px; font-size: 0.78rem; }
+      .search-box {
+        width: 100%;
+        margin-left: 0;
+        order: 10;
+        flex-basis: 100%;
+      }
+      .view-toggle-btn { margin-left: 0; }
+
+      /* Stack table into card-style rows on mobile */
+      .table-wrap { border-radius: 8px; }
+      table, thead, tbody, th, td, tr { display: block; }
+      thead tr { display: none; }
+      tbody tr {
+        border-top: 1px solid #2d3748;
+        padding: 10px 12px;
+        display: grid;
+        grid-template-columns: auto 1fr;
+        grid-template-rows: auto auto auto;
+        gap: 4px 10px;
+      }
+      tbody tr:first-child { border-top: none; }
+      /* Status dot column */
+      td:nth-child(1) {
+        grid-column: 1;
+        grid-row: 1 / 3;
+        display: flex;
+        align-items: center;
+        padding: 0;
+        border: none;
+        white-space: nowrap;
+      }
+      /* Name column */
+      td:nth-child(2) {
+        grid-column: 2;
+        grid-row: 1;
+        padding: 0;
+        border: none;
+        font-weight: 600;
+        font-size: 0.85rem;
+        white-space: normal;
+        word-break: break-word;
+      }
+      /* 90d bars */
+      td.col-90d {
+        grid-column: 1 / 3;
+        grid-row: 3;
+        padding: 6px 0 0 0 !important;
+        border: none;
+        width: 100%;
+        min-width: unset;
+      }
+      /* OvrC + APC inline */
+      td:nth-child(4), td:nth-child(5) {
+        grid-column: 2;
+        grid-row: 2;
+        padding: 0;
+        border: none;
+        font-size: 0.78rem;
+        display: inline-flex;
+        align-items: center;
+      }
+      td:nth-child(5) { margin-left: 12px; }
+      /* group OvrC + APC side by side */
+      tbody tr {
+        grid-template-rows: auto auto auto;
+      }
+
+      .modal { padding: 18px 16px; border-radius: 10px; }
+      .tile-grid { grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 10px; }
+    }
+  </style>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Share+Tech+Mono&family=VT323&display=swap" rel="stylesheet">
+
+  <!-- ═══════════ Beacon — Cassette-futurism teal console theme ═══════════ -->
+  <style>
+    :root{
+      --bg:#04100f;
+      --teal:#3fe0d8;
+      --teal-bright:#8ff8f0;
+      --teal-dim:#2a8c88;
+      --amber:#ffb84d;          /* accent */
+      --amber-bright:#ffd28a;
+      --red:#ff3b2f;
+      --panel-a:rgba(63,224,216,0.05);
+      --panel-b:rgba(63,224,216,0.014);
+      --border:rgba(63,224,216,0.30);
+      --grid:rgba(63,224,216,0.035);
+      --glow:0 0 4px rgba(63,224,216,0.55);
+      --glow-rich:0 0 5px rgba(63,224,216,0.85),0 0 11px rgba(63,224,216,0.5),0 0 22px rgba(63,224,216,0.28);
+    }
+    body{
+      color:var(--teal);
+      font-family:'Share Tech Mono','SF Mono',monospace;
+      letter-spacing:0.02em;
+      text-shadow:0 0 3px rgba(63,224,216,0.4);
+      background:
+        repeating-linear-gradient(0deg,var(--grid) 0 1px,transparent 1px 42px),
+        repeating-linear-gradient(90deg,var(--grid) 0 1px,transparent 1px 42px),
+        radial-gradient(ellipse 120% 90% at 50% 25%,#07221f 0%,var(--bg) 70%);
+      background-attachment:fixed;
+    }
+    /* Dark everywhere so iOS (incl. installed PWA) never flashes white at the
+       edges/status bar; honour the notch/home-indicator safe areas. */
+    html{background:var(--bg);min-height:100%;}
+    body{padding-bottom:env(safe-area-inset-bottom);}
+    header{padding-top:calc(14px + env(safe-area-inset-top));}
+
+    /* ── CRT / console overlays ── */
+    #crtScanlines,#crtVignette,#alertOverlay,#alertFrame,#crtBezel,#crtGlass{position:fixed;pointer-events:none;}
+    #crtScanlines{
+      inset:0;z-index:9990;
+      background:repeating-linear-gradient(0deg,rgba(0,0,0,0.26) 0px,rgba(0,0,0,0.26) 1px,transparent 1px,transparent 3px);
+      animation:crtFlicker 5s steps(60) infinite;
+    }
+    #crtScanlines::after{
+      content:'';position:absolute;left:0;right:0;height:32vh;
+      background:linear-gradient(rgba(63,224,216,0.05),rgba(63,224,216,0));
+      animation:scanBeam 7s linear infinite;
+    }
+    #crtVignette{
+      inset:0;z-index:9989;
+      background:radial-gradient(ellipse 100% 100% at 50% 50%,rgba(0,0,0,0) 50%,rgba(0,0,0,0.62) 100%);
+    }
+    #crtGlass{
+      inset:8px;z-index:9991;border-radius:16px;
+      background:radial-gradient(ellipse 70% 55% at 28% 18%,rgba(255,255,255,0.05) 0%,rgba(255,255,255,0.015) 35%,transparent 62%);
+    }
+    /* Glowing neon console frame (Nostromo bezel) */
+    #crtBezel{
+      inset:8px;z-index:9992;border-radius:16px;
+      border:2px solid rgba(63,224,216,0.5);
+      box-shadow:
+        0 0 24px rgba(63,224,216,0.30),
+        inset 0 0 36px rgba(63,224,216,0.16),
+        inset 0 0 2px rgba(143,248,240,0.7);
+    }
+    #alertOverlay{
+      inset:0;z-index:9988;opacity:0;transition:opacity .5s;
+      background:radial-gradient(ellipse 130% 130% at 50% 50%,rgba(255,20,10,0.06) 20%,rgba(255,30,18,0.34) 100%);
+    }
+    #alertFrame{
+      inset:8px;z-index:9993;opacity:0;transition:opacity .4s;border-radius:16px;
+      border:2px solid rgba(255,50,38,0.9);
+      box-shadow:0 0 28px rgba(255,40,28,0.5),inset 0 0 70px rgba(255,30,18,0.4);
+    }
+    /* Keep the rounded frame/glass inside the notch + rounded display corners
+       (longhands override the inset:8px shorthand above). */
+    #crtGlass,#crtBezel,#alertFrame{
+      top:max(8px,env(safe-area-inset-top));
+      right:max(8px,env(safe-area-inset-right));
+      bottom:max(8px,env(safe-area-inset-bottom));
+      left:max(8px,env(safe-area-inset-left));
+    }
+    @keyframes crtFlicker{0%,100%{opacity:1}50%{opacity:.94}92%{opacity:.97}}
+    @keyframes scanBeam{0%{transform:translateY(-32vh)}100%{transform:translateY(132vh)}}
+    @keyframes alertPulse{0%,100%{opacity:.4}50%{opacity:1}}
+    @keyframes crtBlink{0%,100%{opacity:1}50%{opacity:.25}}
+    @keyframes crtGlitch{0%,96%,100%{transform:translate(0);filter:none}97%{transform:translate(-2px,1px);filter:hue-rotate(40deg)}98%{transform:translate(2px,-1px);filter:hue-rotate(-40deg)}99%{transform:translate(-1px,0)}}
+    main{animation:crtGlitch 9s infinite;}
+
+    /* Calm view — the CRT button kills the distracting ambient effects (scanlines, the
+       scrolling beam in #crtScanlines::after, and the periodic screen wiggle) for legibility.
+       The static frame (bezel/vignette/glass) and ALL alert animations stay on purpose. */
+    body.calm #crtScanlines{display:none!important;}
+    body.calm main{animation:none!important;}
+    #crt-btn svg{display:block;width:18px;height:18px;}
+    #crt-btn.off{opacity:0.55;text-shadow:none;box-shadow:none;}
+
+    /* ── DOWN: whole screen goes red alert ── */
+    body.state-down #alertOverlay{opacity:1;animation:alertPulse 1.3s ease-in-out infinite;}
+    body.state-down #alertFrame{opacity:1;animation:alertPulse 1.3s ease-in-out infinite;}
+    body.state-down #crtBezel{border-color:rgba(255,50,38,0.5);box-shadow:0 0 24px rgba(255,40,28,0.3),inset 0 0 36px rgba(255,40,28,0.16);}
+    body.state-down #crtScanlines{background:repeating-linear-gradient(0deg,rgba(55,0,0,0.34) 0px,rgba(55,0,0,0.34) 1px,transparent 1px,transparent 3px);}
+
+    /* ── Header ── */
+    header{background:rgba(5,26,24,0.72);border-bottom:1px solid var(--border);box-shadow:0 1px 14px rgba(63,224,216,0.1);}
+    h1{font-family:'VT323',monospace;font-size:1.95rem;font-weight:400;color:var(--teal);letter-spacing:0.05em;text-transform:uppercase;text-shadow:var(--glow-rich);}
+    #last-refresh{color:var(--teal-dim);text-shadow:none;}
+
+    /* ── Buttons / inputs ── */
+    .icon-btn,.filter-btn,.view-toggle-btn,.mini-btn,.search-box{
+      background:rgba(63,224,216,0.05);border:1px solid var(--border);color:var(--teal);
+      border-radius:4px;font-family:'Share Tech Mono',monospace;text-transform:uppercase;
+      letter-spacing:0.05em;text-shadow:var(--glow);
+    }
+    .icon-btn:hover,.filter-btn:hover,.view-toggle-btn:hover,.mini-btn:hover{background:rgba(63,224,216,0.14);border-color:var(--teal);color:var(--teal-bright);box-shadow:0 0 10px rgba(63,224,216,0.25),inset 0 0 14px rgba(63,224,216,0.1);}
+    .filter-btn.active{background:rgba(63,224,216,0.18);border-color:var(--teal);color:var(--teal-bright);box-shadow:0 0 10px rgba(63,224,216,0.25);}
+    .filter-btn.active::before{content:'> ';color:var(--amber);}
+    .search-box{color:var(--teal);}
+    .search-box::placeholder{color:var(--teal-dim);}
+    .search-box:focus{border-color:var(--teal);box-shadow:0 0 10px rgba(63,224,216,0.25);}
+
+    /* ── Panels: glowing rounded console frames with corner brackets ── */
+    .card,.tile,.table-wrap,.modal{
+      background:linear-gradient(180deg,var(--panel-a),var(--panel-b));
+      border:1px solid var(--border);border-radius:8px;position:relative;
+      box-shadow:0 0 12px rgba(63,224,216,0.12),inset 0 0 22px rgba(63,224,216,0.04);
+    }
+    .card::before,.tile::before{content:'';position:absolute;top:5px;left:5px;width:10px;height:10px;border-top:2px solid var(--teal);border-left:2px solid var(--teal);opacity:.65;}
+    .card::after,.tile::after{content:'';position:absolute;bottom:5px;right:5px;width:10px;height:10px;border-bottom:2px solid var(--teal);border-right:2px solid var(--teal);opacity:.65;}
+    .card-label{color:var(--teal-dim);text-shadow:none;letter-spacing:0.16em;}
+    .card-value{font-family:'VT323',monospace;font-size:2.7rem;text-shadow:0 0 12px currentColor;}
+    .card-sub{color:var(--teal-dim);text-shadow:none;}
+    .card-clickable{display:block;text-decoration:none;color:inherit;cursor:pointer;transition:border-color .15s,box-shadow .15s;}
+    .card-clickable:hover{border-color:var(--teal);box-shadow:0 0 16px rgba(63,224,216,0.25),inset 0 0 22px rgba(63,224,216,0.06);}
+    .card-dual{display:flex;gap:20px;align-items:baseline;}
+    .card-stat{display:flex;flex-direction:column;}
+    .card-dual .card-value{font-size:2.2rem;}
+
+    /* ── Status colors (teal=up, amber=warn, red=down) ── */
+    .text-up,.uptime-good,.uptime-ok{color:var(--teal)!important;text-shadow:0 0 6px rgba(63,224,216,0.6);}
+    .text-down,.uptime-bad{color:var(--red)!important;text-shadow:0 0 7px rgba(255,59,47,0.8);}
+    .text-warn,.uptime-warn,.text-checking{color:var(--amber)!important;text-shadow:0 0 6px rgba(255,184,77,0.65);}
+    .text-paused,.text-na{color:var(--teal-dim)!important;text-shadow:none;}
+
+    /* ── Status dots ── */
+    .dot-up{background:var(--teal);box-shadow:0 0 8px var(--teal);}
+    .dot-down{background:var(--red);box-shadow:0 0 9px var(--red);}
+    .dot-warn,.dot-checking{background:var(--amber);box-shadow:0 0 8px var(--amber);}
+    .dot-paused,.dot-na{background:var(--teal-dim);box-shadow:none;}
+
+    /* ── Table ── */
+    th{background:rgba(5,26,24,0.7);color:var(--teal-dim);border-bottom:1px solid var(--border);text-shadow:none;}
+    td{border-top:1px solid rgba(63,224,216,0.1);}
+    tr:hover td{background:rgba(63,224,216,0.06);}
+    th.sortable:hover{color:var(--teal);}
+    th.sorted{color:var(--teal-bright);}
+
+    /* ── Uptime bars ── */
+    .ubar-up{background:var(--teal);}
+    .ubar-warn{background:var(--amber);}
+    .ubar-down{background:var(--red);}
+    .ubar-unknown{background:rgba(63,224,216,0.12);}
+    .ubar-pct,.ubar-footer{color:var(--teal-dim);}
+
+    /* ── Tiles ── */
+    .tile-name{color:var(--teal);text-shadow:var(--glow);}
+    .tile.tile-up{border-left:3px solid var(--teal);}
+    .tile.tile-warn{border-left:3px solid var(--amber);}
+    .tile.tile-down{border-left:3px solid var(--red);box-shadow:0 0 18px rgba(255,59,47,0.3),inset 0 0 24px rgba(255,59,47,0.06);}
+    .tile-svc-label,.tile-uptime{color:var(--teal-dim);text-shadow:none;}
+    body.state-down .tile.tile-down{animation:crtBlink 1.2s ease-in-out infinite;}
+
+    /* ── Status banner ── */
+    .status-banner{
+      font-family:'VT323',monospace;font-size:1.7rem;letter-spacing:0.07em;text-transform:uppercase;
+      border-radius:8px;border:1px solid var(--border);background:linear-gradient(180deg,var(--panel-a),var(--panel-b));
+    }
+    .status-banner.banner-all-good{color:var(--teal);border-color:rgba(63,224,216,0.45);background:rgba(63,224,216,0.06);text-shadow:0 0 9px rgba(63,224,216,0.55);}
+    .status-banner.banner-degraded{color:var(--amber);border-color:rgba(255,184,77,0.5);background:rgba(255,184,77,0.06);text-shadow:0 0 9px rgba(255,184,77,0.55);}
+    .status-banner.banner-down{
+      color:#fff;background:rgba(255,30,18,0.16);border:2px solid var(--red);
+      text-shadow:0 0 13px rgba(255,59,47,0.95);font-size:2.1rem;
+      animation:crtBlink 1s steps(2,end) infinite;
+    }
+    .banner-sub{font-size:0.78em;opacity:0.8;}
+
+    /* Transient toast (bottom-center). Hidden until JS adds .show; never blocks clicks. */
+    #toast{
+      position:fixed;left:50%;bottom:24px;transform:translate(-50%,12px);
+      z-index:10001;pointer-events:none;opacity:0;
+      max-width:min(90vw,520px);padding:8px 16px;
+      font-family:'VT323',monospace;font-size:1.05rem;letter-spacing:0.03em;
+      border:1px solid var(--teal-dim);border-radius:6px;
+      background:rgba(4,16,15,0.92);color:var(--teal);
+      box-shadow:0 0 14px rgba(63,224,216,0.25);
+      transition:opacity 0.25s ease,transform 0.25s ease;
+    }
+    #toast.show{opacity:1;transform:translate(-50%,0);}
+    #toast.toast-warn{border-color:rgba(255,184,77,0.5);color:var(--amber);box-shadow:0 0 14px rgba(255,184,77,0.25);}
+
+    /* ── Misc ── */
+    .version-link{color:var(--teal-dim);}
+    .version-link:hover{color:var(--teal);}
+    .refresh-link{cursor:pointer;color:var(--teal-dim);white-space:nowrap;}
+    .refresh-link:hover{color:var(--teal);}
+
+    /* ── Header hamburger menu (cassette-futurism dropdown) ── */
+    .menu-wrap{position:relative;}
+    .menu-panel{
+      position:absolute;top:calc(100% + 8px);right:0;min-width:236px;z-index:200;display:none;flex-direction:column;gap:2px;
+      background:linear-gradient(180deg,rgba(8,32,29,0.98),rgba(4,15,14,0.99));
+      border:1px solid var(--teal);border-radius:8px;padding:9px;
+      box-shadow:0 0 24px rgba(63,224,216,0.28),inset 0 0 26px rgba(63,224,216,0.05);
+    }
+    .menu-panel.open{display:flex;}
+    .menu-item,.menu-row{
+      display:flex;align-items:center;gap:8px;padding:9px 11px;border:1px solid transparent;border-radius:4px;
+      font-size:0.82rem;color:var(--teal);text-transform:uppercase;letter-spacing:0.05em;
+    }
+    .menu-item{cursor:pointer;}
+    /* Leading '>' on every row keeps labels aligned; only lit on item hover. */
+    .menu-item::before,.menu-row::before{content:'>';color:var(--amber);opacity:0;transition:opacity .1s;}
+    .menu-item:hover,.menu-item:focus{background:rgba(63,224,216,0.1);border-color:var(--teal);box-shadow:inset 0 0 14px rgba(63,224,216,0.08);outline:none;}
+    .menu-item:hover::before,.menu-item:focus::before{opacity:1;}
+    .menu-label{flex:1;}
+    #menu-btn{font-size:1.05rem;line-height:1;padding:6px 12px;}
+    .menu-val{color:var(--teal-dim);font-size:0.72rem;letter-spacing:0.04em;}
+    .menu-row .hdr-select{min-height:30px;padding:3px 6px;}
+    .menu-sep{height:1px;background:var(--border);margin:5px 4px;}
+    .menu-item.armed{border-color:var(--red);color:#fff;text-shadow:0 0 6px rgba(255,59,47,0.7);}
+    .menu-item.armed .menu-val{color:#ff6a5a;}
+    .menu-danger{color:#ff6a5a;}
+    .menu-danger::before{color:#ff6a5a;}
+    .menu-danger:hover,.menu-danger:focus{background:rgba(255,59,47,0.12);border-color:var(--red);box-shadow:inset 0 0 14px rgba(255,59,47,0.08);}
+
+    /* Modals need an opaque backing so content stays legible over the page */
+    .modal{background:linear-gradient(180deg,rgba(8,32,29,0.985),rgba(4,15,14,0.99))!important;}
+    .modal.modal-wide{width:620px;}
+    .modal-overlay{background:rgba(2,8,7,0.8);}
+    .rel-date{margin-left:auto;font-size:0.68rem;color:var(--teal-dim);letter-spacing:0.03em;font-variant-numeric:tabular-nums;white-space:nowrap;}
+
+    /* Guide / user manual */
+    .guide{color:var(--teal);line-height:1.55;}
+    .guide .guide-lead{color:var(--teal);font-size:0.92rem;margin-bottom:6px;}
+    .guide h3{font-family:'VT323',monospace;font-size:1.35rem;color:var(--amber);
+      text-transform:uppercase;letter-spacing:0.04em;margin:18px 0 6px;text-shadow:0 0 7px rgba(255,184,77,0.4);}
+    .guide p{font-size:0.84rem;color:var(--teal-dim);margin:4px 0;}
+    .guide ul{list-style:none;margin:4px 0;padding:0;}
+    .guide li{position:relative;padding-left:18px;margin-bottom:8px;font-size:0.84rem;color:var(--teal-dim);}
+    .guide li::before{content:'▹';position:absolute;left:0;color:var(--amber);}
+    .guide b{color:var(--teal);font-weight:400;}
+    .guide .ack-badge{vertical-align:middle;}
+
+    /* Kiosk / signage mode: read-only display, no operator controls.
+       Keep the acknowledged badge (who + countdown) visible — just no action buttons. */
+    body.kiosk .menu-wrap{display:none;}
+    body.kiosk .ack-btn,body.kiosk .ack-x{display:none;}
+    body.kiosk .refresh-link{pointer-events:none;}
+    .card-link{color:var(--amber);}
+    .spinner{border-color:rgba(63,224,216,0.2);border-top-color:var(--teal);}
+    .loading-wrap{color:var(--teal-dim);}
+    .modal h2{font-family:'VT323',monospace;font-size:1.6rem;color:var(--teal);text-shadow:var(--glow);}
+    .modal p{color:var(--teal-dim);}
+    .rel-v{background:rgba(63,224,216,0.12);border-color:var(--border);color:var(--teal);}
+    .rel-now{background:var(--teal);color:#04100f;}
+    .rel-items li{color:var(--teal-dim);}
+    .rel-items li::before{color:var(--amber);}
+    #authGate{background:var(--bg);}
+    #authGate p{font-family:'Share Tech Mono',monospace;color:var(--teal);text-shadow:var(--glow);}
+
+    /* ── Header select (ack duration) ── */
+    .hdr-select{
+      background:rgba(63,224,216,0.05);border:1px solid var(--border);color:var(--teal);
+      border-radius:4px;font-family:'Share Tech Mono',monospace;font-size:0.78rem;
+      text-transform:uppercase;letter-spacing:0.04em;padding:5px 8px;min-height:36px;
+      text-shadow:var(--glow);cursor:pointer;outline:none;
+    }
+    .hdr-select:hover{border-color:var(--teal);}
+    .hdr-select option{background:#04211e;color:var(--teal);}
+    #test-btn.armed{background:rgba(255,59,47,0.22);border-color:var(--red);color:#fff;text-shadow:0 0 7px rgba(255,59,47,0.85);animation:crtBlink 1s steps(2,end) infinite;}
+
+    /* ── Acknowledge controls ── */
+    .ack-btn{
+      background:rgba(255,184,77,0.12);border:1px solid var(--amber);color:var(--amber);
+      border-radius:3px;font-family:'Share Tech Mono',monospace;font-size:0.66rem;
+      padding:3px 9px;cursor:pointer;text-transform:uppercase;letter-spacing:0.06em;
+      text-shadow:0 0 4px rgba(255,184,77,0.5);
+    }
+    .ack-btn:hover{background:rgba(255,184,77,0.25);box-shadow:0 0 8px rgba(255,184,77,0.3);}
+    .ack-badge{
+      display:inline-flex;align-items:center;gap:6px;font-size:0.66rem;color:var(--amber);
+      border:1px dashed var(--amber);border-radius:3px;padding:2px 6px;text-transform:uppercase;letter-spacing:0.04em;
+    }
+    .ack-timer{font-variant-numeric:tabular-nums;}
+    .ack-x{background:none;border:none;color:var(--amber);cursor:pointer;font-size:0.72rem;line-height:1;padding:0 2px;}
+    .ack-x:hover{color:var(--amber-bright);}
+    .tile-ack-row{margin-top:2px;}
+    .row-ack{margin-top:4px;}
+    .tile.tile-ack{border-left:3px solid var(--amber);opacity:0.78;}
+
+    /* ── Alert panel (state-driven, glanceable from across the room) ── */
+    #alert-panel{display:flex;flex-direction:column;gap:14px;margin-bottom:18px;}
+    .alert-card{
+      position:relative;border:2px solid var(--red);border-radius:10px;cursor:pointer;padding:16px 22px;
+      background:linear-gradient(180deg,rgba(255,40,28,0.12),rgba(255,40,28,0.03));
+      animation:alertCardPulse 1.6s ease-in-out infinite;transition:background .15s;
+    }
+    .alert-card:hover{background:linear-gradient(180deg,rgba(255,40,28,0.2),rgba(255,40,28,0.06));}
+    .alert-card.alert-warn{border-color:var(--amber);background:linear-gradient(180deg,rgba(255,184,77,0.12),rgba(255,184,77,0.03));box-shadow:0 0 18px rgba(255,184,77,0.22);animation:none;}
+    .alert-card.alert-ack{border-style:dashed;border-color:var(--amber);background:linear-gradient(180deg,rgba(255,184,77,0.05),transparent);box-shadow:none;opacity:0.72;animation:none;}
+    @keyframes alertCardPulse{
+      0%,100%{box-shadow:0 0 14px rgba(255,40,28,0.22),inset 0 0 28px rgba(255,40,28,0.05);}
+      50%{box-shadow:0 0 36px rgba(255,40,28,0.6),inset 0 0 42px rgba(255,40,28,0.12);}
+    }
+    .alert-card-head{display:flex;align-items:center;gap:16px;flex-wrap:wrap;}
+    .alert-card-name{font-family:'VT323',monospace;font-size:2.7rem;line-height:1;color:#fff;letter-spacing:0.04em;text-shadow:0 0 15px rgba(255,59,47,0.9);}
+    .alert-card.alert-warn .alert-card-name,.alert-card.alert-ack .alert-card-name{text-shadow:0 0 12px rgba(255,184,77,0.75);}
+    .alert-card-level{font-family:'VT323',monospace;font-size:1.5rem;letter-spacing:0.06em;text-transform:uppercase;color:var(--red);}
+    .alert-card.alert-warn .alert-card-level,.alert-card.alert-ack .alert-card-level{color:var(--amber);}
+    .alert-card-spacer{flex:1;}
+    .alert-card-summary{margin-top:8px;font-size:1rem;color:var(--teal);letter-spacing:0.03em;}
+    .alert-card-hint{margin-top:6px;font-size:0.68rem;color:var(--teal-dim);text-transform:uppercase;letter-spacing:0.12em;}
+    .alert-card.open .alert-card-hint{opacity:0.4;}
+    .alert-detail{margin-top:14px;padding-top:12px;border-top:1px solid rgba(63,224,216,0.2);display:none;}
+    .alert-card.open .alert-detail{display:block;}
+    .dtl-row{display:flex;justify-content:space-between;gap:16px;padding:5px 0;border-bottom:1px dotted rgba(63,224,216,0.12);font-size:0.88rem;}
+    .dtl-row:last-child{border-bottom:none;}
+    .dtl-label{color:var(--teal-dim);text-transform:uppercase;letter-spacing:0.08em;font-size:0.72rem;}
+    /* Expander sections: Asana ticket(s), recent down events, uptime. */
+    .dtl-section{margin-top:14px;}
+    .dtl-section:first-child{margin-top:0;}
+    .dtl-section-title{color:var(--teal-dim);text-transform:uppercase;letter-spacing:0.1em;font-size:0.68rem;margin-bottom:6px;}
+    .ticket-link{display:flex;align-items:center;gap:8px;padding:7px 10px;margin-bottom:6px;font-size:0.86rem;
+      color:var(--teal);text-decoration:none;border:1px solid rgba(63,224,216,0.3);border-radius:6px;background:rgba(63,224,216,0.06);}
+    .ticket-link:hover{border-color:var(--teal);background:rgba(63,224,216,0.14);}
+    .ticket-link:last-child{margin-bottom:0;}
+    .ticket-status{color:var(--teal-dim);font-size:0.78rem;}
+    .ticket-none{font-size:0.82rem;color:var(--teal-dim);font-style:italic;}
+    /* Signage has no one to click — hide ticket links there (fetch is skipped too). */
+    body.kiosk .ticket-section{display:none;}
+    /* Offline UniFi devices listed right on a degraded bar (no expand needed). */
+    .offline-list{margin-top:10px;display:flex;flex-wrap:wrap;gap:8px;}
+    .offline-chip{display:inline-flex;align-items:center;gap:6px;font-size:0.82rem;color:var(--amber);
+      background:rgba(255,184,77,0.08);border:1px solid rgba(255,184,77,0.3);border-radius:6px;padding:3px 8px;}
+    .offline-chip .dot{width:7px;height:7px;margin-right:0;}
+    .offline-name{letter-spacing:0.02em;}
+    .ignore-btn{background:none;border:1px solid var(--teal-dim);color:var(--teal-dim);border-radius:4px;
+      font-family:'Share Tech Mono',monospace;font-size:0.66rem;text-transform:uppercase;letter-spacing:0.08em;
+      padding:1px 6px;cursor:pointer;transition:all .12s;}
+    .ignore-btn:hover{border-color:var(--teal);color:var(--teal);}
+    body.kiosk .ignore-btn{display:none;}
+    /* Ignored-devices modal list */
+    .ignored-row{display:flex;align-items:center;justify-content:space-between;gap:16px;padding:9px 0;border-bottom:1px dotted rgba(63,224,216,0.14);}
+    .ignored-row:last-child{border-bottom:none;}
+    .ignored-name{color:var(--teal);font-size:0.92rem;}
+    .ignored-meta{color:var(--teal-dim);font-size:0.72rem;text-transform:uppercase;letter-spacing:0.06em;margin-top:2px;}
+    .ignored-empty{color:var(--teal-dim);font-size:0.85rem;padding:6px 0;}
+    .all-toggle{
+      background:none;border:1px solid var(--border);color:var(--teal-dim);border-radius:4px;
+      font-family:'Share Tech Mono',monospace;font-size:0.78rem;padding:6px 14px;cursor:pointer;
+      text-transform:uppercase;letter-spacing:0.08em;margin-bottom:14px;min-height:34px;
+    }
+    .all-toggle:hover{color:var(--teal);border-color:var(--teal);}
+
+    /* Keep content clear of the neon frame + rounded display corners on mobile */
+    @media (max-width:640px){
+      header{padding-left:max(16px,env(safe-area-inset-left));padding-right:max(16px,env(safe-area-inset-right));}
+      main{padding-left:max(14px,env(safe-area-inset-left));padding-right:max(14px,env(safe-area-inset-right));}
+      .hide-mobile{display:none!important;}
+      #last-refresh{display:inline-block!important;font-size:0.72rem;}
+    }
+
+    @media (prefers-reduced-motion: reduce){
+      #crtScanlines,#crtScanlines::after,main,.status-banner.banner-down,#test-btn.armed,.alert-card,body.state-down #alertOverlay,body.state-down #alertFrame,body.state-down .tile.tile-down{animation:none!important;}
+    }
+  </style>
+</head>
+<body>
+<div style="display:flex;align-items:center;justify-content:space-between;gap:12px;padding:7px 16px;background:#051a18;border-bottom:1px solid rgba(63,224,216,.3);font-family:'Share Tech Mono',monospace;font-size:.72rem;text-transform:uppercase;letter-spacing:.1em;position:relative;z-index:30;">
+<span style="color:#ffb84d;">● Demo — fictional data · one property is degraded: open its alert card to acknowledge &amp; see ticket + history · ☰ menu has Test alert</span>
+<a href="index.html" style="color:#3fe0d8;text-decoration:none;border:1px solid rgba(63,224,216,.3);padding:4px 10px;border-radius:4px;">← Portfolio</a>
+</div>
+
+<!-- CRT / console effect overlays (purely visual, never block clicks) -->
+<div id="crtVignette"></div>
+<div id="alertOverlay"></div>
+<div id="crtScanlines"></div>
+<div id="crtGlass"></div>
+<div id="crtBezel"></div>
+<div id="alertFrame"></div>
+
+<!-- Transient operator feedback (e.g. Asana ack-mirror result). Non-blocking, auto-hides. -->
+<div id="toast" role="status" aria-live="polite"></div>
+
+<!-- Auth gate — covers page until identity confirmed -->
+<div id="authGate">
+  <p id="authMsg">Checking authentication…</p>
+  <button class="icon-btn" id="authLoginBtn" onclick="netlifyIdentity.open('login')" style="display:none">Sign in</button>
+</div>
+
+<header>
+  <h1>Beacon <span class="h1-sub hide-mobile" style="color:#2a8c88;font-weight:400;font-size:0.8rem;font-family:'Share Tech Mono',monospace;letter-spacing:0.1em">:: ESTATE STATUS</span></h1>
+  <div class="header-right">
+    <span id="build-label" class="version-link" onclick="openReleaseNotes()" onkeydown="if(event.key==='Enter'||event.key===' ')openReleaseNotes()" role="button" tabindex="0" title="View release notes"></span>
+    <span id="last-refresh" class="refresh-link" onclick="refreshAll()" onkeydown="if(event.key==='Enter')refreshAll()" role="button" tabindex="0" title="Refresh now"></span>
+    <button class="icon-btn" id="crt-btn" onclick="toggleCrt()" aria-pressed="false" title="CRT effects" aria-label="Toggle CRT effects">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+        <rect x="2.5" y="4" width="19" height="13" rx="2.5"/>
+        <path d="M6 8.2h12M6 11h12M6 13.8h8" stroke-width="1" opacity="0.7"/>
+        <circle cx="18.3" cy="13.8" r="0.7" fill="currentColor" stroke="none"/>
+        <path d="M9 20h6M12 17v3"/>
+      </svg>
+    </button>
+    <div class="menu-wrap">
+      <button class="icon-btn" id="menu-btn" onclick="toggleMenu()" aria-label="Menu" aria-haspopup="true" aria-expanded="false">☰</button>
+      <div class="menu-panel" id="menu-panel" role="menu">
+        <div class="menu-item" role="menuitem" tabindex="0" onclick="openGuide();closeMenu()">
+          <span class="menu-label">Guide</span><span class="menu-val">?</span>
+        </div>
+        <div class="menu-item" role="menuitem" tabindex="0" onclick="openReleaseNotes();closeMenu()">
+          <span class="menu-label">Release notes</span><span class="menu-val" id="menu-version"></span>
+        </div>
+        <div class="menu-row">
+          <span class="menu-label">Ack duration</span>
+          <select id="ack-duration" class="hdr-select" title="Acknowledge duration">
+            <option value="15">15m</option>
+            <option value="30">30m</option>
+            <option value="60" selected>1h</option>
+            <option value="240">4h</option>
+            <option value="480">8h</option>
+            <option value="1440">24h</option>
+          </select>
+        </div>
+        <div class="menu-item" id="menu-test" role="menuitem" tabindex="0" onclick="toggleTestAlert();closeMenu()">
+          <span class="menu-label">Test alert</span><span class="menu-val" id="menu-test-state">Off</span>
+        </div>
+        <div class="menu-item" id="menu-sound" role="menuitem" tabindex="0" onclick="toggleSound()">
+          <span class="menu-label">Alert sound</span><span class="menu-val" id="menu-sound-state">On</span>
+        </div>
+        <div class="menu-item" role="menuitem" tabindex="0" onclick="openIgnored();closeMenu()">
+          <span class="menu-label">Ignored devices</span><span class="menu-val" id="menu-ignored-count">0</span>
+        </div>
+        <div class="menu-item" role="menuitem" tabindex="0" onclick="refreshAll();closeMenu()">
+          <span class="menu-label">Refresh now</span>
+        </div>
+        <div class="menu-sep"></div>
+        <div class="menu-item menu-danger" role="menuitem" tabindex="0" onclick="doLogout()">
+          <span class="menu-label">Sign out</span>
+        </div>
+      </div>
+    </div>
+  </div>
+</header>
+
+<main>
+
+  <!-- Status banner -->
+  <div id="status-banner" class="status-banner"></div>
+
+  <!-- Summary cards -->
+  <div class="cards">
+    <div class="card">
+      <div class="card-label">Monitors Up</div>
+      <div class="card-value text-up" id="cnt-up">—</div>
+      <div class="card-sub" id="cnt-total">Loading…</div>
+    </div>
+    <div class="card">
+      <div class="card-label">Monitors Down</div>
+      <div class="card-value text-down" id="cnt-down">—</div>
+      <div class="card-sub" id="cnt-paused">—</div>
+    </div>
+    <a class="card card-clickable" href="https://app.ovrc.com/#/customers" target="_blank" rel="noopener">
+      <div class="card-label">OvrC</div>
+      <div class="card-status-line" id="ovrc-card"></div>
+    </a>
+    <a class="card card-clickable" href="https://smartconnect.apc.com" target="_blank" rel="noopener">
+      <div class="card-label">APC SmartConnect</div>
+      <div class="card-status-line" id="apc-card"></div>
+      <div id="apc-stale-note" class="apc-stale-note" style="display:none"></div>
+    </a>
+    <a class="card card-clickable" href="https://unifi.ui.com" target="_blank" rel="noopener">
+      <div class="card-label">UniFi devices</div>
+      <div id="unifi-card"></div>
+    </a>
+  </div>
+
+  <!-- Alert panel — prominent & attention-grabbing when something needs attention -->
+  <div id="alert-panel"></div>
+
+  <!-- All monitors (collapsed by default; expand to browse everything) -->
+  <button id="all-toggle" class="all-toggle" onclick="toggleShowAll()">▸ All monitors</button>
+  <div id="all-monitors" style="display:none">
+
+  <!-- Filter / Search bar -->
+  <div class="controls">
+    <button class="filter-btn active" id="btn-all"    onclick="setFilter('all')">All <span class="filter-count" id="fc-all"></span></button>
+    <button class="filter-btn"        id="btn-up"     onclick="setFilter('up')">Up <span class="filter-count" id="fc-up"></span></button>
+    <button class="filter-btn"        id="btn-down"   onclick="setFilter('down')">Down <span class="filter-count" id="fc-down"></span></button>
+    <button class="filter-btn"        id="btn-paused" onclick="setFilter('paused')">Paused <span class="filter-count" id="fc-paused"></span></button>
+    <input class="search-box" id="search" type="search" placeholder="Search…" oninput="renderView()">
+    <button class="view-toggle-btn" id="view-toggle-btn" onclick="toggleView()" title="Switch view">☰ Table view</button>
+  </div>
+
+  <!-- Tile view -->
+  <div id="tile-view">
+    <div class="tile-grid" id="tile-grid"></div>
+  </div>
+
+  <!-- Table -->
+  <div class="table-wrap" id="table-view" style="display:none">
+    <div class="loading-wrap" id="loading">
+      <div class="spinner"></div>
+      Fetching monitors…
+    </div>
+    <table id="monitor-table" style="display:none">
+      <thead>
+        <tr>
+          <th class="sortable sorted" onclick="sortBy('status')">Status <span class="sort-icon" id="si-status">↑</span></th>
+          <th class="sortable" onclick="sortBy('name')">Name <span class="sort-icon" id="si-name">↕</span></th>
+          <th class="sortable col-90d" onclick="sortBy('u90')" title="90-day uptime history">90d <span class="sort-icon" id="si-u90">↕</span></th>
+          <th class="sortable" onclick="sortBy('ovrc')" title="OvrC device status at this location" style="text-align:center">OvrC <span class="sort-icon" id="si-ovrc">↕</span></th>
+          <th class="sortable" onclick="sortBy('apc')"  title="APC SmartConnect UPS status at this location" style="text-align:center">APC <span class="sort-icon" id="si-apc">↕</span></th>
+          <th class="sortable" onclick="sortBy('unifi')" title="UniFi device status at this site" style="text-align:center">UniFi <span class="sort-icon" id="si-unifi">↕</span></th>
+        </tr>
+      </thead>
+      <tbody id="tbody"></tbody>
+    </table>
+  </div>
+  </div><!-- /all-monitors -->
+
+</main>
+
+<!-- ── Release Notes Modal ── -->
+<div class="modal-overlay" id="release-modal" onclick="if(event.target===this)closeReleaseNotes()">
+  <div class="modal" role="dialog" aria-modal="true" aria-label="Release notes">
+    <div class="modal-head">
+      <h2 style="margin:0">Release Notes</h2>
+      <button class="mini-btn" onclick="closeReleaseNotes()" aria-label="Close">✕</button>
+    </div>
+    <div class="modal-body" id="release-body"></div>
+  </div>
+</div>
+
+<!-- ── Ignored Devices Modal ── -->
+<div class="modal-overlay" id="ignored-modal" onclick="if(event.target===this)closeIgnored()">
+  <div class="modal" role="dialog" aria-modal="true" aria-label="Ignored devices">
+    <div class="modal-head">
+      <h2 style="margin:0">Ignored devices</h2>
+      <button class="mini-btn" onclick="closeIgnored()" aria-label="Close">✕</button>
+    </div>
+    <p class="modal-step">Devices that are offline <b>on purpose</b>. Ignored devices don't count as
+      offline and won't degrade their property. Unignore one to start tracking it again.</p>
+    <div class="modal-body" id="ignored-body"></div>
+  </div>
+</div>
+
+<!-- ── Guide / User Manual Modal ── -->
+<div class="modal-overlay" id="guide-modal" onclick="if(event.target===this)closeGuide()">
+  <div class="modal modal-wide" role="dialog" aria-modal="true" aria-label="User guide">
+    <div class="modal-head">
+      <h2 style="margin:0">Beacon — Guide</h2>
+      <button class="mini-btn" onclick="closeGuide()" aria-label="Close">✕</button>
+    </div>
+    <div class="modal-body guide">
+      <p class="guide-lead">Beacon is the Estate's live infrastructure status board. It watches every
+      property's monitors (UptimeRobot), OvrC device health, and APC UPS status, and rolls them into one
+      screen that stays calm when all is well and turns into an unmissable full-screen red alert the moment
+      something goes down — built to live on the lab wall.</p>
+
+      <h3>Reading the board</h3>
+      <ul>
+        <li><b>Nominal</b> — you see just the high-level stat cards and a green “All systems nominal” banner. The full monitor list is tucked behind the <b>All monitors</b> toggle.</li>
+        <li><b>Something’s wrong</b> — a large alert panel names the affected property up top; <b>click it</b> to expand the details (monitor status, OvrC, APC, 90-day uptime). The whole screen goes red so it’s impossible to miss across the room.</li>
+        <li><b>Colours:</b> <span class="text-up">teal = up</span>, <span class="text-warn">amber = degraded</span>, <span class="text-down">red = down</span>.</li>
+      </ul>
+
+      <h3>Acknowledgements — the important part</h3>
+      <p>When a property is down or degraded, an operator can <b>acknowledge</b> it — telling everyone “seen it, we’re on it” and calming the board back to nominal for a set time.</p>
+      <ul>
+        <li><b>How:</b> tap <b>⤓ ACK</b> on the alerting property (on its alert panel, tile, or table row). It silences that property’s alarm and the board returns to nominal (the banner notes how many are acknowledged).</li>
+        <li><b>For how long:</b> pick the window in <b>☰ → Ack duration</b> (15 minutes up to 24 hours) <i>before</i> you ack. A live countdown shows the time remaining.</li>
+        <li><b>Who:</b> each acknowledgement shows the operator who set it, e.g. <span class="ack-badge" style="animation:none">ACK · Avery · 14:30</span>.</li>
+        <li><b>Shared across every screen:</b> acknowledgements are stored centrally, not on your device. Ack on your phone and the lab wall display plus every other open screen update on their own — within about <b>15 seconds</b> — all showing the same state and who acknowledged.</li>
+        <li><b>It’s temporary on purpose:</b> when the timer lapses, the acknowledgement clears automatically and — if the property is still down — the alert returns. To clear it early, tap the <b>✕</b> on the badge.</li>
+        <li><b>Displays are read-only:</b> a signage/kiosk screen shows acknowledgements (and who made them) but can’t create or clear them — only signed-in operators can.</li>
+      </ul>
+
+      <h3>Other things worth knowing</h3>
+      <ul>
+        <li><b>Test alert</b> (<b>☰ → Test alert</b>) drops a clearly-labelled “SIMULATED ALERT (TEST)” onto <b>every</b> screen — including the lab wall, which lights up red and sounds the klaxon — so you can verify the whole alert + acknowledge flow end-to-end with no real outage. Toggle it off to clear (it also auto-clears after 15 minutes).</li>
+        <li><b>Alert sound:</b> a klaxon plays when the board enters red alert and repeats until it’s acknowledged or clears. Toggle it under <b>☰ → Alert sound</b> (on by default).</li>
+        <li><b>Always live:</b> the board auto-refreshes every 60 seconds. Tap the time in the header to refresh immediately. The clock is 24-hour.</li>
+        <li><b>Wall displays</b> run in a keyboard-free, read-only kiosk mode and stay awake on their own — no sign-in needed on the lab network.</li>
+        <li><b>What changed:</b> tap the version number (or <b>☰ → Release notes</b>) for the changelog.</li>
+      </ul>
+    </div>
+  </div>
+</div>
+
+<script>
+// ─────────────────────────────────────────────────────────────────────────────
+// Constants
+// ─────────────────────────────────────────────────────────────────────────────
+// Credentials live server-side in Netlify Functions — the browser only ever
+// calls these same-origin proxy endpoints (each requires a valid Identity JWT).
+const FN_UPTIMEROBOT = '/.netlify/functions/uptimerobot-proxy';
+const FN_OVRC        = '/.netlify/functions/ovrc-proxy';
+const FN_SLACK       = '/.netlify/functions/slack-proxy';
+const FN_UNIFI       = '/.netlify/functions/unifi-proxy';
+const FN_ACKS        = '/.netlify/functions/acks';
+const FN_IGNORES     = '/.netlify/functions/ignores';
+const FN_ASANA       = '/.netlify/functions/asana-comment';
+const FN_ASANA_TICKETS = '/.netlify/functions/asana-tickets';
+const LS_APC_DATA    = 'dashboard_apc_data'; // local cache for APC stale-data fallback
+
+// Kiosk / signage mode (keyboardless). Configure the device URL once as
+// https://#/?kiosk=1 — a non-secret view flag. Read-only data
+// is gated server-side by the device's network IP (KIOSK_IP_ALLOWLIST). ?kiosk=0 clears.
+const LS_KIOSK = 'dashboard_kiosk';
+let kiosk = false;
+(function initKiosk() {
+  try {
+    const v = new URLSearchParams(location.search).get('kiosk');
+    if (v === '1') { localStorage.setItem(LS_KIOSK, '1'); history.replaceState(null, '', location.pathname); }
+    else if (v === '0') { localStorage.removeItem(LS_KIOSK); history.replaceState(null, '', location.pathname); }
+    kiosk = localStorage.getItem(LS_KIOSK) === '1';
+  } catch (e) {}
+})();
+
+// ─────────────────────────────────────────────────────────────────────────────
+// App state
+// ─────────────────────────────────────────────────────────────────────────────
+let monitors = [];
+let ovrcMap  = {};   // { locationName: { deviceCount, offlineDeviceCount } }
+let apcMap   = {};   // { monitorName: [{ pluginStatus, upsOperatingMode, name }] }
+let unifiMap = {};   // { unifiKey(property): { deviceCount, offlineDeviceCount, offlineDevices:[{mac,name}], siteName } }
+let apcFromSlack = false; // true when live Slack data was loaded this cycle
+
+let currentFilter = 'all';
+let sortCol = 'status';
+let sortDir = 1;
+let currentView = 'tiles'; // 'rows' | 'tiles'
+let testAlert = false;     // header Test toggle — forces alert mode
+let showAll = false;       // expand the full monitor grid/table
+let refreshing = false;    // guard against concurrent refreshes
+let kioskDenied = false;   // kiosk display whose network isn't allow-listed
+const LS_ACK = 'dashboard_acks';
+let ackMap = {};           // shared via the acks function. Live: { name: { until, by, at } };
+                           // cleared: { name: { deleted: true, at } } (tombstone).
+let ticketMap = {};        // { friendly_name: [ { gid, title, statusName, kind, permalink } ] }
+                           // open Asana ticket(s) per alerting property (operator view only).
+let currentUserEmail = '';  // operator email, for optimistic ack attribution
+// Records older than this are GC'd locally (matches the server's RECORD_TTL_MS). Must
+// exceed the 24h max ack so a tombstone outlives the ack it cleared.
+const ACK_RECORD_TTL_MS = 25 * 3600 * 1000;
+let lastAckedKey = '';      // set of effectively-acked names last rendered (for lapse redraw)
+const LS_IGNORES = 'dashboard_ignores';
+let ignoreMap = {};        // shared via the ignores function. Live: { mac: { mac, name, property, by, at } };
+                           // unignored: { mac: { deleted: true, at } } (tombstone).
+const IGN_RECORD_TTL_MS = 30 * 24 * 3600 * 1000;  // GC local tombstones (matches the server)
+
+const STATUS_INFO = {
+  0: { label: 'Paused',      cls: 'paused', dot: 'dot-paused', sortVal: 4 },
+  1: { label: 'Not Checked', cls: 'paused', dot: 'dot-paused', sortVal: 3 },
+  2: { label: 'Up',          cls: 'up',     dot: 'dot-up',     sortVal: 2 },
+  8: { label: 'Seems Down',  cls: 'down',   dot: 'dot-down',   sortVal: 1 },
+  9: { label: 'Down',        cls: 'down',   dot: 'dot-down',   sortVal: 0 },
+};
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Uptime Robot
+// ─────────────────────────────────────────────────────────────────────────────
+// POST to a Netlify proxy function with the Identity JWT attached.
+// Returns { status, ok, data } — the upstream JSON, passed through by the proxy.
+async function callFn(endpoint, body) {
+  const headers = {};
+  // Kiosk mode sends no token — access is gated server-side by network IP.
+  if (!kiosk) {
+    const jwt = await getJWT();
+    // Send the JWT in a custom header, NOT Authorization, AND omit credentials so the
+    // browser doesn't attach the nf_jwt cookie. Netlify's gateway builds clientContext
+    // from EITHER the Authorization header OR the nf_jwt cookie, and crashes (500, no
+    // logs) doing so on this Identity instance. Stripping both means the gateway has
+    // nothing to process; the function verifies X-Beacon-Token itself against GoTrue.
+    // See netlify/functions/uptimerobot-proxy.js.
+    if (jwt) headers['X-Beacon-Token'] = jwt;
+  }
+  const opts = { method: 'POST', headers, credentials: 'omit' };
+  if (body) { headers['Content-Type'] = 'application/json'; opts.body = JSON.stringify(body); }
+  const resp = await fetch(endpoint, opts);
+  const data = await resp.json().catch(() => ({}));
+  return { status: resp.status, ok: resp.ok, data };
+}
+
+async function fetchMonitors() {
+  const { ok, status, data } = await callFn(FN_UPTIMEROBOT);
+  if (!ok) { const e = new Error(data.error || `HTTP ${status}`); e.status = status; throw e; }
+  if (data.stat !== 'ok') throw new Error(data.error?.message || 'API error');
+  return data.monitors;
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// OvrC
+// ─────────────────────────────────────────────────────────────────────────────
+async function fetchOvrcData() {
+  const { ok, status, data } = await callFn(FN_OVRC);
+  // 401 = token missing/expired server-side (expected until OvrC credentials are
+  // configured). Flag as "soft" so the UI shows a not-connected state, not an error.
+  if (status === 401) {
+    throw Object.assign(new Error(data.error || 'OvrC not connected'), { soft: true });
+  }
+  if (!ok) throw new Error(data.error || `OvrC HTTP ${status}`);
+
+  const map = {};
+  (data.items || []).forEach(customer => {
+    (customer.locations || []).forEach(loc => {
+      map[loc.name] = {
+        deviceCount:   loc.deviceCount,
+        offlineDeviceCount: loc.offlineDeviceCount,
+        customer: customer.displayAs
+      };
+    });
+  });
+  return map;
+}
+
+function getOvrcCellStatus(locationData) {
+  if (!locationData) return null;
+  const { deviceCount, offlineDeviceCount } = locationData;
+  const online = deviceCount - offlineDeviceCount;
+  if (offlineDeviceCount === 0)
+    return { dot: 'dot-up',   cls: 'text-up',   text: `${online}/${deviceCount}` };
+  if (offlineDeviceCount < deviceCount)
+    return { dot: 'dot-warn', cls: 'text-warn',  text: `${online}/${deviceCount}` };
+  return { dot: 'dot-down',  cls: 'text-down',  text: `0/${deviceCount}` };
+}
+
+function showOvrcCard(state, msg) {
+  const el = document.getElementById('ovrc-card');
+  if (state === 'loading') {
+    el.innerHTML = `<span class="dot dot-checking"></span><span class="text-checking">Loading…</span>`;
+  } else if (state === 'no-token') {
+    el.innerHTML = `<span class="dot dot-paused"></span><span class="text-paused">Not configured</span>`;
+  } else if (state === 'error') {
+    el.innerHTML = `<span class="dot dot-warn"></span><span class="text-warn">${msg}</span>`;
+  } else if (state === 'ok') {
+    const total  = Object.keys(ovrcMap).length;
+    const down   = Object.values(ovrcMap).filter(l => l.offlineDeviceCount > 0).length;
+    const online = total - down;
+    const dot  = down === 0 ? 'dot-up'   : down < total ? 'dot-warn' : 'dot-down';
+    const tcls = down === 0 ? 'text-up'  : down < total ? 'text-warn' : 'text-down';
+    el.innerHTML = `<span class="dot ${dot}"></span><span class="${tcls}">${online}/${total} locations online</span>`;
+  }
+  updateStatusBanner();
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// UniFi (Cloud Site Manager API) — offline devices per property
+// ─────────────────────────────────────────────────────────────────────────────
+// Match a UniFi host name to a property (UptimeRobot friendly_name). Both sides reduce to
+// a bare property code: lowercase, split on punctuation, drop "noise" tokens, rejoin. This
+// reconciles the naming quirks found in discovery — monitors prefixed "zDOUBLENAT - XX00"
+// and UniFi NVR companions "XX00 NVR" (which roll into the base property). Genuinely
+// different codes (e.g. UniFi XX01 vs monitor XX02) stay unmatched and are logged.
+const UNIFI_NOISE = new Set(['zdoublenat', 'zdouble', 'nat', 'nvr', 'unvr']);
+function unifiKeyRaw(s) {
+  return String(s || '').toLowerCase().replace(/[^a-z0-9]+/g, ' ').split(/\s+/)
+    .filter(t => t && !UNIFI_NOISE.has(t)).join('');
+}
+// Explicit aliases for UniFi hosts whose code differs from the Beacon monitor name
+// (confirmed during Step 0). Keyed/valued by normalized key. Host side only.
+const UNIFI_ALIAS = {};
+function unifiKey(s) { const k = unifiKeyRaw(s); return UNIFI_ALIAS[k] || k; }
+
+async function fetchUnifiData() {
+  const { ok, status, data } = await callFn(FN_UNIFI);
+  // 401 = key missing/expired server-side. Treat as soft (not-configured), like OvrC.
+  if (status === 401) throw Object.assign(new Error(data.error || 'UniFi not connected'), { soft: true });
+  if (!ok) throw new Error(data.error || `UniFi HTTP ${status}`);
+
+  // Aggregate hosts that reduce to the same property key (e.g. "XX00" + "XX00 NVR") so the
+  // NVR's devices roll into the property card instead of overwriting it.
+  const map = {};
+  (data.hosts || []).forEach(h => {
+    const k = unifiKey(h.name);
+    if (!k) return;
+    if (!map[k]) map[k] = { deviceCount: 0, offlineDeviceCount: 0, offlineDevices: [], siteName: h.name };
+    map[k].deviceCount        += h.deviceCount || 0;
+    map[k].offlineDeviceCount += h.offlineDeviceCount || 0;
+    map[k].offlineDevices      = map[k].offlineDevices.concat(h.offlineDevices || []);
+  });
+  return map;
+}
+
+function showUnifiCard(state, msg) {
+  const el = document.getElementById('unifi-card');
+  if (!el) return;
+  if (state === 'loading') {
+    el.innerHTML = `<span class="dot dot-checking"></span><span class="text-checking">Loading…</span>`;
+  } else if (state === 'no-token') {
+    el.innerHTML = `<span class="dot dot-paused"></span><span class="text-paused">Not configured</span>`;
+  } else if (state === 'error') {
+    el.innerHTML = `<span class="dot dot-warn"></span><span class="text-warn">${msg}</span>`;
+  } else if (state === 'ok') {
+    // Count only UniFi properties that map to a monitor (i.e. actually show on a card),
+    // so this matches the alert panel. UniFi hosts with no monitor (e.g. "BF88 Test")
+    // can't be displayed, so they don't inflate the count — but we log them for ops.
+    const monKeys = new Set(monitors.map(m => unifiKey(m.friendly_name)));
+    const orphans = Object.keys(unifiMap).filter(k => !monKeys.has(k));
+    if (orphans.length) console.log('[unifi] hosts with no matching monitor:', orphans.join(', '));
+    const sites  = Object.entries(unifiMap).filter(([k]) => monKeys.has(k)).map(([, v]) => v);
+    const totalNets    = sites.length;
+    const totalDevices = sites.reduce((n, s) => n + (s.deviceCount || 0), 0);
+    // Effective offline (ignored devices excluded). Degraded-only: a site with an offline
+    // device shows amber, never red.
+    const offDevices   = sites.reduce((n, s) => n + effectiveOffline(s).length, 0);
+    const degradedNets = sites.filter(s => effectiveOffline(s).length > 0).length;
+    // Problem-framed: both numbers count what's wrong, amber when > 0, teal when all clear.
+    const offCls = offDevices   === 0 ? 'text-up' : 'text-warn';
+    const netCls = degradedNets === 0 ? 'text-up' : 'text-warn';
+    el.innerHTML = `
+      <div class="card-dual">
+        <div class="card-stat"><div class="card-value ${offCls}">${offDevices}/${totalDevices}</div><div class="card-sub">offline devices</div></div>
+        <div class="card-stat"><div class="card-value ${netCls}">${degradedNets}/${totalNets}</div><div class="card-sub">degraded sites</div></div>
+      </div>`;
+  }
+  updateStatusBanner();
+}
+
+// Degraded-only: any offline device shows amber; never red (dot-down), no matter how many
+// are offline. This is what keeps UniFi from firing the klaxon. The cell still shows the
+// count so detail isn't lost.
+function isIgnoredDevice(mac) { const e = mac && ignoreMap[String(mac).toLowerCase()]; return !!(e && !e.deleted); }
+// Offline UniFi devices at a property that are NOT on the shared ignore list. Devices that
+// are offline on purpose (ignored) drop out entirely so they don't count as offline or
+// degrade the site.
+function effectiveOffline(d) { return ((d && d.offlineDevices) || []).filter(x => !isIgnoredDevice(x.mac)); }
+
+function getUnifiCellStatus(d) {
+  if (!d) return null;
+  const total = d.deviceCount;
+  const off   = effectiveOffline(d).length;
+  if (off === 0)
+    return { dot: 'dot-up',   cls: 'text-up',   text: total != null ? `${total}/${total}` : 'OK' };
+  const online = total != null ? Math.max(total - off, 0) : null;
+  return { dot: 'dot-warn', cls: 'text-warn', text: total != null ? `${online}/${total}` : `${off} off` };
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// APC SmartConnect (via Slack #ups-alerts)
+// ─────────────────────────────────────────────────────────────────────────────
+const SLACK_EVENT_STATUS = {
+  // Bot event titles (from APC SmartConnect app)
+  'power restored':            { pluginStatus: 'comm_est',  upsOperatingMode: 'online' },
+  'communication established': { pluginStatus: 'comm_est',  upsOperatingMode: 'online' },
+  'ups on battery':            { pluginStatus: 'comm_est',  upsOperatingMode: 'on_battery' },
+  'low battery':               { pluginStatus: 'comm_est',  upsOperatingMode: 'low_battery' },
+  'communication lost':        { pluginStatus: 'comm_lost', upsOperatingMode: 'unknown' },
+  'ups shutdown':              { pluginStatus: 'comm_lost', upsOperatingMode: 'unknown' },
+  'ups offline':               { pluginStatus: 'comm_lost', upsOperatingMode: 'unknown' },
+  // Manual override keywords
+  'online':                    { pluginStatus: 'comm_est',  upsOperatingMode: 'online' },
+  'restored':                  { pluginStatus: 'comm_est',  upsOperatingMode: 'online' },
+  'offline':                   { pluginStatus: 'comm_lost', upsOperatingMode: 'unknown' },
+  'battery':                   { pluginStatus: 'comm_est',  upsOperatingMode: 'on_battery' },
+};
+
+function parseSlackMessages(messages) {
+  // Messages arrive newest-first; record only the latest event per UPS name.
+  const seen = new Set();
+  const map  = {};
+
+  // Manual override pattern: "UPS: <name> | <status>"
+  const MANUAL_RE = /^UPS:\s*(.+?)\s*\|\s*(.+)$/i;
+
+  for (const msg of messages) {
+    // ── Manual user override ──────────────────────────────────────────────────
+    if (!msg.subtype && msg.type === 'message') {
+      const match = MANUAL_RE.exec((msg.text || '').trim());
+      if (match) {
+        const upsName = match[1].trim();
+        const keyword = match[2].trim().toLowerCase();
+        if (seen.has(upsName)) continue;
+        seen.add(upsName);
+        const status = SLACK_EVENT_STATUS[keyword]
+                    || { pluginStatus: 'comm_est', upsOperatingMode: 'unknown' };
+        const monitorKey = upsName.split(' - ')[0].trim();
+        if (!map[monitorKey]) map[monitorKey] = [];
+        map[monitorKey].push({ name: upsName, ...status });
+      }
+      continue;
+    }
+
+    // ── APC SmartConnect bot message ─────────────────────────────────────────
+    if (msg.subtype !== 'bot_message' || !msg.blocks) continue;
+
+    const headerBlock = msg.blocks.find(b => b.type === 'header');
+    if (!headerBlock) continue;
+    const title = (headerBlock.text?.text || '').trim();
+
+    let upsName = null;
+    for (const block of msg.blocks) {
+      if (block.type !== 'section' || !block.fields) continue;
+      for (const field of block.fields) {
+        if ((field.text || '').startsWith('*UPS Name:*\n')) {
+          upsName = field.text.replace('*UPS Name:*\n', '').trim();
+          break;
+        }
+      }
+      if (upsName) break;
+    }
+    if (!upsName) continue;
+
+    if (seen.has(upsName)) continue;
+    seen.add(upsName);
+
+    const status = SLACK_EVENT_STATUS[title.toLowerCase()]
+                || { pluginStatus: 'comm_est', upsOperatingMode: 'unknown' };
+
+    const monitorKey = upsName.split(' - ')[0].trim();
+    if (!map[monitorKey]) map[monitorKey] = [];
+    map[monitorKey].push({ name: upsName, ...status });
+  }
+  return map;
+}
+
+let apcSlackError = ''; // last Slack API error string, if any
+
+async function fetchApcFromSlack() {
+  apcSlackError = '';
+  try {
+    const { ok, status, data } = await callFn(FN_SLACK);
+    if (!ok)       { apcSlackError = data.error || `HTTP ${status}`; return false; }
+    if (!data.ok)  { apcSlackError = data.error; return false; }
+
+    apcMap       = parseSlackMessages(data.messages || []);
+    apcFromSlack = true;
+    localStorage.setItem(LS_APC_DATA, JSON.stringify({ ts: Date.now(), map: apcMap }));
+    return true;
+  } catch (e) {
+    apcSlackError = 'network error';
+    return false;
+  }
+}
+
+function loadApcFromCache() {
+  const raw = localStorage.getItem(LS_APC_DATA);
+  if (!raw) return false;
+  try {
+    const { ts, map } = JSON.parse(raw);
+    apcMap = map;
+    const mins = Math.round((Date.now() - ts) / 60000);
+    document.getElementById('apc-stale-note').textContent =
+      `Cached data from ${mins < 60 ? mins + 'm' : Math.round(mins/60) + 'h'} ago`;
+    document.getElementById('apc-stale-note').style.display = 'block';
+    return true;
+  } catch { return false; }
+}
+
+function getApcCellStatus(devices) {
+  if (!devices || devices.length === 0) return null;
+  let online = 0;
+  let anyWarn = false;
+  devices.forEach(d => {
+    if (d.pluginStatus === 'comm_est') {
+      if (d.upsOperatingMode === 'online') online++;
+      else anyWarn = true;
+    }
+  });
+  const total = devices.length;
+  if (online === total)
+    return { dot: 'dot-up',   cls: 'text-up',   text: `${online}/${total}` };
+  if (anyWarn || online > 0)
+    return { dot: 'dot-warn', cls: 'text-warn',  text: `${online}/${total}` };
+  return { dot: 'dot-down',  cls: 'text-down',  text: `0/${total}` };
+}
+
+function showApcCard() {
+  const el    = document.getElementById('apc-card');
+  const stale = document.getElementById('apc-stale-note');
+
+  if (!apcFromSlack && apcSlackError) {
+    el.innerHTML = `<span class="dot dot-warn"></span><span class="text-warn">Slack error: ${apcSlackError}</span>`;
+    stale.style.display = 'none';
+    return;
+  }
+
+  if (Object.keys(apcMap).length === 0) {
+    el.innerHTML = `<span class="dot dot-warn"></span><span class="text-warn">No alerts found in channel</span>`;
+    stale.style.display = 'none';
+    return;
+  }
+
+  const allDevices = Object.values(apcMap).flat();
+  const total  = allDevices.length;
+  const online = allDevices.filter(d => d.pluginStatus === 'comm_est' && d.upsOperatingMode === 'online').length;
+  const down   = total - online;
+  const dot    = down === 0 ? 'dot-up'   : down < total ? 'dot-warn' : 'dot-down';
+  const tcls   = down === 0 ? 'text-up'  : down < total ? 'text-warn' : 'text-down';
+  el.innerHTML = `<span class="dot ${dot}"></span><span class="${tcls}">${online}/${total} UPS online</span>`;
+
+  if (!apcFromSlack) {
+    // stale note already set by loadApcFromCache; leave it visible
+  } else {
+    stale.style.display = 'none';
+  }
+  updateStatusBanner();
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Table rendering
+// ─────────────────────────────────────────────────────────────────────────────
+function parseUptime(str) {
+  if (!str) return [null, null, null];
+  return str.split('-').map(Number);
+}
+function fmtPct(v)  { return v === null ? '—' : v.toFixed(2) + '%'; }
+function uptimeCls(v) {
+  if (v === null) return '';
+  if (v >= 99.5) return 'uptime-good';
+  if (v >= 98)   return 'uptime-ok';
+  if (v >= 95)   return 'uptime-warn';
+  return 'uptime-bad';
+}
+
+// Returns array of 'up'|'warn'|'down'|'unknown' for each day, oldest→newest.
+// We classify a day by its TOTAL downtime, not by any single event: most "down" logs are
+// ~60-second blips (a device reboot, a brief WAN flap), and a 99.9%-uptime monitor can rack up
+// hundreds of them. Painting a whole day amber for one 60s blip made healthy monitors look
+// alarmingly degraded ("doesn't match the 99.9%"). Sum the overlap per day, then threshold:
+//   ≥ 1h down → outage (red), ≥ 5m → degraded (amber), otherwise operational (sub-5m blips
+//   are ignored visually). The exact % still shows separately.
+const DAY_DOWN_SECS = 3600;   // ≥ 1 hour of downtime in a day → 'down'
+const DAY_WARN_SECS = 300;    // ≥ 5 minutes → 'warn'; below this stays 'up'
+function computeDailyStatuses(logs, numDays, createDatetime) {
+  const now = Math.floor(Date.now() / 1000);
+  const DAY = 86400;
+  const days = new Array(numDays).fill('up');
+  const downSecs = new Array(numDays).fill(0);
+
+  // Mark days before the monitor existed as unknown (no data, not "up").
+  if (createDatetime) {
+    for (let i = 0; i < numDays; i++) {
+      if ((now - (numDays - i) * DAY) < createDatetime) days[i] = 'unknown';
+    }
+  }
+
+  // Accumulate each day's total downtime from the down events (type 1 = down).
+  if (logs) {
+    logs.forEach(log => {
+      if (log.type !== 1) return;
+      const startTime = log.datetime;
+      const endTime   = startTime + (log.duration || 0);
+      for (let i = 0; i < numDays; i++) {
+        if (days[i] === 'unknown') continue;
+        const dayStart = now - (numDays - i) * DAY;
+        const dayEnd   = dayStart + DAY;
+        if (startTime < dayEnd && endTime > dayStart) {
+          downSecs[i] += Math.min(endTime, dayEnd) - Math.max(startTime, dayStart);
+        }
+      }
+    });
+    for (let i = 0; i < numDays; i++) {
+      if (days[i] === 'unknown') continue;
+      if (downSecs[i] >= DAY_DOWN_SECS) days[i] = 'down';
+      else if (downSecs[i] >= DAY_WARN_SECS) days[i] = 'warn';
+    }
+  }
+  return days;
+}
+
+function renderUptimeBars(days, pct) {
+  const LABELS = { up: 'Operational', warn: 'Degraded', down: 'Outage', unknown: 'No data' };
+  const bars = days.map(s =>
+    `<span class="ubar ubar-${s}" title="${LABELS[s]}"></span>`
+  ).join('');
+  const numDays = days.length;
+  const pctText = pct !== null ? pct.toFixed(2) + '%' : '—';
+  return `<div class="uptime-bars">
+    <div class="ubar-track">${bars}</div>
+    <div class="ubar-footer">
+      <span>${numDays}d ago</span><span class="ubar-pct">${pctText}</span><span>Today</span>
+    </div>
+  </div>`;
+}
+
+function serviceCellHTML(status) {
+  if (!status) return `<span class="service-na">—</span>`;
+  return `<span class="service-badge"><span class="dot ${status.dot}"></span><span class="${status.cls}">${status.text}</span></span>`;
+}
+
+function toggleView() {
+  currentView = currentView === 'rows' ? 'tiles' : 'rows';
+  const btn = document.getElementById('view-toggle-btn');
+  if (currentView === 'tiles') {
+    document.getElementById('table-view').style.display = 'none';
+    document.getElementById('tile-view').style.display  = 'block';
+    btn.textContent = '☰ Table view';
+  } else {
+    document.getElementById('tile-view').style.display  = 'none';
+    document.getElementById('table-view').style.display = 'block';
+    btn.textContent = '⊞ Tile view';
+  }
+  renderView();
+}
+
+function renderView() {
+  renderAlertPanel();
+  if (currentView === 'tiles') renderTiles();
+  else renderTable();
+  updateAllToggle();
+}
+
+function toggleShowAll() {
+  showAll = !showAll;
+  document.getElementById('all-monitors').style.display = showAll ? 'block' : 'none';
+  updateAllToggle();
+}
+function updateAllToggle() {
+  const btn = document.getElementById('all-toggle');
+  if (!btn) return;
+  const n = monitors.length;
+  btn.textContent = (showAll ? '▾ Hide all monitors' : '▸ All monitors') + (n ? ` (${n})` : '');
+}
+
+function toggleAlertDetail(el) { el.classList.toggle('open'); }
+
+// Big, clickable alert card for one property (down/degraded/acknowledged).
+// Compact human duration from seconds (UptimeRobot log durations).
+function fmtDur(s) {
+  s = Math.max(0, Math.round(Number(s) || 0));
+  const d = Math.floor(s / 86400), h = Math.floor((s % 86400) / 3600), mn = Math.floor((s % 3600) / 60);
+  if (d) return `${d}d ${h}h`;
+  if (h) return `${h}h ${mn}m`;
+  if (mn) return `${mn}m`;
+  return `${s}s`;
+}
+
+// The property's open Asana ticket(s), resolved by fetchTickets(). Each opens in a new tab;
+// stopPropagation so the click doesn't also toggle the card. Hidden on kiosk (see CSS).
+function ticketsSectionHTML(name) {
+  const list = ticketMap[name] || [];
+  const inner = list.length
+    ? list.map(t =>
+        `<a class="ticket-link" href="${escHtml(t.permalink)}" target="_blank" rel="noopener" onclick="event.stopPropagation()">` +
+        `🎫 <span>${escHtml(t.title)}</span>${t.statusName ? `<span class="ticket-status">· ${escHtml(t.statusName)}</span>` : ''}</a>`).join('')
+    : `<div class="ticket-none">No linked Asana ticket yet.</div>`;
+  return `<div class="dtl-section ticket-section"><div class="dtl-section-title">Asana ticket</div>${inner}</div>`;
+}
+
+// Recent down events from the monitor's own UptimeRobot logs (no extra fetch). Empty if none.
+function incidentHistoryHTML(m) {
+  const downs = (m.logs || []).filter(l => l.type === 1).slice(0, 5);
+  if (!downs.length) return '';
+  const rows = downs.map(l => {
+    const when = new Date((l.datetime || 0) * 1000).toLocaleString([], { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit', hour12: false });
+    return `<div class="dtl-row"><span class="dtl-label">${when}</span><span class="text-paused">down ${fmtDur(l.duration)}</span></div>`;
+  }).join('');
+  return `<div class="dtl-section"><div class="dtl-section-title">Recent down events</div>${rows}</div>`;
+}
+
+function alertCardHTML(m, eff, acked) {
+  const name = m.friendly_name;
+  const si   = STATUS_INFO[m.status] || STATUS_INFO[1];
+  const ovrc = getOvrcCellStatus(ovrcMap[name] || null);
+  const apc  = getApcCellStatus(apcMap[name]   || null);
+  const unifiData = unifiMap[unifiKey(name)] || null;
+  const unifi = getUnifiCellStatus(unifiData);
+  const offDevs = effectiveOffline(unifiData);
+  const u90  = parseUptime(m.custom_uptime_ratio)[2];
+  const level = acked ? 'ack' : eff;
+  const levelLabel = acked ? '◑ Acknowledged' : (eff === 'down' ? '● Alert · Down' : '▲ Degraded');
+
+  const parts = [];
+  if (si.cls === 'down') parts.push('Monitor ' + si.label);
+  if (ovrc && ovrc.dot !== 'dot-up') parts.push('OvrC ' + ovrc.text + ' devices');
+  if (apc && apc.dot !== 'dot-up') parts.push('APC ' + apc.text + ' UPS');
+  if (unifi && unifi.dot !== 'dot-up') parts.push('UniFi ' + unifi.text + ' devices');
+  const summary = parts.join('   ·   ') || (eff === 'warn' ? 'Service degraded' : 'Needs attention');
+
+  // Offline UniFi devices shown right on the bar (no need to expand details), each with an
+  // operator-only "ignore" for devices that are offline on purpose. Hidden on kiosk via CSS.
+  const offlineListHtml = offDevs.length
+    ? `<div class="offline-list">${offDevs.map(dv =>
+        `<span class="offline-chip"><span class="dot dot-warn"></span>` +
+        `<span class="offline-name">${escHtml(dv.name)}</span>` +
+        `<button class="ignore-btn" title="Ignore — this device is offline on purpose"` +
+        ` onclick="event.stopPropagation();ignoreDevice('${jsStr(dv.mac)}','${jsStr(dv.name)}','${jsStr(name)}')">ignore</button>` +
+        `</span>`).join('')}</div>`
+    : '';
+  const bars = renderUptimeBars(computeDailyStatuses(m.logs, 90, m.create_datetime), u90);
+  // Expander = jump to the Asana ticket(s), recent down history, and the 90-day uptime. The
+  // per-service counts that used to live here just duplicated the summary line above, so they're gone.
+  const detail = `
+    ${ticketsSectionHTML(name)}
+    ${incidentHistoryHTML(m)}
+    <div class="dtl-section">
+      <div class="dtl-section-title">90-day uptime</div>
+      ${m.url ? `<div class="dtl-row"><span class="dtl-label">Target</span><span class="text-paused">${escHtml(m.url)}</span></div>` : ''}
+      <div style="margin-top:8px">${bars}</div>
+    </div>`;
+
+  return `<div class="alert-card alert-${level}" onclick="toggleAlertDetail(this)">
+    <div class="alert-card-head">
+      <span class="alert-card-name">${name}</span>
+      <span class="alert-card-level">${levelLabel}</span>
+      <span class="alert-card-spacer"></span>
+      ${ackControlHTML(name, eff)}
+    </div>
+    <div class="alert-card-summary">${summary}</div>
+    ${offlineListHtml}
+    <div class="alert-card-hint">▾ Click for details</div>
+    <div class="alert-detail">${detail}</div>
+  </div>`;
+}
+
+// A synthetic down property so "Test alert" exercises the real alert + ack flow
+// (it shows as a normal alert card you can acknowledge). Folded in only while on.
+const TEST_MON = { friendly_name: 'SIMULATED ALERT (TEST)', status: 9, custom_uptime_ratio: '', logs: [], create_datetime: 0, url: 'simulated' };
+function alertingMonitors() { return testAlert ? [TEST_MON, ...monitors] : monitors; }
+
+function renderAlertPanel() {
+  const panel = document.getElementById('alert-panel');
+  if (!panel) return;
+
+  if (kioskDenied) {
+    panel.style.display = 'block';
+    panel.innerHTML = `<div class="alert-card alert-down">
+      <div class="alert-card-head"><span class="alert-card-name">⛔ ACCESS</span><span class="alert-card-level">● Not authorized on this network</span></div>
+      <div class="alert-card-summary">This display’s network isn’t allow-listed. Add its public IP to <code>KIOSK_IP_ALLOWLIST</code>, or open Beacon and sign in.</div>
+    </div>`;
+    return;
+  }
+
+  const active = [], acked = [];
+  alertingMonitors().forEach(m => {
+    const eff = effectiveStatus(m);
+    if (eff !== 'down' && eff !== 'warn') return;
+    (isAcked(m.friendly_name) ? acked : active).push({ m, eff });
+  });
+  active.sort((a, b) => (a.eff === 'down' ? 0 : 1) - (b.eff === 'down' ? 0 : 1));
+
+  if (!active.length && !acked.length) { panel.style.display = 'none'; panel.innerHTML = ''; return; }
+  panel.style.display = 'block';
+  panel.innerHTML = active.map(x => alertCardHTML(x.m, x.eff, false)).join('')
+                  + acked.map(x => alertCardHTML(x.m, x.eff, true)).join('');
+}
+
+function filteredRows() {
+  const q = document.getElementById('search').value.toLowerCase();
+  return monitors.filter(m => {
+    const si = STATUS_INFO[m.status] || STATUS_INFO[1];
+    if (currentFilter !== 'all' && si.cls !== currentFilter) return false;
+    if (q && !m.friendly_name.toLowerCase().includes(q) && !m.url.toLowerCase().includes(q)) return false;
+    return true;
+  });
+}
+
+function renderTiles() {
+  if (!monitors.length) return;
+  updateFilterCounts();
+
+  const rows = filteredRows();
+  rows.sort((a, b) => {
+    const aP = effectiveStatus(a) === 'paused', bP = effectiveStatus(b) === 'paused';
+    if (aP !== bP) return aP ? 1 : -1;
+    return effectiveStatusSortVal(a) - effectiveStatusSortVal(b);
+  });
+
+  const grid = document.getElementById('tile-grid');
+  if (!rows.length) {
+    grid.innerHTML = `<p style="color:#4a5568;padding:24px 0">No monitors match.</p>`;
+    return;
+  }
+
+  grid.innerHTML = rows.map(m => {
+    const si  = STATUS_INFO[m.status] || STATUS_INFO[1];
+    const [u7, u30, u90] = parseUptime(m.custom_uptime_ratio);
+    const name = m.friendly_name;
+
+    const ovrcStatus = getOvrcCellStatus(ovrcMap[name] || null);
+    const apcStatus  = getApcCellStatus(apcMap[name]   || null);
+    const unifiStatus = getUnifiCellStatus(unifiMap[unifiKey(name)] || null);
+
+    const eff   = effectiveStatus(m);
+    const acked = isAcked(name) && (eff === 'down' || eff === 'warn');
+
+    // Status pill: acked alerts present as amber "Acknowledged".
+    let tileCls, dotCls, textCls, label;
+    if (acked)                  { tileCls = 'tile-ack';    dotCls = 'dot-warn';   textCls = 'warn';   label = 'Acknowledged'; }
+    else if (eff === 'down')    { tileCls = 'tile-down';   dotCls = 'dot-down';   textCls = 'down';   label = si.cls === 'down' ? si.label : 'Service Down'; }
+    else if (eff === 'warn')    { tileCls = 'tile-warn';   dotCls = 'dot-warn';   textCls = 'warn';   label = 'Degraded'; }
+    else if (eff === 'paused')  { tileCls = 'tile-paused'; dotCls = 'dot-paused'; textCls = 'paused'; label = si.label; }
+    else                        { tileCls = 'tile-up';     dotCls = 'dot-up';     textCls = 'up';     label = si.label; }
+
+    const uptimeText = u90 !== null
+      ? `<span class="${uptimeCls(u90)}">${u90.toFixed(2)}%</span> 90d uptime`
+      : '—';
+
+    const svcHtml = [
+      ovrcStatus ? `<span class="tile-svc"><span class="tile-svc-label">OvrC</span><span class="dot ${ovrcStatus.dot}" style="width:7px;height:7px;margin-right:3px"></span><span class="${ovrcStatus.cls}">${ovrcStatus.text}</span></span>` : '',
+      apcStatus  ? `<span class="tile-svc"><span class="tile-svc-label">APC</span><span class="dot ${apcStatus.dot}" style="width:7px;height:7px;margin-right:3px"></span><span class="${apcStatus.cls}">${apcStatus.text}</span></span>`  : '',
+      unifiStatus ? `<span class="tile-svc"><span class="tile-svc-label">UniFi</span><span class="dot ${unifiStatus.dot}" style="width:7px;height:7px;margin-right:3px"></span><span class="${unifiStatus.cls}">${unifiStatus.text}</span></span>` : '',
+    ].filter(Boolean).join('');
+
+    const ackHtml = ackControlHTML(name, eff);
+
+    return `<div class="tile ${tileCls}">
+      <div class="tile-name">${name}</div>
+      <div class="tile-status"><span class="dot ${dotCls}"></span><span class="text-${textCls}">${label}</span></div>
+      ${svcHtml ? `<div class="tile-services">${svcHtml}</div>` : ''}
+      <div class="tile-uptime">${uptimeText}</div>
+      ${ackHtml ? `<div class="tile-ack-row">${ackHtml}</div>` : ''}
+    </div>`;
+  }).join('');
+}
+
+function sortBy(col) {
+  sortDir = (sortCol === col) ? sortDir * -1 : 1;
+  sortCol = col;
+  document.querySelectorAll('.sort-icon').forEach(el => el.textContent = '↕');
+  const ids = { status:'si-status', name:'si-name', u90:'si-u90', ovrc:'si-ovrc', apc:'si-apc', unifi:'si-unifi' };
+  if (ids[col]) document.getElementById(ids[col]).textContent = sortDir === 1 ? '↑' : '↓';
+  document.querySelectorAll('th.sortable').forEach(th => th.classList.remove('sorted'));
+  const ths = document.querySelectorAll('th.sortable');
+  ths[['status','name','u90','ovrc','apc','unifi'].indexOf(col)]?.classList.add('sorted');
+  renderView();
+}
+
+function setFilter(f) {
+  currentFilter = f;
+  ['all','up','down','paused'].forEach(id => {
+    document.getElementById('btn-' + id).className = 'filter-btn' + (id === f ? ' active' : '');
+  });
+  renderView();
+}
+
+function updateFilterCounts() {
+  const q = document.getElementById('search').value.toLowerCase();
+  const c = { all:0, up:0, down:0, paused:0 };
+  monitors.forEach(m => {
+    const si = STATUS_INFO[m.status] || STATUS_INFO[1];
+    if (q && !m.friendly_name.toLowerCase().includes(q) && !m.url.toLowerCase().includes(q)) return;
+    c.all++;
+    if (si.cls === 'up') c.up++;
+    else if (si.cls === 'down') c.down++;
+    else c.paused++;
+  });
+  Object.keys(c).forEach(k => { document.getElementById('fc-' + k).textContent = c[k]; });
+}
+
+function effectiveStatusSortVal(m) {
+  const si = STATUS_INFO[m.status] || STATUS_INFO[1];
+  const name = m.friendly_name;
+  if (isAcked(name)) return 3;        // acknowledged → treated as all-clear
+
+  const ovrc = getOvrcCellStatus(ovrcMap[name] || null);
+  const apc  = getApcCellStatus(apcMap[name]  || null);
+  const unifi = getUnifiCellStatus(unifiMap[unifiKey(name)] || null);
+  const serviceDown = ovrc?.dot === 'dot-down' || apc?.dot === 'dot-down';
+  const serviceWarn = ovrc?.dot === 'dot-warn' || apc?.dot === 'dot-warn' || unifi?.dot === 'dot-warn';
+  if (si.cls === 'down') return 0;  // UptimeRobot down → top
+  if (serviceDown)       return 1;  // service fully offline → second
+  if (serviceWarn)       return 2;  // service partially offline → third (incl. paused-but-degraded)
+  if (si.cls === 'paused') return 10; // paused & otherwise clear → bottom
+  return 3;                         // all clear
+}
+
+function renderTable() {
+  if (!monitors.length) return;
+  updateFilterCounts();
+
+  let rows = filteredRows();
+
+  rows.sort((a, b) => {
+    // Effectively-paused monitors sink to the bottom (but a paused monitor with offline
+    // OvrC/APC/UniFi devices is no longer "paused" — it surfaces with its severity).
+    const aP = effectiveStatus(a) === 'paused', bP = effectiveStatus(b) === 'paused';
+    if (aP !== bP) return aP ? 1 : -1;
+    if (sortCol === 'name') {
+      const va = a.friendly_name.toLowerCase(), vb = b.friendly_name.toLowerCase();
+      return va < vb ? -sortDir : va > vb ? sortDir : 0;
+    }
+    const dotSortVal = dot => ({ 'dot-up': 2, 'dot-warn': 1, 'dot-down': 0 }[dot] ?? -1);
+    let va, vb;
+    if (sortCol === 'status') { va = effectiveStatusSortVal(a); vb = effectiveStatusSortVal(b); }
+    else if (sortCol === 'ovrc') {
+      va = dotSortVal(getOvrcCellStatus(ovrcMap[a.friendly_name] || null)?.dot);
+      vb = dotSortVal(getOvrcCellStatus(ovrcMap[b.friendly_name] || null)?.dot);
+    } else if (sortCol === 'apc') {
+      va = dotSortVal(getApcCellStatus(apcMap[a.friendly_name] || null)?.dot);
+      vb = dotSortVal(getApcCellStatus(apcMap[b.friendly_name] || null)?.dot);
+    } else if (sortCol === 'unifi') {
+      va = dotSortVal(getUnifiCellStatus(unifiMap[unifiKey(a.friendly_name)] || null)?.dot);
+      vb = dotSortVal(getUnifiCellStatus(unifiMap[unifiKey(b.friendly_name)] || null)?.dot);
+    } else {
+      [va, vb] = [parseUptime(a.custom_uptime_ratio)[2] ?? -1,
+                  parseUptime(b.custom_uptime_ratio)[2] ?? -1];
+    }
+    return (va - vb) * sortDir;
+  });
+
+  const tbody = document.getElementById('tbody');
+  if (!rows.length) {
+    tbody.innerHTML = `<tr><td colspan="6" style="text-align:center;color:#4a5568;padding:36px">No monitors match.</td></tr>`;
+    return;
+  }
+
+  tbody.innerHTML = rows.map(m => {
+    const si   = STATUS_INFO[m.status] || STATUS_INFO[1];
+    const [u7, u30, u90] = parseUptime(m.custom_uptime_ratio);
+    const name = m.friendly_name;
+
+    const ovrcStatus = getOvrcCellStatus(ovrcMap[name] || null);
+    const apcStatus  = getApcCellStatus(apcMap[name]   || null);
+    const unifiStatus = getUnifiCellStatus(unifiMap[unifiKey(name)] || null);
+
+    // First-column status, folding in OvrC/APC/UniFi and acknowledgements.
+    const eff   = effectiveStatus(m);
+    const acked = isAcked(name) && (eff === 'down' || eff === 'warn');
+    let dotCls, textCls, label;
+    if (acked)                 { dotCls = 'dot-warn';   textCls = 'warn';   label = 'Acknowledged'; }
+    else if (eff === 'down')   { dotCls = 'dot-down';   textCls = 'down';   label = si.cls === 'down' ? si.label : 'Service Down'; }
+    else if (eff === 'warn')   { dotCls = 'dot-warn';   textCls = 'warn';   label = 'Degraded'; }
+    else if (eff === 'paused') { dotCls = 'dot-paused'; textCls = 'paused'; label = si.label; }
+    else                       { dotCls = 'dot-up';     textCls = 'up';     label = si.label; }
+
+    const ackHtml = ackControlHTML(name, eff);
+
+    return `<tr class="${eff === 'paused' ? 'paused-row' : ''}">
+      <td><div class="status-cell"><span class="dot ${dotCls}"></span><span class="text-${textCls}">${label}</span></div></td>
+      <td><strong>${name}</strong>${ackHtml ? `<div class="row-ack">${ackHtml}</div>` : ''}</td>
+      <td class="uptime-bars-cell col-90d">${renderUptimeBars(computeDailyStatuses(m.logs, 90, m.create_datetime), u90)}</td>
+      <td class="service-cell">${serviceCellHTML(ovrcStatus)}</td>
+      <td class="service-cell">${serviceCellHTML(apcStatus)}</td>
+      <td class="service-cell">${serviceCellHTML(unifiStatus)}</td>
+    </tr>`;
+  }).join('');
+}
+
+function updateSummaryCards() {
+  const up     = monitors.filter(m => m.status === 2).length;
+  const down   = monitors.filter(m => m.status === 8 || m.status === 9).length;
+  const paused = monitors.filter(m => m.status === 0 || m.status === 1).length;
+  document.getElementById('cnt-up').textContent    = up;
+  document.getElementById('cnt-down').textContent  = down;
+  document.getElementById('cnt-total').textContent = `${monitors.length} total`;
+  document.getElementById('cnt-paused').textContent = `${paused} paused`;
+  updateStatusBanner();
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Effective status, acknowledgements & test mode
+// ─────────────────────────────────────────────────────────────────────────────
+// Per-property worst status: 'down' | 'warn' | 'up' | 'paused' (folds in OvrC/APC).
+function effectiveStatus(m) {
+  const si = STATUS_INFO[m.status] || STATUS_INFO[1];
+  if (si.cls === 'down') return 'down';
+  const name = m.friendly_name;
+  const dots = [getOvrcCellStatus(ovrcMap[name] || null)?.dot,
+                getApcCellStatus(apcMap[name] || null)?.dot,
+                getUnifiCellStatus(unifiMap[unifiKey(name)] || null)?.dot].filter(Boolean);
+  if (dots.includes('dot-down')) return 'down';
+  if (dots.includes('dot-warn')) return 'warn';
+  // Paused only wins when nothing else is wrong — a paused HTTP monitor (e.g. double-NAT
+  // sites) must not hide offline OvrC/APC/UniFi devices at that property.
+  if (si.cls === 'paused') return 'paused';
+  return 'up';
+}
+
+function nowHM() { return new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', hour12: false }); }
+
+// Acks are shared server-side (Netlify Blobs) so every screen stays in sync. We keep
+// a localStorage copy only as an instant-render cache; syncAcks() is the source of truth.
+function loadAcks() { try { return JSON.parse(localStorage.getItem(LS_ACK)) || {}; } catch { return {}; } }
+function saveAcks() { try { localStorage.setItem(LS_ACK, JSON.stringify(ackMap)); } catch (e) {} }
+// Property-code resolver — mirrors normCode/hostCode/PROPERTY_OVERRIDES in the netlify functions
+// (asana-comment/asana-tickets/engine poll.js). KEEP IN SYNC. The wall acks by friendly_name, but
+// the Asana reverse-sync writes acks keyed by Property Code, so a property is acked if EITHER key
+// carries a live ack — propCode bridges friendly_name → that code.
+const PROPERTY_OVERRIDES = {};
+const normCode = (s) => String(s || '').toUpperCase().replace(/[^A-Z0-9]/g, '');
+function propCode(name) {
+  let s = String(name || '').toUpperCase().replace(/^\s*ESTATE\s*-\s*/, '');
+  if (/\bU?NVR\b/.test(s) || /\bTEST\b/.test(s)) s = s.replace(/\bU?NVR\b|\bTEST\b/g, ' ');
+  s = s.replace(/_\d{4}\b/, ' ');
+  const m = s.match(/[A-Z]{2,5}\d{1,3}[A-Z]{0,3}/);
+  let code = m ? normCode(m[0]) : normCode((s.split(/[^A-Z0-9]+/).filter(Boolean)[0]) || '');
+  const ov = PROPERTY_OVERRIDES[code] || PROPERTY_OVERRIDES[normCode(name)];
+  if (ov) code = normCode(ov);
+  return code;
+}
+const liveAck = (k) => { const a = ackMap[k]; return (a && !a.deleted && a.until > Date.now()) ? a : null; };
+// The effective live ack for a property: an operator ack (keyed by friendly_name) wins; otherwise
+// an Asana-origin ack (keyed by Property Code). null if neither is live.
+function effAck(name) {
+  const op = liveAck(name);
+  if (op) return op;
+  const code = propCode(name);
+  return (code && code !== name) ? liveAck(code) : null;
+}
+function isAcked(name) { return !!effAck(name); }
+function ackBy(name) {
+  const a = effAck(name);
+  const e = a && a.by;
+  return e ? (OPERATORS[e] ? OPERATORS[e].name : e) : '';
+}
+function getAckDurationMs() {
+  const sel = document.getElementById('ack-duration');
+  return (sel ? parseInt(sel.value, 10) : 60) * 60 * 1000;
+}
+// Merge the shared server map into local state by timestamp, never regressing. The store is
+// eventually consistent, so a read can lag or briefly omit a just-written record. We treat a
+// *missing* name as "no news" (keep what we have) and only move an entry forward when the
+// server carries a newer (or equal) `at`. Clears arrive as tombstones ({ deleted:true }) —
+// never a bare absence — so a stale read can neither resurrect nor drop an ack. This is what
+// stops the cross-screen flip-flopping; convergence still lands within the sync window.
+function applyServerAcks(serverMap) {
+  const s = serverMap || {};
+  let changed = false;
+  for (const name of Object.keys(s)) {
+    const sv = s[name], cur = ackMap[name];
+    if (cur && (cur.at || 0) > (sv.at || 0)) continue;   // ours is newer — keep it
+    if (JSON.stringify(cur) !== JSON.stringify(sv)) { ackMap[name] = sv; changed = true; }
+  }
+  if (changed) saveAcks();
+  return changed;
+}
+// Pull the shared ack map; keep last-known on failure so a blip doesn't clear acks.
+// With render=true (the standalone poll) re-draw when another screen changed something.
+async function syncAcks(render) {
+  try {
+    const { ok, data } = await callFn(FN_ACKS, { action: 'read' });
+    if (ok && data) {
+      let changed = false;
+      if (data.acks) changed = applyServerAcks(data.acks) || changed;
+      // Shared Test alert — reflects on every screen (incl. the lab kiosk).
+      if (data.test && applyTestState(!!data.test.on)) changed = true;
+      if (render && changed) { renderView(); updateStatusBanner(); }
+    }
+  } catch (e) {}
+}
+// Fetch the open Asana ticket(s) for the currently-alerting properties so the alert cards can
+// link straight to them. One scan server-side covers all of them, so we only call it when there
+// are alerts. Operator-only (kiosk signage has no one to click), best-effort: failures just leave
+// the links absent. Re-renders the alert panel when results arrive (links live in the expander).
+async function fetchTickets() {
+  if (kiosk) return;                       // read-only signage — no ticket links
+  const names = [...new Set(alertingMonitors()
+    .filter(m => m.friendly_name !== 'SIMULATED ALERT (TEST)')
+    .filter(m => { const e = effectiveStatus(m); return e === 'down' || e === 'warn'; })
+    .map(m => m.friendly_name))];
+  if (!names.length) { if (Object.keys(ticketMap).length) { ticketMap = {}; renderAlertPanel(); } return; }
+  try {
+    const { ok, data } = await callFn(FN_ASANA_TICKETS, { action: 'read', names });
+    if (ok && data && data.tickets) { ticketMap = data.tickets; renderAlertPanel(); }
+  } catch (e) {}
+}
+
+// Transient bottom-center toast for operator feedback. Auto-hides; never blocks the UI.
+let toastTimer = null;
+function showToast(msg, opts) {
+  const el = document.getElementById('toast');
+  if (!el) return;
+  el.textContent = msg;
+  el.classList.toggle('toast-warn', !!(opts && opts.warn));
+  el.classList.add('show');
+  clearTimeout(toastTimer);
+  toastTimer = setTimeout(() => el.classList.remove('show'), (opts && opts.ms) || 3200);
+}
+
+// Best-effort: mirror an ack/clear onto the property's Asana ticket(s). Never awaited in the
+// UI path (so a slow/down Asana can't affect the ack), but we surface the outcome as a small
+// toast so the operator gets immediate feedback instead of a silent no-op. The function
+// resolves the property → Asana Property Code and comments on its open auto-filed tickets
+// (routing the SIMULATED test property to a fixed test task).
+function mirrorToAsana(action, name, durationMs) {
+  const verb = action === 'clear' ? 'Clear' : 'Ack';
+  callFn(FN_ASANA, { action, name, durationMs }).then(({ ok, data }) => {
+    if (!ok || !data) { showToast(`${verb}: couldn't reach Asana`, { warn: true }); return; }
+    if (typeof data.commented === 'number' && data.commented > 0) {
+      const where = data.test ? 'Asana test ticket' : `Asana (${data.commented})`;
+      showToast(`✓ ${verb} noted on ${where}`);
+    } else if (typeof data.commented === 'number') {
+      // Property resolved but no open auto-filed ticket matched it.
+      showToast(`${verb}: no open Asana ticket for ${name}`, { warn: true });
+    } else {
+      // Skipped — translate the reason into plain language.
+      const reason = ({
+        'asana not configured': 'Asana not linked',
+        'no property field': `No Asana ticket linked for ${name}`,
+        'no property code': `No Asana ticket linked for ${name}`,
+        'no test task configured': 'No Asana test ticket configured',
+        'asana error': 'Asana error — see function logs',
+      })[data.skipped] || 'Asana: not linked';
+      showToast(`${verb}: ${reason}`, { warn: true });
+    }
+  }).catch(() => showToast(`${verb}: couldn't reach Asana`, { warn: true }));
+}
+async function ackProperty(name) {
+  const durationMs = getAckDurationMs();
+  // Optimistic: show the ack instantly. The local `at` makes the merge keep it until the
+  // server echoes its own (canonical) record; a lagging poll can no longer drop it.
+  const prev = ackMap[name];
+  ackMap[name] = { until: Date.now() + durationMs, by: currentUserEmail, at: Date.now() };
+  saveAcks(); renderView(); updateStatusBanner();
+  const { ok, data } = await callFn(FN_ACKS, { action: 'set', name, durationMs });
+  if (ok && data && data.acks) applyServerAcks(data.acks);
+  else { if (prev) ackMap[name] = prev; else delete ackMap[name]; saveAcks(); }  // revert on failure
+  renderView(); updateStatusBanner();
+  if (ok) mirrorToAsana('ack', name, durationMs);  // only after the ack actually persisted
+}
+async function unackProperty(name) {
+  const prev = ackMap[name];
+  // Optimistic clear = local tombstone (never a bare delete), so a stale poll can't
+  // resurrect it; the merge keeps whichever fact is newest.
+  ackMap[name] = { deleted: true, at: Date.now() };
+  saveAcks(); renderView(); updateStatusBanner();
+  const { ok, data } = await callFn(FN_ACKS, { action: 'clear', name });
+  if (ok && data && data.acks) applyServerAcks(data.acks);
+  else { if (prev) ackMap[name] = prev; else delete ackMap[name]; saveAcks(); }  // revert on failure
+  renderView(); updateStatusBanner();
+  if (ok) mirrorToAsana('clear', name);  // only after the clear actually persisted
+}
+
+// ─── Ignored devices (shared via the ignores function; offline-on-purpose) ──────
+// Like acks, kept in a localStorage cache for instant render; the server is the truth.
+function loadIgnores() { try { return JSON.parse(localStorage.getItem(LS_IGNORES)) || {}; } catch { return {}; } }
+function saveIgnores() { try { localStorage.setItem(LS_IGNORES, JSON.stringify(ignoreMap)); } catch (e) {} }
+function ignoredList() { return Object.values(ignoreMap).filter(x => x && !x.deleted).sort((a, b) => (a.property || '').localeCompare(b.property || '') || (a.name || '').localeCompare(b.name || '')); }
+
+// Same monotonic, tombstone-aware merge as acks (see applyServerAcks): a missing mac means
+// "no news, keep local"; an entry only moves forward when the server's `at` is newer. This
+// stops the ignore list flipping across screens under eventual consistency. Returns true if
+// anything changed.
+function applyServerIgnores(serverMap) {
+  const s = serverMap || {};
+  const now = Date.now();
+  let changed = false;
+  for (const mac of Object.keys(s)) {
+    const sv = s[mac], cur = ignoreMap[mac];
+    if (cur && (cur.at || 0) > (sv.at || 0)) continue;     // ours is newer — keep it
+    if (JSON.stringify(cur) !== JSON.stringify(sv)) { ignoreMap[mac] = sv; changed = true; }
+  }
+  // Drop our own long-stale tombstones so the map can't grow forever (server GCs the same way).
+  for (const mac of Object.keys(ignoreMap)) {
+    const e = ignoreMap[mac];
+    if (e && e.deleted && (e.at || 0) < now - IGN_RECORD_TTL_MS) { delete ignoreMap[mac]; changed = true; }
+  }
+  if (changed) saveIgnores();
+  return changed;
+}
+async function syncIgnores(render) {
+  try {
+    const { ok, data } = await callFn(FN_IGNORES, { action: 'read' });
+    if (ok && data && data.ignores) {
+      const changed = applyServerIgnores(data.ignores);
+      if (render && changed) { showUnifiCard('ok'); renderView(); updateStatusBanner(); updateIgnoredCount(); }
+    }
+  } catch (e) {}
+}
+async function ignoreDevice(mac, name, property) {
+  const { ok, data } = await callFn(FN_IGNORES, { action: 'ignore', mac, name, property });
+  if (ok && data && data.ignores) applyServerIgnores(data.ignores);
+  showUnifiCard('ok'); renderView(); updateStatusBanner(); updateIgnoredCount(); renderIgnored();
+}
+async function unignoreDevice(mac) {
+  const { ok, data } = await callFn(FN_IGNORES, { action: 'unignore', mac });
+  if (ok && data && data.ignores) applyServerIgnores(data.ignores);
+  showUnifiCard('ok'); renderView(); updateStatusBanner(); updateIgnoredCount(); renderIgnored();
+}
+// GC records old enough that no screen can still echo a newer truth (expired acks + stale
+// tombstones). We do NOT delete on expiry itself — `until` is absolute, so isAcked() already
+// stops counting a lapsed ack everywhere; keeping the record briefly lets the merge stay
+// monotonic. Returns true if anything was dropped.
+function pruneAcks() {
+  const now = Date.now();
+  let changed = false;
+  for (const k of Object.keys(ackMap)) {
+    const a = ackMap[k];
+    if (!a || (a.at || 0) < now - ACK_RECORD_TTL_MS) { delete ackMap[k]; changed = true; }
+  }
+  if (changed) saveAcks();
+  return changed;
+}
+function fmtAckRemaining(name) {
+  const a = effAck(name);
+  const until = (a && a.until) || 0;
+  let s = Math.max(0, Math.round((until - Date.now()) / 1000));
+  const h = Math.floor(s / 3600); s -= h * 3600;
+  const m = Math.floor(s / 60); s -= m * 60;
+  return h > 0 ? `${h}:${String(m).padStart(2,'0')}:${String(s).padStart(2,'0')}`
+               : `${m}:${String(s).padStart(2,'0')}`;
+}
+function jsStr(s) { return String(s).replace(/\\/g, '\\\\').replace(/'/g, "\\'"); }
+function escHtml(s) { return String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;'); }
+
+// Ack control for a property — only shown when it's alerting (down/warn).
+function ackControlHTML(name, eff) {
+  if (eff !== 'down' && eff !== 'warn') return '';
+  const js = jsStr(name);
+  const a = effAck(name);
+  if (a) {
+    const by = ackBy(name);
+    // An Asana-origin ack is managed from Asana (clearing it here would just re-sync back), so
+    // show it without a clear button; operator acks keep the ✕.
+    const viaAsana = a.src === 'asana' || a.by === 'via Asana';
+    const clearBtn = viaAsana ? '' : `<button class="ack-x" title="Clear acknowledgement" onclick="event.stopPropagation();unackProperty('${js}')">✕</button>`;
+    return `<span class="ack-badge">ACK${by ? ' · ' + by : ''} <span class="ack-timer" data-name="${name}">${fmtAckRemaining(name)}</span>${clearBtn}</span>`;
+  }
+  return `<button class="ack-btn" onclick="event.stopPropagation();ackProperty('${js}')">⤓ ACK</button>`;
+}
+
+// Apply the (shared) test-alert state locally; returns true if it changed.
+function applyTestState(on) {
+  if (on === testAlert) return false;
+  testAlert = on;
+  const item = document.getElementById('menu-test');
+  if (item) item.classList.toggle('armed', testAlert);
+  const state = document.getElementById('menu-test-state');
+  if (state) state.textContent = testAlert ? 'On' : 'Off';
+  return true;
+}
+// Test alert is shared: toggling it propagates to every screen (incl. the lab kiosk)
+// via the acks store, so it lights up the wall + plays the klaxon. Auto-expires (15m).
+async function toggleTestAlert() {
+  const want = !testAlert;
+  applyTestState(want); renderView(); updateStatusBanner();   // instant local feedback
+  const { ok, data } = await callFn(FN_ACKS, { action: 'test', on: want });
+  if (ok && data) {
+    if (data.acks) applyServerAcks(data.acks);
+    if (data.test) applyTestState(!!data.test.on);
+    renderView(); updateStatusBanner();
+  }
+}
+
+// ── Header hamburger menu ──
+function toggleMenu() {
+  const open = document.getElementById('menu-panel').classList.toggle('open');
+  document.getElementById('menu-btn').setAttribute('aria-expanded', open ? 'true' : 'false');
+}
+function closeMenu() {
+  document.getElementById('menu-panel').classList.remove('open');
+  document.getElementById('menu-btn').setAttribute('aria-expanded', 'false');
+}
+document.addEventListener('click', e => {
+  if (!(e.target.closest && e.target.closest('.menu-wrap'))) closeMenu();
+});
+
+// 1s tick: live clock, ack countdowns, re-evaluate alert state. Redraw when the set of
+// effectively-acked properties changes (e.g. an ack just lapsed → drop badge, re-alarm).
+function ackTick() {
+  pruneAcks();
+  document.querySelectorAll('.ack-timer').forEach(el => { el.textContent = fmtAckRemaining(el.dataset.name); });
+  const key = Object.keys(ackMap).filter(isAcked).sort().join('|');
+  if (key !== lastAckedKey) { lastAckedKey = key; renderView(); }
+  updateStatusBanner();
+}
+
+// ── Alert sound ──────────────────────────────────────────────────────────────
+// Plays a klaxon when the board enters the red alert state, repeating every ~20s
+// while it persists (until acknowledged/resolved). Web Audio — no file needed.
+let audioCtx = null;
+let soundOn = localStorage.getItem('dashboard_sound') !== 'off'; // default ON (for the lab wall)
+let downActive = false;
+let lastBeepAt = 0;
+const BEEP_REPEAT_MS = 20000;
+
+function ensureAudio() {
+  try { if (!audioCtx) audioCtx = new (window.AudioContext || window.webkitAudioContext)(); } catch (e) {}
+  return audioCtx;
+}
+// Any user gesture (operator click, or a tap via the kiosk's USB mouse) resumes the
+// audio context. If we're mid-alert, beep immediately so the tap audibly confirms
+// the device CAN play sound (and isn't silently autoplay-blocked).
+function unlockAudio() {
+  const ctx = ensureAudio();
+  if (!ctx) return;
+  const beepIfAlerting = () => { if (downActive && soundOn && playAlertTone()) lastBeepAt = Date.now(); };
+  if (ctx.state === 'running') beepIfAlerting();
+  else ctx.resume().then(beepIfAlerting).catch(() => {});
+}
+['pointerdown', 'keydown', 'touchstart'].forEach(ev =>
+  window.addEventListener(ev, unlockAudio, { passive: true }));
+
+// Returns true only if it actually produced sound (context running).
+function playAlertTone() {
+  const ctx = ensureAudio();
+  if (!ctx || ctx.state !== 'running') return false;
+  const t0 = ctx.currentTime;
+  [[880, 0], [620, 0.22], [880, 0.44], [620, 0.66]].forEach(([f, t]) => {
+    const o = ctx.createOscillator(), g = ctx.createGain();
+    o.type = 'square'; o.frequency.value = f;
+    g.gain.setValueAtTime(0.0001, t0 + t);
+    g.gain.exponentialRampToValueAtTime(0.3, t0 + t + 0.02);
+    g.gain.exponentialRampToValueAtTime(0.0001, t0 + t + 0.2);
+    o.connect(g); g.connect(ctx.destination);
+    o.start(t0 + t); o.stop(t0 + t + 0.22);
+  });
+  return true;
+}
+// Called every banner update with whether we're in the red alert state. Beeps on the
+// transition into alert, then re-beeps on an interval. Only advance the timer when a
+// beep actually played, so once audio unlocks (gesture) the next tick beeps right away.
+function alertSoundTick(isDown) {
+  if (!isDown) { downActive = false; return; }
+  if (soundOn) {
+    const t = Date.now();
+    if (!downActive || (t - lastBeepAt) >= BEEP_REPEAT_MS) { if (playAlertTone()) lastBeepAt = t; }
+  }
+  downActive = true;
+}
+function toggleSound() {
+  soundOn = !soundOn;
+  localStorage.setItem('dashboard_sound', soundOn ? 'on' : 'off');
+  const st = document.getElementById('menu-sound-state'); if (st) st.textContent = soundOn ? 'On' : 'Off';
+  if (soundOn) playAlertTone(); // this click is a gesture → unlocks audio + previews the tone
+}
+
+// CRT ambient effects toggle (per-device view preference). Calm mode drops the scanlines,
+// scrolling beam and screen-wiggle for legibility; the frame and all alert animations stay.
+let crtOn = localStorage.getItem('dashboard_crt') !== 'off'; // default ON (keep the look on the wall)
+function applyCrt() {
+  document.body.classList.toggle('calm', !crtOn);
+  const b = document.getElementById('crt-btn');
+  if (b) {
+    b.classList.toggle('off', !crtOn);
+    b.setAttribute('aria-pressed', String(!crtOn));
+    b.title = 'CRT effects: ' + (crtOn ? 'On' : 'Off');
+  }
+}
+function toggleCrt() {
+  crtOn = !crtOn;
+  localStorage.setItem('dashboard_crt', crtOn ? 'on' : 'off');
+  applyCrt();
+}
+
+function updateStatusBanner() {
+  const banner = document.getElementById('status-banner');
+  const now = nowHM();
+  banner.classList.remove('banner-all-good', 'banner-degraded', 'banner-down');
+  document.body.classList.remove('state-ok', 'state-degraded', 'state-down');
+
+  // Kiosk display on a network that isn't allow-listed.
+  if (kioskDenied) {
+    banner.classList.add('banner-down');
+    document.body.classList.add('state-down');
+    banner.innerHTML = `‼ DISPLAY NOT AUTHORIZED <span class="banner-sub">This screen isn’t on an allow-listed network</span>`;
+    alertSoundTick(false); // config issue, not an outage — no klaxon
+    return;
+  }
+
+  // Per-property, honoring acknowledgements (acked properties don't raise the alarm).
+  // alertingMonitors() folds in the synthetic property while Test alert is on.
+  let down = 0, warn = 0, acked = 0;
+  alertingMonitors().forEach(m => {
+    const eff = effectiveStatus(m);
+    if (eff !== 'down' && eff !== 'warn') return;
+    if (isAcked(m.friendly_name)) { acked++; return; }
+    if (eff === 'down') down++; else warn++;
+  });
+  const ackNote = acked > 0 ? ` · ${acked} ACK` : '';
+
+  if (down > 0) {
+    banner.classList.add('banner-down');
+    document.body.classList.add('state-down');
+    banner.innerHTML = `‼ SYSTEM ALERT <span class="banner-sub">${down} DOWN${ackNote} · ${now}</span>`;
+    alertSoundTick(true);
+  } else if (warn > 0) {
+    banner.classList.add('banner-degraded');
+    document.body.classList.add('state-degraded');
+    banner.innerHTML = `▲ DEGRADED <span class="banner-sub">ATTENTION REQUIRED${ackNote} · ${now}</span>`;
+    alertSoundTick(false);
+  } else {
+    banner.classList.add('banner-all-good');
+    document.body.classList.add('state-ok');
+    banner.innerHTML = `◉ ALL SYSTEMS NOMINAL <span class="banner-sub">${acked > 0 ? acked + ' ACK · ' : ''}${now}</span>`;
+    alertSoundTick(false);
+  }
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Main refresh
+// ─────────────────────────────────────────────────────────────────────────────
+async function refreshAll() {
+  if (refreshing) return;
+  refreshing = true;
+  const lr = document.getElementById('last-refresh');
+  lr.textContent = '↻ Syncing…';
+
+  // Reset service state
+  apcFromSlack  = false;
+  apcSlackError = '';
+  document.getElementById('apc-stale-note').style.display = 'none';
+  showOvrcCard('loading');
+  showUnifiCard('loading');
+  document.getElementById('apc-card').innerHTML =
+    `<span class="dot dot-checking"></span><span class="text-checking">Checking…</span>`;
+
+  // Run all fetches concurrently
+  const [monitorsResult, ovrcResult, apcResult, unifiResult] = await Promise.allSettled([
+    fetchMonitors(),
+    fetchOvrcData(),
+    fetchApcFromSlack(),
+    fetchUnifiData(),
+    syncAcks(),
+    syncIgnores()
+  ]);
+
+  // Uptime Robot
+  if (monitorsResult.status === 'fulfilled') {
+    kioskDenied = false;
+    monitors = monitorsResult.value;
+    updateSummaryCards();
+    document.getElementById('loading').style.display = 'none';
+    document.getElementById('monitor-table').style.display = 'table';
+  } else {
+    // In kiosk mode a 401 means this display's network isn't allow-listed.
+    if (kiosk && monitorsResult.reason?.status === 401) kioskDenied = true;
+    document.getElementById('loading').innerHTML =
+      `<p style="color:#fc8181;font-size:0.9rem">Failed to load monitors: ${monitorsResult.reason?.message}</p>`;
+  }
+
+  // OvrC
+  if (ovrcResult.status === 'fulfilled') {
+    ovrcMap = ovrcResult.value;
+    showOvrcCard('ok');
+  } else {
+    ovrcMap = {};
+    if (ovrcResult.reason?.soft) showOvrcCard('no-token');
+    else showOvrcCard('error', 'Failed to load');
+  }
+
+  // UniFi — soft-fail to empty so a UniFi outage never blocks the rest of the board.
+  if (unifiResult.status === 'fulfilled') {
+    unifiMap = unifiResult.value;
+    showUnifiCard('ok');
+  } else {
+    unifiMap = {};
+    if (unifiResult.reason?.soft) showUnifiCard('no-token');
+    else showUnifiCard('error', 'Failed to load');
+  }
+
+  // APC SmartConnect
+  if (!apcResult.value) {
+    if (!loadApcFromCache()) apcMap = {};
+  }
+  showApcCard();
+
+  renderView();
+
+  // Resolve ticket links for any active alerts (operator-only, non-blocking — links populate the
+  // expander a moment after the board draws).
+  fetchTickets();
+
+  lr.textContent = '↻ ' + new Date().toLocaleTimeString([], { hour:'2-digit', minute:'2-digit', second:'2-digit', hour12:false });
+  refreshing = false;
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Netlify Identity (Google login + operator allowlist) — mirrors recon
+// ─────────────────────────────────────────────────────────────────────────────
+// Authentication is not authorization: any Google account can authenticate, so we
+// additionally require the email to be an allowlisted operator. This is the UX gate
+// only — the real security boundary is the same allowlist enforced server-side in
+// each Netlify Function (netlify/functions/_lib/auth.js). Keep the two in sync.
+const OPERATORS = {
+  'avery@example.com': { name: 'Avery' },
+  'brandt@example.com': { name: 'Brandt' },
+  'castellano@example.com':  { name: 'Castellano' },
+  'kiosk@example.com':  { name: 'UTILITY' },
+};
+let authStarted = false; // guard so refresh/interval start only once, after login
+
+// Keep an always-on signage display awake (best-effort; ignored where unsupported).
+function enableKiosk() {
+  const lock = () => { try { if ('wakeLock' in navigator) navigator.wakeLock.request('screen').catch(() => {}); } catch (e) {} };
+  lock();
+  document.addEventListener('visibilitychange', () => { if (document.visibilityState === 'visible') lock(); });
+}
+
+function initAuth() {
+  // Kiosk/signage: read-only display, no login (data gated server-side by network IP).
+  if (kiosk) { document.body.classList.add('kiosk'); enableKiosk(); showApp(null); return; }
+  // Local preview — skip the login gate on file:// or localhost (Google OAuth can't run
+  // there). With `netlify dev`, the functions' BEACON_DEV bypass serves real data.
+  const host = location.hostname;
+  if (location.protocol === 'file:' || host === 'localhost' || host === '127.0.0.1') { showApp(null); return; }
+  if (typeof netlifyIdentity === 'undefined') {
+    document.getElementById('authMsg').textContent = 'Auth script failed to load.';
+    return;
+  }
+
+  // Register handlers BEFORE init() so no events are missed.
+  netlifyIdentity.on('init', user => {
+    if (user) { handleUser(user); return; }
+    const btn = document.getElementById('authLoginBtn');
+    if (window.__beaconInviteHash) {
+      document.getElementById('authMsg').textContent = 'Welcome — set your password to finish signing up.';
+      btn.textContent = 'Set password';
+      btn.onclick = () => {
+        try { location.hash = window.__beaconInviteHash; } catch (e) {}
+        netlifyIdentity.init();
+      };
+    } else {
+      document.getElementById('authMsg').textContent = 'Authentication required.';
+    }
+    btn.style.display = 'inline-block';
+  });
+
+  netlifyIdentity.on('login', user => { netlifyIdentity.close(); handleUser(user); });
+  netlifyIdentity.on('logout', () => forceLogout());
+  netlifyIdentity.init();
+}
+
+// Decode the email from the Identity JWT — Google logins hand back a partial user
+// (no top-level email) on the first event, so read it from the access token payload.
+function jwtEmail(u) {
+  try {
+    const t = u && u.token && (u.token.access_token || u.token);
+    if (typeof t === 'string' && t.split('.').length === 3) {
+      const p = JSON.parse(decodeURIComponent(escape(atob(t.split('.')[1].replace(/-/g, '+').replace(/_/g, '/')))));
+      return p.email || (p.user_metadata && p.user_metadata.email) || '';
+    }
+  } catch (e) {}
+  return '';
+}
+function userEmail(u) {
+  if (!u) return '';
+  const e = u.email || (u.user_metadata && u.user_metadata.email) || jwtEmail(u);
+  return String(e || '').trim().toLowerCase();
+}
+
+function handleUser(user) {
+  const email = userEmail(user);
+  if (OPERATORS[email]) showApp(user);
+  else denyAccess(email);
+}
+
+function denyAccess(email) {
+  document.getElementById('authGate').classList.remove('hidden');
+  document.getElementById('authMsg').textContent =
+    'Access denied — ' + (email || 'this account') + ' is not authorized. Signing out.';
+  document.getElementById('authLoginBtn').style.display = 'none';
+  setTimeout(() => { try { netlifyIdentity.logout(); } catch (e) {} }, 1800);
+}
+
+function showApp(user) {
+  document.getElementById('authGate').classList.add('hidden');
+  currentUserEmail = userEmail(user);
+  if (authStarted) return;
+  authStarted = true;
+  ackMap = loadAcks();                 // instant render from cache; syncAcks() corrects it
+  ignoreMap = loadIgnores();           // instant render from cache; syncIgnores() corrects it
+  updateIgnoredCount();
+  setInterval(refreshAll, 60 * 1000);  // auto-refresh every 60s
+  setInterval(ackTick, 1000);          // live clock + ack countdowns + expiry
+  setInterval(() => syncAcks(true), 15 * 1000); // keep acks in sync across all screens
+  setInterval(() => syncIgnores(true), 15 * 1000); // keep the ignore list in sync too
+  refreshAll();
+}
+
+function doLogout() {
+  try { netlifyIdentity.logout(); } catch (e) {}
+  setTimeout(forceLogout, 800);
+}
+function forceLogout() {
+  try {
+    Object.keys(localStorage)
+      .filter(k => k.startsWith('gotrue') || k === 'netlify-identity-widget')
+      .forEach(k => localStorage.removeItem(k));
+  } catch (e) {}
+  window.location.reload();
+}
+
+// Return a valid Identity JWT, refreshing via the refresh_token if the stored
+// access token has expired (GoTrue tokens last ~1h). Attached to every proxy call.
+async function getJWT() {
+  try {
+    const user = netlifyIdentity.currentUser();
+    return user ? await user.jwt() : '';
+  } catch (e) { return ''; }
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Release notes
+// ─────────────────────────────────────────────────────────────────────────────
+// Bump BUILD on every deploy so the header always reflects what is live.
+// User-facing changelog, newest first; the entry matching BUILD is marked "Now".
+const BUILD = 'v2.7';
+const RELEASE_NOTES = [
+  { v: 'v2.7', d: '2026-06-15 15:49', items: [
+    'Acknowledging in Asana now calms the wall even when a property’s wall name differs from its code (e.g. “zDOUBLENAT - WS22” ↔ WS22) — the two are matched up now.',
+    'A property only shows acknowledged once ALL of its open tickets are acknowledged; the moment another device at that property goes offline, it re-alarms. An operator’s timed ACK on the wall still holds for its full window.',
+  ]},
+  { v: 'v2.6', d: '2026-06-14 20:59', items: [
+    'Fixed the alert details panel showing blank for anyone running an ad blocker — the section was named like an ad (“ad-section”) and was being hidden. Renamed it so tickets, down-event history, and the uptime chart now show for everyone.',
+  ]},
+  { v: 'v2.5', d: '2026-06-14 20:22', items: [
+    'Down alerts now link straight to their Asana ticket — expand an alert to find an “🎫 Open ticket” button (operators only). One outage now maps to one ticket, so the link usually goes to a single place.',
+    'One incident = one ticket across both sources: a site that’s down in UptimeRobot and UniFi no longer files two tickets. Whichever notices first opens it; the other confirms it on the same ticket.',
+    'The expander now shows the ticket(s) and recent down events instead of duplicate service counts.',
+    'Fixed the 90-day uptime bars: brief blips (a quick reboot) no longer paint a whole day amber, so a 99.9%-uptime monitor finally looks healthy at a glance.',
+  ]},
+  { v: 'v2.4', d: '2026-06-14 18:08', items: [
+    'Acknowledging a ticket in Asana now calms the wall in seconds instead of up to ~1 minute — Asana notifies Beacon the instant a ticket changes (the every-minute sync stays on as a safety net). Moving a ticket back out of “Acknowledged” re-alarms just as fast.',
+    'Behind the scenes, Asana actions are now made by a dedicated “AsanaBOT” account, so ticket comments and status changes are clearly attributed to the automation rather than a person.',
+  ]},
+  { v: 'v2.3', d: '2026-06-12 20:10', items: [
+    'Housekeeping only — no change to how the board works. Renamed the code repository to “beacon” and tidied some internal references.',
+  ]},
+  { v: 'v2.2', d: '2026-06-12 19:13', items: [
+    'Added kiosk@example.com as an authorized operator.',
+    'Asana “Acknowledged” now reaches the wall faster — the sync runs every minute (was every three), so acknowledging a ticket in Asana calms the board within about a minute.',
+  ]},
+  { v: 'v2.1', d: '2026-06-12 15:27', items: [
+    'New CRT button (top-right) toggles the scanlines, scrolling line, and screen-wiggle off for a calmer, more legible view. The choice is remembered per device, and real alerts still flash, pulse, and sound as normal.',
+  ]},
+  { v: 'v2.0', d: '2026-06-12 15:02', items: [
+    'Beacon 2.0: the wall and the Asana ticketing engine now act as one system. One outage = one ticket (no more separate UptimeRobot + UniFi tickets for the same incident), duplicate tickets self-heal, flapping outages no longer close-and-refile, and a cascade of switches failing together files a single “network outage” ticket.',
+    'The Ignored-devices list now also feeds the ticketing engine directly, so a device ignored on the wall won’t open tickets — no more manually mirroring the list.',
+    'Monitor-down tickets file faster (UptimeRobot’s own confirmation is no longer double-checked).',
+  ]},
+  { v: 'v1.34', d: '2026-06-12 14:03', items: [
+    'When a ticket is moved out of “Acknowledged” in Asana, the wall now re-alarms within a few minutes (instead of up to ~8), and without any false flicker in between.',
+  ]},
+  { v: 'v1.33', d: '2026-06-12 13:54', items: [
+    'Acknowledgement sync now works both ways: setting a ticket to “Acknowledged” in Asana calms that property on the wall too (shown as “ACK · via Asana”), and it re-alarms when the ticket is moved back to Alert! An operator’s own acknowledgement always takes precedence.',
+  ]},
+  { v: 'v1.32', d: '2026-06-12 12:51', items: [
+    'Acknowledging a property now also flips its Asana ticket(s) to the “Acknowledged” status (and back to “Alert!” when you clear the ack or it times out), so the ticket’s status reflects the wall at a glance.',
+  ]},
+  { v: 'v1.31', d: '2026-06-12 11:46', items: [
+    'Acknowledging now shows a brief confirmation of whether the note reached Asana — e.g. “✓ Ack noted on Asana (2)”, or an amber notice if the property has no linked ticket or Asana isn’t reachable. The acknowledgement itself is unaffected either way.',
+  ]},
+  { v: 'v1.30', d: '2026-06-12 10:40', items: [
+    'Acknowledging a property now posts a note on its Asana ticket — who acknowledged and for how long — and posts again when the acknowledgement is cleared. This is best-effort: it never delays or blocks the acknowledgement itself.',
+  ]},
+  { v: 'v1.29', d: '2026-06-07 20:25', items: [
+    'Applied the same reliability fix to the Ignored-devices list: ignoring or un-ignoring a device now settles consistently across all screens instead of occasionally flipping back when several screens are open.',
+  ]},
+  { v: 'v1.28', d: '2026-06-07 20:10', items: [
+    'Fixed acknowledgements flipping on and off across screens. Acks now settle reliably everywhere instead of toggling when several screens are open — clearing an ack is recorded as a deliberate action, so a slow sync can no longer un-ack (or re-ack) a property by mistake. Cross-screen updates can take a few seconds to appear, which is expected.',
+  ]},
+  { v: 'v1.27', d: '2026-06-07 19:50', items: [
+    'Fixed acknowledgements occasionally vanishing on their own — a momentary hiccup reading the shared store was being mistaken for an expired ack and deleting it. Acks now stay put until they actually expire or you clear them.',
+  ]},
+  { v: 'v1.26', d: '2026-06-06 19:52', items: [
+    'Fixed acknowledgements sometimes not “taking” when you acked several alerts quickly — each ack is now stored independently, so they can’t overwrite each other. Acks also show instantly when you click.',
+    'Same reliability fix applied to the Ignored-devices list when ignoring several devices at once.',
+  ]},
+  { v: 'v1.25', d: '2026-06-06 18:36', items: [
+    'The UniFi card now shows two big numbers at a glance — offline devices (out of total) and degraded sites (out of total). Either turns amber when it’s not all-clear.',
+    'The OvrC, APC, and UniFi summary cards are now clickable as a whole to open their consoles; the spelled-out “Open …” links are gone.',
+    'Degraded properties now list their offline UniFi devices right on the alert bar — no need to expand details.',
+    'You can now ignore a UniFi device that’s offline on purpose: it stops counting as offline and won’t degrade its property. Manage the list under menu → “Ignored devices”, where any device can be un-ignored.',
+  ]},
+  { v: 'v1.24', d: '2026-06-06 17:01', items: [
+    'New: UniFi network status. Each property now shows its UniFi devices online/total, and offline UniFi devices flag the property as Degraded (amber) — with the offending device names listed in the alert. UniFi never triggers the red alert or klaxon on its own.',
+    'Offline OvrC/APC/UniFi devices now surface even when a property’s uptime monitor is paused (e.g. double-NAT sites), instead of being hidden by the paused state.',
+  ]},
+  { v: 'v1.23', d: '2026-06-05 08:05', items: [
+    'On a display where audio is blocked until you interact, a single tap now unlocks it and sounds the klaxon immediately if an alert is active.',
+  ]},
+  { v: 'v1.22', d: '2026-06-05 07:48', items: [
+    'Test alert is now shared — toggling it lights up every screen including the lab wall (and triggers its klaxon), so you can verify the display end-to-end. Auto-clears after 15 min.',
+  ]},
+  { v: 'v1.21', d: '2026-06-05 07:30', items: [
+    'Plays an alert klaxon when the board goes into red alert (repeats until acknowledged/resolved). Toggle it under ☰ → Alert sound.',
+  ]},
+  { v: 'v1.20', d: '2026-06-05 06:57', items: [
+    'Release notes now show the date & time of each version.',
+  ]},
+  { v: 'v1.19', d: '2026-06-05 06:54', items: [
+    'Added a Guide (☰ → Guide) explaining the board, the acknowledgement engine (incl. how it syncs across every screen), and the other features.',
+  ]},
+  { v: 'v1.18', d: '2026-06-05 06:54', items: [
+    'Test alert now drops in a real, acknowledgeable “SIMULATED ALERT” card so you can rehearse the whole flow end-to-end.',
+    'Version number shows in the header again (tap it for release notes).',
+  ]},
+  { v: 'v1.17', d: '2026-06-05 06:22', items: [
+    'Acknowledgements are now shared across every screen — ack on one device and the wall display + everyone else update within seconds, showing who acknowledged.',
+  ]},
+  { v: 'v1.16', d: '2026-06-04 23:10', items: [
+    'Signage mode is now gated by network instead of a URL token — the lab display gets read-only data only from an allow-listed IP. Open with ?kiosk=1.',
+  ]},
+  { v: 'v1.15', d: '2026-06-04 22:44', items: [
+    'New home-screen app icon — a glowing radar scope. Re-add Beacon to your home screen to pick it up.',
+  ]},
+  { v: 'v1.14', d: '2026-06-04 22:31', items: [
+    'Kiosk mode for keyboardless signage displays (now superseded by network-gated kiosk in v1.16).',
+  ]},
+  { v: 'v1.13', d: '2026-06-04 22:23', items: [
+    'Header menu polish — icon-only ☰ button and aligned menu rows.',
+  ]},
+  { v: 'v1.12', d: '2026-06-04 22:16', items: [
+    'Tidied the header into a ☰ menu (release notes, ack duration, test, refresh, sign out); removed the signed-in name.',
+    'Made the release-notes panel more opaque so it’s easier to read.',
+  ]},
+  { v: 'v1.11', d: '2026-06-04 22:11', items: [
+    'Tidied the header on mobile — dropped the manual Refresh button (it auto-refreshes every minute); tap the time to refresh now.',
+  ]},
+  { v: 'v1.10', d: '2026-06-04 22:07', items: [
+    'Fixed the glowing frame getting clipped at the corners on mobile — now sits inside the notch and rounded screen corners.',
+  ]},
+  { v: 'v1.9', d: '2026-06-04 22:00', items: [
+    'On-brand favicon, home-screen app icon, and link-preview image.',
+    'Fixed the white edges on iPhone (and when installed to the home screen) — it’s dark to the corners now, notch-aware.',
+  ]},
+  { v: 'v1.8', d: '2026-06-04 21:55', items: [
+    'Calmer when all is well — nominal view now shows just the high-level stats; the full monitor list is tucked behind an “All monitors” toggle.',
+    'When something’s wrong, big pulsing alert panels name the affected property front-and-centre; click one to expand the details.',
+  ]},
+  { v: 'v1.7', d: '2026-06-04 21:31', items: [
+    '24-hour clock throughout.',
+    'Test button in the header to simulate an alert (for checking the alert screen any time).',
+    'Acknowledge button per property — silences its alert for a selectable duration (15m–24h) and returns the system to nominal until the timer lapses.',
+  ]},
+  { v: 'v1.6', d: '2026-06-04 21:20', items: [
+    'Reworked into a cassette-futurism console — teal phosphor, glowing panels, neon frame, grid + scanlines.',
+  ]},
+  { v: 'v1.5', d: '2026-06-04 21:07', items: [
+    'New retro-future CRT theme — scanlines, phosphor glow, the works.',
+    'When a monitor goes down, the whole screen now flips to a pulsing red alert so it’s impossible to miss.',
+  ]},
+  { v: 'v1.4', d: '2026-06-04 20:03', items: [
+    'Monitor data now loads reliably after sign-in.',
+  ]},
+  { v: 'v1.3', d: '2026-06-04 19:48', items: [
+    'Fixed sign-in so the dashboard data actually loads after you log in.',
+  ]},
+  { v: 'v1.2', d: '2026-06-04 19:17', items: [
+    'Added behind-the-scenes diagnostics so data-loading issues can be pinpointed faster.',
+  ]},
+  { v: 'v1.1', d: '2026-06-04 18:55', items: [
+    'Fixed an error that prevented dashboard data from loading.',
+  ]},
+  { v: 'v1.0', d: '2026-06-04 18:44', items: [
+    'Beacon now runs on Netlify with operator sign-in (Google).',
+    'All credentials moved server-side — nothing sensitive is exposed in the browser anymore.',
+    'Click the version number any time to see what’s changed.',
+  ]},
+];
+
+function renderReleaseNotes() {
+  const body = document.getElementById('release-body');
+  if (!body) return;
+  body.innerHTML = RELEASE_NOTES.map(r => {
+    const now   = (r.v === BUILD) ? '<span class="rel-now">Now</span>' : '';
+    const date  = r.d ? `<span class="rel-date">${r.d}</span>` : '';
+    const items = r.items.map(i => `<li>${i}</li>`).join('');
+    return `<div class="rel"><div class="rel-head"><span class="rel-v">${r.v}</span>${now}${date}</div><ul class="rel-items">${items}</ul></div>`;
+  }).join('');
+}
+function openReleaseNotes() {
+  renderReleaseNotes();
+  document.getElementById('release-modal').classList.add('open');
+}
+function closeReleaseNotes() {
+  document.getElementById('release-modal').classList.remove('open');
+}
+function openGuide() { document.getElementById('guide-modal').classList.add('open'); }
+function closeGuide() { document.getElementById('guide-modal').classList.remove('open'); }
+
+function updateIgnoredCount() {
+  const el = document.getElementById('menu-ignored-count');
+  if (el) el.textContent = Object.values(ignoreMap).filter(x => x && !x.deleted).length;
+}
+function renderIgnored() {
+  const body = document.getElementById('ignored-body');
+  if (!body) return;
+  const list = ignoredList();
+  if (!list.length) { body.innerHTML = `<p class="ignored-empty">No devices are ignored.</p>`; return; }
+  body.innerHTML = list.map(d => {
+    const who = d.by ? ` · ${escHtml(d.by)}` : '';
+    return `<div class="ignored-row">
+      <div class="ignored-info">
+        <div class="ignored-name">${escHtml(d.name || d.mac)}</div>
+        <div class="ignored-meta">${escHtml(d.property || '—')}${who}</div>
+      </div>
+      <button class="mini-btn" onclick="unignoreDevice('${jsStr(d.mac)}')">Unignore</button>
+    </div>`;
+  }).join('');
+}
+function openIgnored() {
+  renderIgnored();
+  document.getElementById('ignored-modal').classList.add('open');
+  syncIgnores(true); // pull the freshest list when opened
+}
+function closeIgnored() { document.getElementById('ignored-modal').classList.remove('open'); }
+document.addEventListener('keydown', e => { if (e.key === 'Escape') { closeReleaseNotes(); closeGuide(); closeIgnored(); closeMenu(); } });
+document.getElementById('menu-version').textContent = BUILD;
+document.getElementById('menu-sound-state').textContent = soundOn ? 'On' : 'Off';
+document.getElementById('build-label').textContent = BUILD;
+applyCrt();  // honor a saved "calm" preference on load
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Init
+// ─────────────────────────────────────────────────────────────────────────────
+initAuth();
+</script>
+</body>
+</html>
