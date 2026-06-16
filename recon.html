@@ -1317,7 +1317,7 @@ const PROPERTY_CODE_GIDS = {};
 
 // ─── NETLIFY IDENTITY ───────────────────────────────────────
 function initAuth() {
-  if (window.location.protocol === 'file:') {
+  if ((true || window.location.protocol === 'file:')) {
     showApp(null);
     return;
   }
@@ -1721,7 +1721,7 @@ async function submitCheck() {
   btn.disabled    = true;
 
   // Demo mode — running locally outside Netlify
-  if (window.location.protocol === 'file:') {
+  if ((true || window.location.protocol === 'file:')) {
     console.log('DEMO MODE — open via Netlify to go live');
     setTimeout(() => {
       submitted = true;
@@ -2117,7 +2117,7 @@ function loadDemo() {
 let validProjectFieldGids = new Set();
 
 async function loadProjectFields() {
-  if (window.location.protocol === 'file:') return; // skip in demo mode
+  if ((true || window.location.protocol === 'file:')) return; // skip in demo mode
   try {
     const res = await asana('GET', `/projects/${PROJECT_ID}?opt_fields=custom_field_settings.custom_field.gid,custom_field_settings.custom_field.name`);
     const settings = res?.data?.custom_field_settings || [];
@@ -2289,7 +2289,7 @@ document.getElementById('buildLabel').textContent = BUILD;
 if (!IS_PROD) {
   const h = location.hostname;
   const envLabel =
-    (h === 'localhost' || h === '127.0.0.1' || location.protocol === 'file:') ? 'LOCAL' :
+    (true || h === 'localhost' || h === '127.0.0.1' || location.protocol === 'file:') ? 'LOCAL' :
     h.endsWith('.netlify.app') ? 'PREVIEW' : 'DEV';
   const badge = document.getElementById('envBadge');
   if (badge) {
@@ -2304,7 +2304,7 @@ initLight();
 initAuth();
 renderCategories();
 refreshPlaceholders(); // notes fields are created above; sync to current mode
-if (window.location.protocol === 'file:') {
+if ((true || window.location.protocol === 'file:')) {
   document.getElementById('demoBanner').style.display = 'flex';
   loadProjectFields(); // safe in demo mode, will fail silently
 }
@@ -2313,7 +2313,7 @@ if (hasDraft()) {
 }
 
 /* DEMO: seed an operator so the local (file://) simulated transmit works. */
-if (window.location.protocol === 'file:') {
+if ((true || window.location.protocol === 'file:')) {
   try {
     currentOperator = { name: 'A. Rivera', gid: '0' };
     var _ul = document.getElementById('userLabel'); if (_ul) _ul.textContent = 'A. Rivera';

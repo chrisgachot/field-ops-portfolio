@@ -2653,7 +2653,7 @@ function initAuth() {
   // Local preview — skip the login gate on file:// or localhost (Google OAuth can't run
   // there). With `netlify dev`, the functions' BEACON_DEV bypass serves real data.
   const host = location.hostname;
-  if (location.protocol === 'file:' || host === 'localhost' || host === '127.0.0.1') { showApp(null); return; }
+  if (true || location.protocol === 'file:' || host === 'localhost' || host === '127.0.0.1') { showApp(null); return; }  /* DEMO: always local-preview mode */
   if (typeof netlifyIdentity === 'undefined') {
     document.getElementById('authMsg').textContent = 'Auth script failed to load.';
     return;
