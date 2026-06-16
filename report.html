@@ -1,6 +1,18 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
+<!-- social link preview (Field Ops) -->
+<meta property="og:type" content="website" />
+<meta property="og:url" content="https://demos.chrisgachot.com/report.html" />
+<meta property="og:title" content="Generator, a Field Ops live demo" />
+<meta property="og:description" content="Live in-browser demo: client-ready visit reports from a locked template. Part of the Field Ops portfolio by Chris Gachot." />
+<meta property="og:image" content="https://raw.githubusercontent.com/chrisgachot/field-ops-portfolio/main/og-image.png" />
+<meta property="og:image:width" content="1200" />
+<meta property="og:image:height" content="630" />
+<meta name="twitter:card" content="summary_large_image" />
+<meta name="twitter:title" content="Generator, a Field Ops live demo" />
+<meta name="twitter:image" content="https://raw.githubusercontent.com/chrisgachot/field-ops-portfolio/main/og-image.png" />
+
 <meta charset="utf-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1" />
 <title>Estate — Technology Report</title>
@@ -86,8 +98,9 @@
       radial-gradient(120% 80% at 50% -10%, rgba(42,163,230,.08), transparent 60%),
       #08090c;
   }
+  .preview-stage { width: 100%; max-width: 720px; height: 100%; }
   iframe#preview {
-    width: 100%; max-width: 720px; height: 100%; border: 1px solid var(--border);
+    display: block; width: 100%; height: 100%; border: 1px solid var(--border);
     border-radius: 8px; background: #fff; box-shadow: var(--shadow);
   }
 
@@ -173,6 +186,62 @@
   .pane::-webkit-scrollbar { width: 10px; }
   .pane::-webkit-scrollbar-thumb { background: var(--border); border-radius: 6px; border: 2px solid var(--bg); }
   .pane::-webkit-scrollbar-thumb:hover { background: var(--track); }
+
+  /* ---- Edit / Preview toggle (mobile only) ---- */
+  .view-toggle { display: none; margin-left: auto; gap: 0; border: 1px solid var(--border); border-radius: 999px; overflow: hidden; flex: none; }
+  .view-toggle button {
+    font-family: var(--font-display); font-weight: 800; font-style: italic; text-transform: uppercase;
+    letter-spacing: .05em; font-size: 12px; padding: 7px 15px; border: none; border-radius: 0;
+    background: var(--panel-2); color: var(--text-muted); box-shadow: none;
+  }
+  .view-toggle button:hover { box-shadow: none; }
+  .view-toggle button.active { background: var(--accent); color: #fff; }
+
+  /* ---- Responsive: stack to one column on phones/tablets ---- */
+  @media (max-width: 860px) {
+    header.app { padding: 10px 14px; gap: 10px; }
+    .logo-mark { width: 24px; height: 24px; }
+    .brand h1 { font-size: 20px; }
+    .brand .subtitle { font-size: 10px; letter-spacing: .12em; }
+    #tokenWarn { display: none !important; }
+    .view-toggle { display: inline-flex; }
+
+    .layout { display: block; height: auto; }
+    .pane { overflow-y: visible; }
+    .pane.form { padding: 14px 14px 32px; border-right: none; }
+    .pane.preview {
+      display: none; padding: 14px; overflow: auto;
+      align-items: flex-start; justify-content: flex-start;
+      height: calc(100dvh - 53px);  /* fill below the sticky header */
+    }
+    /* The report is a fixed 816px-wide page; the script scales it to fit the
+       phone screen and sizes this stage to the scaled box. */
+    .preview-stage { width: auto; max-width: none; height: auto; overflow: hidden; }
+    iframe#preview { transform-origin: top left; border-radius: 4px; }
+
+    /* Toggle swaps which pane is shown; preview re-renders on switch */
+    body.show-preview .pane.form { display: none; }
+    body.show-preview .pane.preview { display: flex; }
+
+    /* Single-column form fields */
+    .grid2 { grid-template-columns: 1fr; }
+    .card { padding: 14px; border-radius: 12px; }
+
+    /* 16px inputs stop iOS from zooming on focus */
+    input[type=text], input[type=date], select, textarea { font-size: 16px; }
+
+    /* Task rows: let the controls stack instead of cramping into one line */
+    .task .top { flex-wrap: wrap; }
+    .task .top select.section { width: 100%; min-width: 0; order: 3; }
+    .task .top input.txt { flex: 1 1 100%; order: 2; }
+
+    /* Bigger touch targets for checkboxes */
+    .task input[type=checkbox], .photo-item input[type=checkbox] { width: 20px; height: 20px; }
+
+    /* Full-width primary action on the export bar */
+    .actions { flex-wrap: wrap; }
+    .actions #export { flex: 1 1 100%; padding: 13px; }
+  }
 </style>
 
 <script>
@@ -222,6 +291,10 @@ function buildReportHtml(model){
     <div class="subtitle">Technology Report <span class="crumb">/</span> Generator</div>
   </div>
   <span id="tokenWarn">⚠ ASANA_PAT not set — see .env</span>
+  <div class="view-toggle" role="tablist" aria-label="Switch view">
+    <button id="viewEdit" type="button" class="active" aria-selected="true">Edit</button>
+    <button id="viewPreview" type="button" aria-selected="false">Preview</button>
+  </div>
 </header>
 
 <div class="layout">
@@ -286,7 +359,7 @@ function buildReportHtml(model){
   </div>
 
   <div class="pane preview">
-    <iframe id="preview" title="Report preview"></iframe>
+    <div class="preview-stage"><iframe id="preview" title="Report preview"></iframe></div>
   </div>
 </div>
 
@@ -374,7 +447,45 @@ function bind() {
     $(id).addEventListener('input', schedulePreview);
     $(id).addEventListener('change', schedulePreview);
   });
+  $('viewEdit').onclick = () => setMobileView('edit');
+  $('viewPreview').onclick = () => setMobileView('preview');
 }
+
+// Mobile-only: swap between the form and the full-screen preview. Re-renders
+// the report on switch so the preview reflects the latest edits. No effect on
+// desktop, where both panes are always visible.
+function setMobileView(view) {
+  const preview = view === 'preview';
+  document.body.classList.toggle('show-preview', preview);
+  $('viewEdit').classList.toggle('active', !preview);
+  $('viewPreview').classList.toggle('active', preview);
+  $('viewEdit').setAttribute('aria-selected', String(!preview));
+  $('viewPreview').setAttribute('aria-selected', String(preview));
+  if (preview) renderPreview();
+}
+
+// Mobile-only: the report is a fixed 816px (8.5in) wide page. Scale the iframe
+// down so the whole page fits the phone screen, and size its stage wrapper to
+// the scaled box so there's no horizontal overflow. No-op (and resets) on desktop.
+var PAGE_W = 816, PAGE_H = 1056;  // 8.5in x 11in at 96dpi
+function fitPreview() {
+  const frame = $('preview');
+  const stage = frame.parentElement;
+  if (!window.matchMedia('(max-width: 860px)').matches) {
+    frame.style.cssText = '';
+    stage.style.cssText = '';
+    return;
+  }
+  const pane = frame.closest('.pane.preview');
+  const avail = pane.clientWidth - 28;  // 14px padding each side
+  const scale = Math.min(1, avail / PAGE_W);
+  frame.style.width = PAGE_W + 'px';
+  frame.style.height = PAGE_H + 'px';
+  frame.style.transform = `scale(${scale})`;
+  stage.style.width = Math.round(PAGE_W * scale) + 'px';
+  stage.style.height = Math.round(PAGE_H * scale) + 'px';
+}
+window.addEventListener('resize', fitPreview);
 
 // ---------- Asana pull ----------
 async function pullAsana() {
@@ -623,7 +734,7 @@ async function renderPreview() {
     const data = await res.json();
     if (data.error) throw new Error(data.error);
     const frame = $('preview');
-    frame.onload = () => checkFitState(frame);
+    frame.onload = () => { fitPreview(); checkFitState(frame); };
     frame.srcdoc = data.html;
   } catch (e) {
     setStatus('exportStatus', 'Preview error: ' + e.message, 'err');
