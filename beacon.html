@@ -3,61 +3,62 @@
 <head>
 
 <script>
-/* ===== DEMO DATA LAYER (no live systems). Intercepts the app's proxy calls and
-   returns fictional fixtures so the real Beacon UI renders. One property
-   (Cedar Ridge Estate) is intentionally DEGRADED to show the alert + ack flow,
-   the click-for-details expander, its Asana ticket, and down-event history. ===== */
+/* ===== DEMO DATA LAYER (no live systems). Feeds the real Beacon v2.8 UI, including the
+   new History & insights panel (UptimeRobot logs + Asana-history). One property is
+   DEGRADED so the alert + ack flow, ticket link, and incident history all populate. ===== */
 (function(){
-  var NAMES = ["Cedar Ridge Estate", "Harbor Point House", "Aspen Hollow Lodge", "Lakeside Compound", "Summit View Villa", "Orchard Lane Manor", "Birch Hollow Retreat", "Marsh Landing House"];
-  var now = Math.floor(Date.now()/1000), DAY=86400;
-  var devCounts=[24,18,31,22,16,27,14,19];
-  // Cedar Ridge (index 0): one offline device + recent outage history + lower 90d uptime.
-  var degradedName = NAMES[0];
-  function ratio(){ return (99.9+Math.random()*0.09).toFixed(2)+'-'+(99.9+Math.random()*0.08).toFixed(2)+'-'+(99.8+Math.random()*0.15).toFixed(2); }
-  var monitors = NAMES.map(function(n,i){
-    var m = { id:1000+i, friendly_name:n, url:'https://example.com', type:1, status:2,
-              custom_uptime_ratio:ratio(), create_datetime: now-200*DAY, logs:[] };
-    if(i===0){
-      m.custom_uptime_ratio='99.61-98.92-98.77';
-      m.logs=[
-        { type:1, datetime: now-2*DAY-3600,  duration:2640 },  // 44m
-        { type:1, datetime: now-4*DAY-7200,  duration:1320 },  // 22m
-        { type:1, datetime: now-9*DAY,       duration:5400 },  // 1h30m
-      ];
-    }
-    return m;
-  });
-  var ovrc={ items:[{ displayAs:'Estate Portfolio', locations: NAMES.map(function(n,i){
-    return { name:n, deviceCount:devCounts[i], offlineDeviceCount:0 }; }) }] };
-  var unifi={ hosts: NAMES.map(function(n,i){
-    if(i===0) return { name:n, deviceCount:devCounts[0], offlineDeviceCount:1,
-      offlineDevices:[{ mac:'a1:b2:c3:d4:e5:f6', name:'Boathouse Camera' }] };
-    return { name:n, deviceCount:devCounts[i], offlineDeviceCount:0, offlineDevices:[] }; }) };
-  var slack={ ok:true, messages: NAMES.map(function(n){ return { type:'message', text:'UPS: '+n+' | online' }; }) };
-  var tickets={}; tickets[degradedName]=[{
-    gid:'1208887766', title:degradedName+' — network device offline (Boathouse Camera)',
-    statusName:'Alert!', kind:'unifi', permalink:'#' }];
+  var now=Math.floor(Date.now()/1000), DAY=86400;
+  var PROPS=[
+    {name:'Cedar Ridge (CR12)', code:'CR12', dev:24, u:[99.21,98.64,98.12]},
+    {name:'Harbor Point (HP08)', code:'HP08', dev:18, u:[99.98,99.71,99.42]},
+    {name:'Aspen Hollow (AH21)', code:'AH21', dev:31, u:[100,99.99,99.95]},
+    {name:'Lakeside (LK33)', code:'LK33', dev:22, u:[99.95,99.41,98.92]},
+    {name:'Summit View (SV45)', code:'SV45', dev:16, u:[99.99,99.97,99.96]},
+    {name:'Orchard Lane (OL52)', code:'OL52', dev:27, u:[99.97,99.90,99.83]},
+    {name:'Birch Hollow (BH14)', code:'BH14', dev:14, u:[99.90,99.78,99.66]},
+    {name:'Marsh Landing (ML19)', code:'ML19', dev:19, u:[99.96,99.90,99.85]}
+  ];
+  var degraded=PROPS[0];
+  function logsFor(seed,n){ var a=[]; for(var i=0;i<n;i++){ var daysAgo=((i*13+seed*7)%85)+2; var dt=now-daysAgo*DAY-seed*3600; var dur=[1320,2640,5400,900,4200][(i+seed)%5]; a.push({type:1,datetime:dt,duration:dur}); } return a; }
+  var monitors=PROPS.map(function(p,i){ var n=(i===0?4:(i%3===0?3:(i%2===0?2:1)));
+    return {id:1000+i, friendly_name:p.name, url:'https://example.com', type:1, status:2, custom_uptime_ratio:p.u.join('-'), create_datetime:now-200*DAY, logs:logsFor(i,n)}; });
+  var ovrc={items:[{displayAs:'Estate Portfolio', locations:PROPS.map(function(p){ return {name:p.name, deviceCount:p.dev, offlineDeviceCount:(p===degraded?1:0)}; })}]};
+  var unifi={hosts:PROPS.map(function(p){ return (p===degraded)
+      ? {name:p.name, deviceCount:p.dev, offlineDeviceCount:1, offlineDevices:[{mac:'a1:b2:c3:d4:e5:f6', name:'Boathouse Camera'}]}
+      : {name:p.name, deviceCount:p.dev, offlineDeviceCount:0, offlineDevices:[]}; })};
+  var slack={ok:true, messages:PROPS.map(function(p){ return {type:'message', text:'UPS: '+p.name+' | online'}; })};
+  var tickets={}; tickets[degraded.name]=[{gid:'1208887766', title:degraded.name+' network device offline (Boathouse Camera)', statusName:'Alert!', kind:'unifi', permalink:'#'}];
 
-  function J(obj){ return new Response(JSON.stringify(obj), {status:200, headers:{'Content-Type':'application/json'}}); }
-  var realFetch = window.fetch ? window.fetch.bind(window) : null;
-  window.fetch = function(url, opts){
-    try{
-      var u=(typeof url==='string')?url:(url&&url.url)||'';
+  function iso(sec){ return new Date(sec*1000).toISOString(); }
+  function mkInc(seed,n,openFirst,label){ var arr=[]; for(var i=0;i<n;i++){ var daysAgo=((i*16+seed*5)%84)+2; var st=now-daysAgo*DAY; var dur=[1800,3600,7200,5400,2400][(i+seed)%5]; var ongoing=(openFirst&&i===0);
+      arr.push({title:(ongoing?'[OFFLINE] ':'')+'Whole site outage: '+label, permalink:'#', created_at:iso(st), completed_at: ongoing?null:iso(st+dur), ongoing:ongoing}); }
+    arr.sort(function(a,b){ return Date.parse(b.created_at)-Date.parse(a.created_at); }); return arr; }
+  var hist={}; [['CR12',5,true,'Cedar Ridge'],['HP08',3,false,'Harbor Point'],['LK33',2,false,'Lakeside'],['BH14',2,false,'Birch Hollow']].forEach(function(s){
+    var incs=mkInc(s[0].charCodeAt(0)+s[0].charCodeAt(1), s[1], s[2], s[3]);
+    var dt=incs.reduce(function(t,inc){ return t+(inc.ongoing?0:Math.max(0,(Date.parse(inc.completed_at)-Date.parse(inc.created_at))/1000)); },0);
+    hist[s[0]]={code:s[0], count:s[1], openCount:(s[2]?1:0), totalDowntimeSec:Math.floor(dt), incidents:incs}; });
+  var history={ok:true, sites:hist, generatedAt:iso(now)};
+
+  function J(o){ return new Response(JSON.stringify(o), {status:200, headers:{'Content-Type':'application/json'}}); }
+  var realFetch=window.fetch?window.fetch.bind(window):null;
+  window.fetch=function(url,opts){
+    try{ var u=(typeof url==='string')?url:(url&&url.url)||'';
       if(u.indexOf('/.netlify/functions/')!==-1){
         if(u.indexOf('uptimerobot')!==-1) return Promise.resolve(J({stat:'ok', monitors:monitors}));
-        if(u.indexOf('ovrc')!==-1)        return Promise.resolve(J(ovrc));
-        if(u.indexOf('unifi')!==-1)       return Promise.resolve(J(unifi));
-        if(u.indexOf('slack')!==-1)       return Promise.resolve(J(slack));
+        if(u.indexOf('ovrc')!==-1) return Promise.resolve(J(ovrc));
+        if(u.indexOf('unifi')!==-1) return Promise.resolve(J(unifi));
+        if(u.indexOf('slack')!==-1) return Promise.resolve(J(slack));
+        if(u.indexOf('asana-history')!==-1) return Promise.resolve(J(history));
         if(u.indexOf('asana-tickets')!==-1) return Promise.resolve(J({ok:true, tickets:tickets}));
-        if(u.indexOf('acks')!==-1)        return Promise.resolve(J({ok:true, acks:{}}));
-        if(u.indexOf('ignores')!==-1)     return Promise.resolve(J({ok:true, ignores:{}}));
-        if(u.indexOf('asana')!==-1)       return Promise.resolve(J({ok:true, commented:1, test:false}));
+        if(u.indexOf('acks')!==-1) return Promise.resolve(J({ok:true, acks:{}}));
+        if(u.indexOf('ignores')!==-1) return Promise.resolve(J({ok:true, ignores:{}}));
+        if(u.indexOf('asana')!==-1) return Promise.resolve(J({ok:true, commented:1, test:false}));
         return Promise.resolve(J({ok:true}));
       }
     }catch(e){}
-    return realFetch ? realFetch(url, opts) : Promise.reject(new Error('offline demo'));
+    return realFetch?realFetch(url,opts):Promise.reject(new Error('offline demo'));
   };
-  window.netlifyIdentity = window.netlifyIdentity || { on:function(){}, init:function(){}, open:function(){}, close:function(){}, logout:function(){}, currentUser:function(){return null;} };
+  window.netlifyIdentity = window.netlifyIdentity || {on:function(){},init:function(){},open:function(){},close:function(){},logout:function(){},currentUser:function(){return null;}};
 })();
 </script>
 
@@ -165,12 +166,16 @@
 
     /* ── Cards ── */
     .cards {
-      display: grid;
-      grid-template-columns: repeat(auto-fit, minmax(190px, 1fr));
+      display: flex;
+      flex-wrap: wrap;
+      align-items: stretch;
       gap: 12px;
       margin-bottom: 18px;
     }
+    /* Cards flex to equal widths: they condense on narrow screens (iPad mini = one
+       row) and expand on wide ones, every card the same size. */
     .card {
+      flex: 1 1 200px;
       background: #1a1d2e;
       border: 1px solid #2d3748;
       border-radius: 10px;
@@ -582,12 +587,14 @@
       main { padding: 12px 12px; }
 
       .cards {
-        grid-template-columns: repeat(2, 1fr);
         gap: 10px;
         margin-bottom: 14px;
       }
+      .cards .card { flex: 1 1 calc(50% - 5px); } /* equal cards, two per row */
       .card { padding: 12px 12px; }
       .card-value { font-size: 1.6rem; }
+      .hero-n { font-size: 2rem; }
+      .hero-down .hero-n { font-size: 1.4rem; }
 
       .controls {
         gap: 6px;
@@ -788,13 +795,13 @@
     .search-box:focus{border-color:var(--teal);box-shadow:0 0 10px rgba(63,224,216,0.25);}
 
     /* ── Panels: glowing rounded console frames with corner brackets ── */
-    .card,.tile,.table-wrap,.modal{
+    .card,.tile,.table-wrap,.modal,.icard{
       background:linear-gradient(180deg,var(--panel-a),var(--panel-b));
       border:1px solid var(--border);border-radius:8px;position:relative;
       box-shadow:0 0 12px rgba(63,224,216,0.12),inset 0 0 22px rgba(63,224,216,0.04);
     }
-    .card::before,.tile::before{content:'';position:absolute;top:5px;left:5px;width:10px;height:10px;border-top:2px solid var(--teal);border-left:2px solid var(--teal);opacity:.65;}
-    .card::after,.tile::after{content:'';position:absolute;bottom:5px;right:5px;width:10px;height:10px;border-bottom:2px solid var(--teal);border-right:2px solid var(--teal);opacity:.65;}
+    .card::before,.tile::before,.icard::before{content:'';position:absolute;top:5px;left:5px;width:10px;height:10px;border-top:2px solid var(--teal);border-left:2px solid var(--teal);opacity:.65;}
+    .card::after,.tile::after,.icard::after{content:'';position:absolute;bottom:5px;right:5px;width:10px;height:10px;border-bottom:2px solid var(--teal);border-right:2px solid var(--teal);opacity:.65;}
     .card-label{color:var(--teal-dim);text-shadow:none;letter-spacing:0.16em;}
     .card-value{font-family:'VT323',monospace;font-size:2.7rem;text-shadow:0 0 12px currentColor;}
     .card-sub{color:var(--teal-dim);text-shadow:none;}
@@ -803,6 +810,24 @@
     .card-dual{display:flex;gap:20px;align-items:baseline;}
     .card-stat{display:flex;flex-direction:column;}
     .card-dual .card-value{font-size:2.2rem;}
+
+    /* ── Monitors hero (up = big number, down badge, up/down ratio bar) ── */
+    .card-hero{display:flex;flex-direction:column;}
+    .hero-top{display:flex;align-items:flex-end;justify-content:space-between;gap:16px;margin:2px 0 12px;}
+    .hero-up{display:flex;align-items:baseline;gap:9px;}
+    .hero-down{display:flex;align-items:baseline;gap:7px;}
+    .hero-n{font-family:'VT323',monospace;font-size:2.4rem;line-height:0.8;text-shadow:0 0 14px currentColor;}
+    .hero-down .hero-n{font-size:1.6rem;}
+    .hero-l{font-size:0.66rem;color:var(--teal-dim);text-shadow:none;text-transform:uppercase;letter-spacing:0.14em;}
+    .hero-bar{height:8px;border-radius:4px;overflow:hidden;display:flex;border:1px solid var(--border);background:#0a1a18;margin-top:auto;}
+    .hero-bar i{display:block;height:100%;transition:width .4s ease;}
+    .hero-bar .up{background:var(--teal);box-shadow:0 0 10px var(--teal);}
+    .hero-bar .down{background:var(--red);box-shadow:0 0 10px var(--red);}
+    .hero-foot{display:flex;justify-content:space-between;font-size:0.7rem;color:var(--teal-dim);text-shadow:none;margin-top:7px;}
+    /* Roomier padding on wide displays; the bar lengthens as cards grow. */
+    @media (min-width:1200px){
+      .cards .card{padding:16px 18px;}
+    }
 
     /* ── Status colors (teal=up, amber=warn, red=down) ── */
     .text-up,.uptime-good,.uptime-ok{color:var(--teal)!important;text-shadow:0 0 6px rgba(63,224,216,0.6);}
@@ -1030,12 +1055,151 @@
     }
     .all-toggle:hover{color:var(--teal);border-color:var(--teal);}
 
+    /* ── History & insights panel ─────────────────────────────────────────────── */
+    .insights-body{margin-bottom:14px;}
+    .insights-stack{display:flex;flex-direction:column;gap:14px;}
+    .icard{padding:15px 18px 17px;display:flex;flex-direction:column;gap:12px;}
+    .icard-title{font-family:'VT323',monospace;font-size:1.5rem;line-height:1;color:var(--amber);
+      text-transform:uppercase;letter-spacing:0.05em;text-shadow:0 0 8px rgba(255,184,77,0.5);
+      display:flex;align-items:baseline;gap:10px;flex-wrap:wrap;}
+    .icard-title .icard-sub{font-family:'Share Tech Mono',monospace;font-size:0.68rem;color:var(--teal-dim);
+      text-shadow:none;letter-spacing:0.06em;text-transform:none;}
+    .iempty{color:var(--teal-dim);font-size:0.85rem;padding:8px 0;}
+
+    /* Fleet headline stats */
+    .istats{display:flex;flex-wrap:wrap;gap:16px 32px;align-items:center;}
+    .istat{display:flex;flex-direction:column;gap:3px;}
+    .istat-val{font-family:'VT323',monospace;font-size:2.3rem;line-height:0.85;text-shadow:0 0 10px currentColor;}
+    .istat-label{font-size:0.62rem;color:var(--teal-dim);text-shadow:none;text-transform:uppercase;letter-spacing:0.12em;}
+    .itrend{display:inline-flex;align-items:center;gap:5px;font-size:0.82rem;align-self:center;margin-left:auto;
+      padding:5px 11px;border-radius:999px;border:1px solid var(--border);}
+    .itrend-up{color:var(--teal);} .itrend-down{color:var(--red);} .itrend-steady{color:var(--teal-dim);}
+
+    /* 90-day outage heatmap */
+    .hgrid{display:flex;gap:2px;height:30px;align-items:stretch;}
+    .hcell{flex:1;min-width:2px;border-radius:2px;cursor:crosshair;transition:transform .08s,opacity .08s;}
+    .hcell:hover{transform:scaleY(1.2);opacity:.92;}
+    .hcell-l0{background:#0f231f;}
+    .hcell-l1{background:var(--teal-dim);}
+    .hcell-l2{background:var(--amber);opacity:.85;}
+    .hcell-l3{background:var(--amber);box-shadow:0 0 6px rgba(255,184,77,.55);}
+    .hcell-l4{background:var(--red);box-shadow:0 0 8px rgba(255,59,47,.65);}
+
+    /* Outage-timeline hover tooltip */
+    #ins-tip{position:fixed;z-index:10050;pointer-events:none;display:none;max-width:340px;min-width:170px;
+      background:#06201d;border:1px solid var(--teal);border-radius:7px;padding:9px 11px;
+      box-shadow:0 0 22px rgba(0,0,0,.65),0 0 14px rgba(63,224,216,.25);
+      font-family:'Share Tech Mono',monospace;font-size:0.76rem;color:var(--teal);text-shadow:none;}
+    #ins-tip .tip-date{font-family:'VT323',monospace;font-size:1.3rem;color:var(--amber-bright);line-height:1;}
+    #ins-tip .tip-count{font-size:0.62rem;color:var(--teal-dim);text-transform:uppercase;letter-spacing:0.1em;margin:2px 0 7px;}
+    #ins-tip .tip-item{display:flex;gap:7px;align-items:center;padding:2px 0;line-height:1.25;}
+    #ins-tip .tip-item em{color:var(--amber);font-style:normal;}
+    #ins-tip .tip-item .dot{flex:none;width:7px;height:7px;}
+    #ins-tip .tip-more{color:var(--teal-dim);font-size:0.7rem;margin-top:5px;}
+    #ins-tip .tip-none{color:var(--teal-bright);}
+
+    /* Attention rows (sites + devices) */
+    .aitem + .aitem{margin-top:8px;}
+    .aitem.muted{opacity:0.5;}
+    .arow{display:grid;grid-template-columns:200px minmax(160px,1fr) 158px 118px 66px;gap:16px;align-items:center;
+      padding:11px 12px;border:1px solid transparent;border-left-width:3px;border-radius:8px;background:rgba(63,224,216,0.02);
+      cursor:pointer;transition:background .12s;}
+    .arow:hover{background:rgba(63,224,216,0.06);}
+    .arow.sev-down{border-left-color:var(--red);background:rgba(255,59,47,0.055);}
+    .arow.sev-down:hover{background:rgba(255,59,47,0.09);}
+    .arow.sev-warn{border-left-color:var(--amber);background:rgba(255,184,77,0.045);}
+    .arow.sev-warn:hover{background:rgba(255,184,77,0.08);}
+    .arow.sev-ok{border-left-color:var(--teal-dim);}
+    .at-id{display:flex;flex-direction:column;gap:3px;min-width:0;}
+    .at-head{display:flex;align-items:baseline;gap:9px;min-width:0;}
+    .at-rank{font-family:'VT323',monospace;font-size:1.05rem;color:var(--teal-dim);flex:none;}
+    .at-code{font-family:'VT323',monospace;font-size:1.75rem;line-height:0.85;color:var(--amber);text-shadow:0 0 7px rgba(255,184,77,.45);}
+    .at-name{font-size:0.95rem;color:var(--teal);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+    .at-sub{font-size:0.66rem;color:var(--teal-dim);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+    .at-bar{display:flex;flex-direction:column;gap:6px;min-width:0;}
+    .at-bar-track{height:12px;border-radius:6px;background:#0a1a18;border:1px solid var(--border);overflow:hidden;}
+    .at-bar-track i{display:block;height:100%;border-radius:6px;transition:width .4s ease;}
+    .at-bar-track i.f-down{background:var(--red);box-shadow:0 0 10px rgba(255,59,47,.6);}
+    .at-bar-track i.f-warn{background:var(--amber);box-shadow:0 0 10px rgba(255,184,77,.5);}
+    .at-bar-track i.f-ok{background:var(--teal);box-shadow:0 0 10px rgba(63,224,216,.5);}
+    .at-bar-label{font-size:0.74rem;color:var(--teal-dim);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+    .at-bar-label b{font-family:'VT323',monospace;font-size:1.05rem;color:var(--teal-bright);letter-spacing:0.02em;}
+    /* 90-day history as one clean continuous ribbon (no barcode gaps, clipped, no footer) */
+    .at-spark{display:flex;flex-direction:column;gap:4px;min-width:0;}
+    .at-spark .uptime-bars{gap:0;}
+    .at-spark .ubar-track{height:10px;gap:0;border-radius:5px;overflow:hidden;border:1px solid var(--border);background:#0a1a18;}
+    .at-spark .ubar{min-width:0;border-radius:0;}
+    .at-spark .ubar-footer{display:none;}
+    .at-spark-cap{font-size:0.56rem;color:var(--teal-dim);text-shadow:none;text-transform:uppercase;letter-spacing:0.1em;}
+    .at-stat{display:flex;flex-direction:column;align-items:center;gap:3px;}
+    /* Row actions: hide/unhide + expand caret */
+    .at-act{display:flex;flex-direction:column;align-items:flex-end;gap:6px;}
+    .at-caret{color:var(--teal-dim);font-size:0.8rem;}
+    .at-mute{background:none;border:1px solid var(--border);color:var(--teal-dim);border-radius:4px;cursor:pointer;
+      font-family:'Share Tech Mono',monospace;font-size:0.6rem;letter-spacing:0.04em;padding:3px 7px;white-space:nowrap;}
+    .at-mute:hover{color:var(--amber);border-color:var(--amber);}
+    .at-unmute:hover{color:var(--teal);border-color:var(--teal);}
+
+    /* Expanded detail: a site/device's tickets + recent down events */
+    .adetail{padding:4px 14px 12px 18px;animation:dtlIn .18s ease;}
+    @keyframes dtlIn{from{opacity:0;transform:translateY(-4px)}to{opacity:1;transform:none}}
+    .adetail-inner{border-left:2px solid var(--border);padding-left:14px;display:flex;flex-direction:column;gap:3px;}
+    .adetail-h{font-family:'Share Tech Mono',monospace;font-size:0.66rem;color:var(--amber);text-transform:uppercase;
+      letter-spacing:0.08em;margin:8px 0 4px;display:flex;gap:8px;align-items:baseline;}
+    .adetail-h:first-child{margin-top:2px;}
+    .adetail-h .adetail-sub{color:var(--teal-dim);letter-spacing:0.04em;}
+    .adetail-row{display:grid;grid-template-columns:9px 1fr auto;gap:9px;align-items:center;padding:4px 0;
+      font-size:0.78rem;color:var(--teal);text-decoration:none;border-bottom:1px dotted rgba(63,224,216,0.1);}
+    .adetail-row:last-child{border-bottom:none;}
+    a.adetail-row:hover{color:var(--teal-bright);}
+    a.adetail-row:hover .adetail-go{opacity:1;}
+    .adetail-title{white-space:nowrap;overflow:hidden;text-overflow:ellipsis;min-width:0;}
+    .adetail-go{color:var(--teal-dim);opacity:0.55;}
+    .adetail-when{color:var(--teal-dim);font-size:0.68rem;white-space:nowrap;}
+    .adetail-dur{color:var(--teal-bright);font-size:0.72rem;white-space:nowrap;text-align:right;}
+    .adetail-row .dot{width:8px;height:8px;}
+    .adetail-note{color:var(--teal-dim);font-size:0.76rem;padding:6px 0;}
+    .attn-foot{margin-top:10px;}
+    .at-showmuted{background:none;border:1px dotted var(--border);color:var(--teal-dim);border-radius:4px;cursor:pointer;
+      font-family:'Share Tech Mono',monospace;font-size:0.66rem;letter-spacing:0.06em;padding:4px 10px;text-transform:uppercase;}
+    .at-showmuted:hover{color:var(--teal);border-color:var(--teal);}
+    .at-when{font-size:0.6rem;color:var(--teal-dim);}
+    .abadge{display:inline-flex;align-items:center;gap:5px;font-size:0.66rem;font-weight:600;text-transform:uppercase;
+      letter-spacing:0.07em;padding:5px 10px;border-radius:999px;border:1px solid var(--border);white-space:nowrap;}
+    .abadge-down{color:var(--red);border-color:rgba(255,59,47,.5);text-shadow:0 0 7px rgba(255,59,47,.7);}
+    .abadge-warn{color:var(--amber);border-color:rgba(255,184,77,.5);}
+    .abadge-ok{color:var(--teal-dim);}
+    .abadge .dot{width:6px;height:6px;}
+
+    /* Recent outages table */
+    .ifeed-row{display:grid;grid-template-columns:12px minmax(150px,1fr) 70px 200px 92px;gap:12px;align-items:center;
+      padding:7px 4px;border-bottom:1px dotted rgba(63,224,216,0.14);font-size:0.8rem;}
+    .ifeed-row:last-child{border-bottom:none;}
+    .ifeed-row .dot{width:8px;height:8px;}
+    .ifeed-name{color:var(--teal);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;min-width:0;}
+    .ifeed-site{color:var(--amber);font-family:'VT323',monospace;font-size:1.05rem;}
+    .ifeed-time{color:var(--teal-dim);text-shadow:none;font-size:0.72rem;white-space:nowrap;}
+    .ifeed-dur{color:var(--teal-bright);text-shadow:none;font-size:0.74rem;white-space:nowrap;text-align:right;}
+    .ongoing-badge{display:inline-flex;align-items:center;gap:4px;font-size:0.64rem;text-transform:uppercase;
+      letter-spacing:0.08em;color:var(--red)!important;text-shadow:0 0 7px rgba(255,59,47,0.8);justify-content:flex-end;}
+    .ongoing-badge .dot{width:6px;height:6px;}
+
     /* Keep content clear of the neon frame + rounded display corners on mobile */
     @media (max-width:640px){
       header{padding-left:max(16px,env(safe-area-inset-left));padding-right:max(16px,env(safe-area-inset-right));}
       main{padding-left:max(14px,env(safe-area-inset-left));padding-right:max(14px,env(safe-area-inset-right));}
       .hide-mobile{display:none!important;}
       #last-refresh{display:inline-block!important;font-size:0.72rem;}
+      .hgrid{height:22px;gap:1.5px;}
+      .arow{grid-template-columns:1fr;gap:8px;}
+      .at-spark{display:none;}
+      .istats{gap:14px 22px;}
+      .istat-val{font-size:1.9rem;}
+      .itrend{margin-left:0;}
+      .ifeed-row{grid-template-columns:10px 1fr auto;row-gap:2px;}
+      .ifeed-time,.ifeed-dur{grid-column:2/4;text-align:left;}
+      .ifeed-site{grid-row:1;}
+      #ins-tip{max-width:260px;}
     }
 
     @media (prefers-reduced-motion: reduce){
@@ -1045,8 +1209,8 @@
 </head>
 <body>
 <div style="display:flex;align-items:center;justify-content:space-between;gap:12px;padding:7px 16px;background:#051a18;border-bottom:1px solid rgba(63,224,216,.3);font-family:'Share Tech Mono',monospace;font-size:.72rem;text-transform:uppercase;letter-spacing:.1em;position:relative;z-index:30;">
-<span style="color:#ffb84d;">● Demo — fictional data · one property is degraded: open its alert card to acknowledge &amp; see ticket + history · ☰ menu has Test alert</span>
-<a href="index.html" style="color:#3fe0d8;text-decoration:none;border:1px solid rgba(63,224,216,.3);padding:4px 10px;border-radius:4px;">◀ All Models</a>
+<span style="color:#ffb84d;">&#9679; Demo, fictional data · Cedar Ridge is degraded: open its alert for ack + ticket · try History &amp; insights below · &#9776; menu has Test alert</span>
+<a href="index.html" style="color:#3fe0d8;text-decoration:none;border:1px solid rgba(63,224,216,.3);padding:4px 10px;border-radius:4px;">&#9664; All Models</a>
 </div>
 
 <!-- CRT / console effect overlays (purely visual, never block clicks) -->
@@ -1127,21 +1291,33 @@
 
   <!-- Summary cards -->
   <div class="cards">
-    <div class="card">
-      <div class="card-label">Monitors Up</div>
-      <div class="card-value text-up" id="cnt-up">—</div>
-      <div class="card-sub" id="cnt-total">Loading…</div>
-    </div>
-    <div class="card">
-      <div class="card-label">Monitors Down</div>
-      <div class="card-value text-down" id="cnt-down">—</div>
-      <div class="card-sub" id="cnt-paused">—</div>
+    <div class="card card-hero">
+      <div class="card-label">Monitors</div>
+      <div class="hero-top">
+        <div class="hero-up">
+          <span class="hero-n text-up" id="cnt-up">—</span>
+          <span class="hero-l">up</span>
+        </div>
+        <div class="hero-down">
+          <span class="hero-n text-down" id="cnt-down">—</span>
+          <span class="hero-l">down</span>
+        </div>
+      </div>
+      <div class="hero-bar">
+        <i class="up" id="bar-up" style="width:100%"></i>
+        <i class="down" id="bar-down" style="width:0%"></i>
+      </div>
+      <div class="hero-foot">
+        <span id="cnt-total">Loading…</span>
+        <span id="cnt-paused">—</span>
+      </div>
     </div>
     <a class="card card-clickable" href="https://app.ovrc.com/#/customers" target="_blank" rel="noopener">
       <div class="card-label">OvrC</div>
       <div class="card-status-line" id="ovrc-card"></div>
     </a>
-    <a class="card card-clickable" href="https://smartconnect.apc.com" target="_blank" rel="noopener">
+    <!-- APC SmartConnect chip hidden until the Slack feed is fixed; JS (showApcCard) still runs harmlessly. -->
+    <a class="card card-clickable" href="https://smartconnect.apc.com" target="_blank" rel="noopener" style="display:none">
       <div class="card-label">APC SmartConnect</div>
       <div class="card-status-line" id="apc-card"></div>
       <div id="apc-stale-note" class="apc-stale-note" style="display:none"></div>
@@ -1195,6 +1371,10 @@
     </table>
   </div>
   </div><!-- /all-monitors -->
+
+  <!-- History & insights (collapsed by default; UptimeRobot history + Asana incident tickets) -->
+  <button id="insights-toggle" class="all-toggle" onclick="toggleInsights()">▸ History &amp; insights</button>
+  <div id="insights-body" class="insights-body" style="display:none"></div>
 
 </main>
 
@@ -1279,6 +1459,7 @@ const FN_ACKS        = '/.netlify/functions/acks';
 const FN_IGNORES     = '/.netlify/functions/ignores';
 const FN_ASANA       = '/.netlify/functions/asana-comment';
 const FN_ASANA_TICKETS = '/.netlify/functions/asana-tickets';
+const FN_ASANA_HISTORY = '/.netlify/functions/asana-history';
 const LS_APC_DATA    = 'dashboard_apc_data'; // local cache for APC stale-data fallback
 
 // Kiosk / signage mode (keyboardless). Configure the device URL once as
@@ -1310,6 +1491,14 @@ let sortDir = 1;
 let currentView = 'tiles'; // 'rows' | 'tiles'
 let testAlert = false;     // header Test toggle — forces alert mode
 let showAll = false;       // expand the full monitor grid/table
+let showInsights = false;  // expand the History & insights panel
+let asanaHistory = null;   // { sites:{ [code]:{count,openCount,totalDowntimeSec,incidents[]} }, generatedAt }
+let asanaHistoryTs = 0;    // when asanaHistory last loaded (ms); refreshed lazily while the panel is open
+let asanaHistoryLoading = false;
+const ASANA_HISTORY_TTL = 10 * 60 * 1000; // 10 min — Asana scan is heavy; never on the 60s loop
+let insightsDayDetail = [];   // [90] per-day { date, items:[{label,sev,site}] } for the timeline hover tooltip
+let insightsExpanded = new Set(); // attention-row keys ('site:CODE' / 'mon:NAME') currently expanded
+let insightsShowMuted = false;    // reveal muted (hidden) sites/devices for un-hiding
 let refreshing = false;    // guard against concurrent refreshes
 let kioskDenied = false;   // kiosk display whose network isn't allow-listed
 const LS_ACK = 'dashboard_acks';
@@ -1427,9 +1616,9 @@ function showOvrcCard(state, msg) {
 // ─────────────────────────────────────────────────────────────────────────────
 // Match a UniFi host name to a property (UptimeRobot friendly_name). Both sides reduce to
 // a bare property code: lowercase, split on punctuation, drop "noise" tokens, rejoin. This
-// reconciles the naming quirks found in discovery — monitors prefixed "zDOUBLENAT - XX00"
-// and UniFi NVR companions "XX00 NVR" (which roll into the base property). Genuinely
-// different codes (e.g. UniFi XX01 vs monitor XX02) stay unmatched and are logged.
+// reconciles the naming quirks found in discovery — monitors prefixed "zDOUBLENAT - ST27"
+// and UniFi NVR companions "CN96 NVR" (which roll into the base property). Genuinely
+// different codes (e.g. UniFi BY76A vs monitor BY12A) stay unmatched and are logged.
 const UNIFI_NOISE = new Set(['zdoublenat', 'zdouble', 'nat', 'nvr', 'unvr']);
 function unifiKeyRaw(s) {
   return String(s || '').toLowerCase().replace(/[^a-z0-9]+/g, ' ').split(/\s+/)
@@ -1446,7 +1635,7 @@ async function fetchUnifiData() {
   if (status === 401) throw Object.assign(new Error(data.error || 'UniFi not connected'), { soft: true });
   if (!ok) throw new Error(data.error || `UniFi HTTP ${status}`);
 
-  // Aggregate hosts that reduce to the same property key (e.g. "XX00" + "XX00 NVR") so the
+  // Aggregate hosts that reduce to the same property key (e.g. "CN96" + "CN96 NVR") so the
   // NVR's devices roll into the property card instead of overwriting it.
   const map = {};
   (data.hosts || []).forEach(h => {
@@ -1777,6 +1966,9 @@ function renderView() {
   if (currentView === 'tiles') renderTiles();
   else renderTable();
   updateAllToggle();
+  updateInsightsToggle();
+  renderInsights();                 // early-returns unless the panel is open
+  if (showInsights) fetchAsanaHistory();  // self-throttled (TTL); refreshes the Asana side
 }
 
 function toggleShowAll() {
@@ -1789,6 +1981,394 @@ function updateAllToggle() {
   if (!btn) return;
   const n = monitors.length;
   btn.textContent = (showAll ? '▾ Hide all monitors' : '▸ All monitors') + (n ? ` (${n})` : '');
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// History & insights panel
+// ─────────────────────────────────────────────────────────────────────────────
+// One pass over the monitors (UptimeRobot logs are the only per-DEVICE history we hold):
+// per-day fleet outage counts, per-monitor incident scores, per-site rollups (by Property
+// Code), and a recent-outages list. Asana incident tickets (asana-history) enrich the
+// per-SITE view and feed with cross-service outages (UniFi/OvrC/APC), fetched lazily.
+const HEAT_DAYS = 90, INCIDENT_DAY = 86400;
+function finitePct(v) { return (typeof v === 'number' && isFinite(v)) ? v : null; }
+
+function aggregateHistory(mons) {
+  const nowSec = Math.floor(Date.now() / 1000);
+  const W30 = 30 * INCIDENT_DAY, W90 = 90 * INCIDENT_DAY;
+  const RANK = { down: 3, warn: 2, up: 1, unknown: 0 };
+  const dailyHeat = new Array(HEAT_DAYS).fill(0);
+  const perMonitor = [];
+  const siteMap = new Map();
+  const recent = [];
+  let sumU7 = 0, nU7 = 0, sumU30 = 0, nU30 = 0, sumU90 = 0, nU90 = 0;
+  let totalIncidents30 = 0, totalDowntime30 = 0;
+
+  mons.forEach(m => {
+    if (m.status === 0 || m.status === 1) return;   // paused — excluded from insights
+    if (m.url === 'simulated') return;              // synthetic TEST_MON
+    const logs = m.logs || [];
+    const days = computeDailyStatuses(logs, HEAT_DAYS, m.create_datetime);
+    for (let i = 0; i < HEAT_DAYS; i++) if (days[i] === 'down' || days[i] === 'warn') dailyHeat[i]++;
+
+    let inc30 = 0, dt30 = 0, inc90 = 0, dt90 = 0, lastDown = 0;
+    logs.forEach(l => {
+      if (l.type !== 1) return;                      // type 1 = down event
+      const dur = l.duration || 0;
+      if (l.datetime > lastDown) lastDown = l.datetime;
+      if (l.datetime >= nowSec - W90) {
+        inc90++; dt90 += dur;
+        recent.push({ name: m.friendly_name, datetime: l.datetime, duration: dur, ongoing: false });
+      }
+      if (l.datetime >= nowSec - W30) { inc30++; dt30 += dur; }
+    });
+
+    const u = parseUptime(m.custom_uptime_ratio);
+    const u7 = finitePct(u[0]), u30 = finitePct(u[1]), u90 = finitePct(u[2]);
+    if (u7  !== null) { sumU7  += u7;  nU7++; }
+    if (u30 !== null) { sumU30 += u30; nU30++; }
+    if (u90 !== null) { sumU90 += u90; nU90++; }
+    totalIncidents30 += inc30; totalDowntime30 += dt30;
+    const score = inc30 + dt30 / 3600;
+    const eff = effectiveStatus(m);
+    perMonitor.push({ name: m.friendly_name, days, u7, u30, u90, inc30, dt30, inc90, dt90, score, eff, lastDown });
+
+    const code = propCode(m.friendly_name);
+    if (code) {
+      let s = siteMap.get(code);
+      if (!s) { s = { code, days: new Array(HEAT_DAYS).fill('unknown'), inc30: 0, dt30: 0, monitorCount: 0, downNow: 0, worst: null, minU30: null, lastDown: 0 }; siteMap.set(code, s); }
+      s.monitorCount++; s.inc30 += inc30; s.dt30 += dt30;
+      if (eff === 'down') s.downNow++;
+      if (lastDown > s.lastDown) s.lastDown = lastDown;
+      if (u30 !== null && (s.minU30 === null || u30 < s.minU30)) s.minU30 = u30;
+      for (let i = 0; i < HEAT_DAYS; i++) if (RANK[days[i]] > RANK[s.days[i]]) s.days[i] = days[i];
+      if (!s.worst || score > s.worst.score) s.worst = { name: m.friendly_name, score };
+    }
+  });
+
+  perMonitor.sort((a, b) => b.score - a.score);
+  const perSite = [...siteMap.values()];
+  perSite.forEach(s => { s.score = s.inc30 + s.dt30 / 3600; });
+  perSite.sort((a, b) => b.score - a.score);
+  recent.sort((a, b) => b.datetime - a.datetime);
+
+  const mean = (sum, n) => n ? sum / n : null;
+  const meanU7 = mean(sumU7, nU7), meanU30 = mean(sumU30, nU30), meanU90 = mean(sumU90, nU90);
+  let trend = 'steady';
+  if (meanU7 !== null && meanU90 !== null) {
+    const d = meanU7 - meanU90;
+    trend = d > 0.05 ? 'up' : d < -0.05 ? 'down' : 'steady';
+  }
+  return {
+    fleetStats: { meanU7, meanU30, meanU90, trend, totalIncidents30, totalDowntime30 },
+    dailyHeat, perMonitor, perSite, recentOutages: recent,
+  };
+}
+
+// Lazy Asana history fetch — heavier scan (open + 90d completed tickets), so only while the
+// panel is open and at most every ASANA_HISTORY_TTL. Works on kiosk too (asana-history allows
+// the kiosk IP), so the wall shows cross-service incident history read-only.
+async function fetchAsanaHistory(force) {
+  if (asanaHistoryLoading) return;
+  if (!force && asanaHistory && (Date.now() - asanaHistoryTs) < ASANA_HISTORY_TTL) return;
+  asanaHistoryLoading = true;
+  try {
+    const { ok, data } = await callFn(FN_ASANA_HISTORY, { days: 90 });
+    if (ok && data && data.sites) { asanaHistory = data; asanaHistoryTs = Date.now(); if (showInsights) renderInsights(); }
+  } catch (e) { /* non-fatal — widgets fall back to UptimeRobot-only */ }
+  finally { asanaHistoryLoading = false; }
+}
+
+function toggleInsights() {
+  showInsights = !showInsights;
+  document.getElementById('insights-body').style.display = showInsights ? 'block' : 'none';
+  updateInsightsToggle();
+  if (showInsights) { renderInsights(); fetchAsanaHistory(); }
+}
+function updateInsightsToggle() {
+  const btn = document.getElementById('insights-toggle');
+  if (!btn) return;
+  btn.innerHTML = showInsights ? '▾ Hide history &amp; insights' : '▸ History &amp; insights';
+}
+
+function heatCell(count, max, i) {
+  let lvl = 0;
+  if (count > 0) { const r = count / max; lvl = r <= 0.2 ? 1 : r <= 0.45 ? 2 : r <= 0.7 ? 3 : 4; }
+  return `<span class="hcell hcell-l${lvl}" data-d="${i}"></span>`;
+}
+
+// Compact "x ago" from unix seconds.
+function fmtAgo(sec) {
+  if (!sec) return '—';
+  const s = Math.max(0, Math.floor(Date.now() / 1000) - sec);
+  if (s < 90) return 'just now';
+  const m = Math.floor(s / 60); if (m < 60) return `${m}m ago`;
+  const h = Math.floor(m / 60); if (h < 48) return `${h}h ago`;
+  return `${Math.floor(h / 24)}d ago`;
+}
+const fmtClock = (sec) => { const d = new Date(sec * 1000); return `${d.toLocaleDateString([], { month: 'short', day: 'numeric' })} ${d.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', hourCycle: 'h23' })}`; };
+
+// Single reusable floating tooltip for the outage-timeline hover.
+let insightsTip = null;
+function ensureInsightsTip() {
+  if (insightsTip && document.body.contains(insightsTip)) return insightsTip;
+  insightsTip = document.createElement('div');
+  insightsTip.id = 'ins-tip';
+  document.body.appendChild(insightsTip);
+  return insightsTip;
+}
+function attachHeatHover(host) {
+  const grid = host.querySelector('.hgrid');
+  if (!grid) return;
+  const tip = ensureInsightsTip();
+  const move = (e) => {
+    const cell = e.target.closest('.hcell');
+    if (!cell) { tip.style.display = 'none'; return; }
+    const det = insightsDayDetail[+cell.dataset.d];
+    if (!det) { tip.style.display = 'none'; return; }
+    const items = det.items;
+    const shown = items.slice(0, 16).map(it =>
+      `<div class="tip-item"><span class="dot dot-${it.sev === 'down' ? 'down' : 'warn'}"></span><span>${escHtml(it.label)}${it.site ? ` <em>${escHtml(it.site)}</em>` : ''}</span></div>`).join('');
+    const more = items.length > 16 ? `<div class="tip-more">+${items.length - 16} more…</div>` : '';
+    tip.innerHTML = `<div class="tip-date">${det.date}</div>` +
+      `<div class="tip-count">${items.length ? items.length + (items.length === 1 ? ' outage' : ' outages') : 'all clear'}</div>` +
+      (items.length ? shown + more : `<div class="tip-none">✓ No outages this day</div>`);
+    tip.style.display = 'block';
+    const pad = 16, tw = tip.offsetWidth, th = tip.offsetHeight;
+    let x = e.clientX + pad, y = e.clientY + pad;
+    if (x + tw > window.innerWidth - 8) x = e.clientX - tw - pad;
+    if (y + th > window.innerHeight - 8) y = e.clientY - th - pad;
+    tip.style.left = Math.max(8, x) + 'px';
+    tip.style.top = Math.max(8, y) + 'px';
+  };
+  grid.addEventListener('mousemove', move);
+  grid.addEventListener('mouseleave', () => { tip.style.display = 'none'; });
+}
+
+// Severity → bar-fill / badge class.
+function sevClass(downNow, recentSec) {
+  if (downNow) return 'down';
+  if (recentSec && (Math.floor(Date.now() / 1000) - recentSec) < 7 * 86400) return 'warn';
+  return 'ok';
+}
+function statusBadge(sev) {
+  if (sev === 'down') return `<span class="abadge abadge-down"><span class="dot dot-down"></span>Down now</span>`;
+  if (sev === 'warn') return `<span class="abadge abadge-warn">⚠ Recent</span>`;
+  return `<span class="abadge abadge-ok">✓ Stable</span>`;
+}
+
+function toggleAttn(key) {
+  if (insightsExpanded.has(key)) insightsExpanded.delete(key); else insightsExpanded.add(key);
+  renderInsights();
+}
+function toggleShowMuted() { insightsShowMuted = !insightsShowMuted; renderInsights(); }
+function mutedFooter(kind, hidden) {
+  if (!hidden && !insightsShowMuted) return '';
+  const label = insightsShowMuted ? 'hide muted' : `${hidden} hidden`;
+  return `<div class="attn-foot"><button class="at-showmuted" onclick="toggleShowMuted()">${insightsShowMuted ? '▾' : '▸'} ${label}</button></div>`;
+}
+
+// Expandable detail for a site/device row: its Asana tickets (links) + recent down events.
+function attnDetailHTML(kind, id) {
+  const code = (kind === 'site') ? id : propCode(id);
+  const site = (asanaHistory && asanaHistory.sites && asanaHistory.sites[code]) || null;
+  let parts = '';
+
+  if (kind === 'mon') {
+    const m = monitors.find(x => x.friendly_name === id);
+    const downs = m ? (m.logs || []).filter(l => l.type === 1).slice(0, 6) : [];
+    if (downs.length) {
+      parts += `<div class="adetail-h">Recent down events</div>` + downs.map(l =>
+        `<div class="adetail-row"><span class="dot dot-down"></span>` +
+        `<span class="adetail-title">${new Date((l.datetime || 0) * 1000).toLocaleString([], { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit', hour12: false })}</span>` +
+        `<span class="adetail-dur">down ${fmtDur(l.duration)}</span></div>`).join('');
+    }
+  }
+
+  if (site && (site.incidents || []).length) {
+    const rows = site.incidents.slice(0, 14).map(inc => {
+      const stMs = Date.parse(inc.created_at || '') || 0;
+      const dur = inc.ongoing ? null : Math.max(0, Math.floor(((Date.parse(inc.completed_at || '') || Date.now()) - (stMs || Date.now())) / 1000));
+      const when = stMs ? fmtClock(Math.floor(stMs / 1000)) : '—';
+      const right = inc.ongoing ? `<span class="ongoing-badge"><span class="dot dot-down"></span>ongoing</span>` : `<span class="adetail-dur">${fmtDur(dur)}</span>`;
+      return `<a class="adetail-row adetail-link" href="${escHtml(inc.permalink)}" target="_blank" rel="noopener" onclick="event.stopPropagation()">` +
+        `<span class="dot dot-${inc.ongoing ? 'down' : 'warn'}"></span>` +
+        `<span class="adetail-title">${escHtml(inc.title)} <span class="adetail-go">↗</span></span>` +
+        `<span class="adetail-when">${when}</span>${right}</a>`;
+    }).join('');
+    parts += `<div class="adetail-h">Asana tickets · site ${escHtml(code)} <span class="adetail-sub">${site.count} in 90d</span></div>${rows}`;
+  } else if (!parts) {
+    parts = `<div class="adetail-note">${asanaHistoryLoading ? 'Loading tickets…' : 'No Asana tickets found for this ' + (kind === 'site' ? 'site' : 'device’s site') + ' in the last 90 days.'}</div>`;
+  } else {
+    parts += `<div class="adetail-note">${asanaHistoryLoading ? 'Loading Asana tickets…' : 'No Asana tickets for site ' + escHtml(code || '—') + ' in 90d.'}</div>`;
+  }
+  return `<div class="adetail-inner">${parts}</div>`;
+}
+
+// One attention row (shared by sites + devices). data: { key, kind, id, rankLabel, title, sub,
+// sev, barPct, barLabel, sparkDays, sparkPct, badge, when, muteLabel }.
+function attnRow(d, n) {
+  const open = insightsExpanded.has(d.key);
+  const spark = d.sparkDays ? `<div class="at-spark"><div class="at-spark-cap">90-day history</div>${renderUptimeBars(d.sparkDays, d.sparkPct)}</div>` : `<div class="at-spark"></div>`;
+  const actBtn = d.muted
+    ? `<button class="at-mute at-unmute" title="Show in attention again" onclick="event.stopPropagation();unmuteInsight('${d.kind}','${jsStr(d.id)}')">↺ unhide</button>`
+    : `<button class="at-mute" title="Hide this from the attention list" onclick="event.stopPropagation();muteInsight('${d.kind}','${jsStr(d.id)}','${jsStr(d.muteLabel)}')">⊘ hide</button>`;
+  return `<div class="aitem ${open ? 'open' : ''}${d.muted ? ' muted' : ''}">
+    <div class="arow sev-${d.sev}" onclick="toggleAttn('${jsStr(d.key)}')">
+      <div class="at-id"><div class="at-head"><span class="at-rank">#${n + 1}</span>${d.title}</div><div class="at-sub">${d.sub}</div></div>
+      <div class="at-bar"><div class="at-bar-track"><i class="f-${d.sev}" style="width:${d.barPct}%"></i></div><div class="at-bar-label">${d.barLabel}</div></div>
+      ${spark}
+      <div class="at-stat">${d.badge}<div class="at-when">last ${d.when}</div></div>
+      <div class="at-act">${actBtn}<span class="at-caret">${open ? '▾' : '▸'}</span></div>
+    </div>
+    ${open ? `<div class="adetail">${attnDetailHTML(d.kind, d.id)}</div>` : ''}
+  </div>`;
+}
+
+function renderInsights() {
+  if (!showInsights) return;
+  const host = document.getElementById('insights-body');
+  if (!host) return;
+  if (!monitors.length) { host.innerHTML = `<div class="icard"><div class="iempty">No monitor data yet.</div></div>`; return; }
+
+  const agg = aggregateHistory(monitors);
+  const fs = agg.fleetStats;
+  const aSites = (asanaHistory && asanaHistory.sites) || {};
+  const aVals = Object.values(aSites);
+  const nowSec = Math.floor(Date.now() / 1000);
+
+  // ── Fleet headline ──
+  const statBlock = (label, v) => `<div class="istat"><div class="istat-val ${uptimeCls(v)}">${fmtPct(v)}</div><div class="istat-label">${label}</div></div>`;
+  const trendChip = (fs.meanU7 === null || fs.meanU90 === null) ? '' :
+    `<div class="itrend itrend-${fs.trend}">${fs.trend === 'up' ? '▲ improving' : fs.trend === 'down' ? '▼ declining' : '▬ steady'}</div>`;
+  const fleet = `<div class="icard">
+    <div class="icard-title">Fleet uptime <span class="icard-sub">averaged across ${agg.perMonitor.length} monitors</span></div>
+    <div class="istats">
+      ${statBlock('7-day', fs.meanU7)}${statBlock('30-day', fs.meanU30)}${statBlock('90-day', fs.meanU90)}
+      <div class="istat"><div class="istat-val text-warn">${fs.totalIncidents30}</div><div class="istat-label">outages · 30d</div></div>
+      <div class="istat"><div class="istat-val text-up">${fmtDur(fs.totalDowntime30)}</div><div class="istat-label">total outage · 30d</div></div>
+      ${trendChip}
+    </div></div>`;
+
+  // ── Outage timeline: per-day detail (hover) + heat counts ──
+  const detail = Array.from({ length: HEAT_DAYS }, () => []);
+  let heat, noun;
+  if (aVals.length) {
+    const ah = new Array(HEAT_DAYS).fill(0);
+    aVals.forEach(a => {
+      const active = new Array(HEAT_DAYS).fill(false);
+      (a.incidents || []).forEach(inc => {
+        const st = Math.floor((Date.parse(inc.created_at || '') || 0) / 1000);
+        if (!st) return;
+        const en = inc.ongoing ? nowSec : Math.floor((Date.parse(inc.completed_at || '') || nowSec) / 1000);
+        for (let i = 0; i < HEAT_DAYS; i++) {
+          const ds = nowSec - (HEAT_DAYS - i) * INCIDENT_DAY, de = ds + INCIDENT_DAY;
+          if (st < de && en > ds) { active[i] = true; detail[i].push({ label: inc.title, sev: inc.ongoing ? 'down' : 'warn', site: a.code }); }
+        }
+      });
+      for (let i = 0; i < HEAT_DAYS; i++) if (active[i]) ah[i]++;
+    });
+    heat = ah; noun = 'site';
+  } else {
+    agg.perMonitor.forEach(p => { for (let i = 0; i < HEAT_DAYS; i++) { const s = p.days[i]; if (s === 'down' || s === 'warn') detail[i].push({ label: p.name, sev: s }); } });
+    heat = agg.dailyHeat; noun = 'device';
+  }
+  insightsDayDetail = detail.map((items, i) => {
+    const seen = new Set(), uniq = [];
+    items.forEach(it => { if (!seen.has(it.label)) { seen.add(it.label); uniq.push(it); } });
+    const d = new Date(Date.now() - (HEAT_DAYS - i) * INCIDENT_DAY * 1000);
+    return { date: d.toLocaleDateString([], { weekday: 'short', month: 'short', day: 'numeric' }), items: uniq, noun };
+  });
+  const maxHeat = Math.max(1, ...heat);
+  const cells = heat.map((c, i) => heatCell(c, maxHeat, i)).join('');
+  const heatmap = `<div class="icard">
+    <div class="icard-title">Outage timeline <span class="icard-sub">90 days · hover any day to see what went down · darker = more ${noun}s with an outage</span></div>
+    <div class="hgrid">${cells}</div>
+    <div class="ubar-footer"><span>90 days ago</span><span class="ubar-pct">busiest day: ${maxHeat} ${noun}${maxHeat === 1 ? '' : 's'} down</span><span>Today</span></div>
+  </div>`;
+
+  // ── Sites needing attention ──
+  const byCode = new Map();
+  agg.perSite.forEach(s => byCode.set(s.code, {
+    code: s.code, days: s.days, worst: s.worst, monitorCount: s.monitorCount,
+    minU30: s.minU30, lastDown: s.lastDown, downNow: s.downNow, inc: s.inc30, dt: s.dt30,
+  }));
+  aVals.forEach(a => {
+    const e = byCode.get(a.code) || { code: a.code, days: null, worst: null, monitorCount: 0, minU30: null, lastDown: 0, downNow: 0 };
+    e.inc = a.count; e.dt = a.totalDowntimeSec; e.aOpen = a.openCount;
+    const last = a.incidents && a.incidents[0] && Math.floor((Date.parse(a.incidents[0].created_at || '') || 0) / 1000);
+    if (last && last > e.lastDown) e.lastDown = last;
+    byCode.set(a.code, e);
+  });
+  const allSites = [...byCode.values()].map(s => ({ ...s, openNow: (s.aOpen || s.downNow) ? 1 : 0 }))
+    .filter(s => (s.inc || 0) > 0 || s.openNow)
+    .sort((a, b) => (b.openNow - a.openNow) || ((b.dt || 0) - (a.dt || 0)) || ((b.inc || 0) - (a.inc || 0)));
+  const hiddenSites = allSites.filter(s => isMuted('site', s.code)).length;
+  const sites = allSites.filter(s => insightsShowMuted || !isMuted('site', s.code)).slice(0, 8);
+  const maxSiteDt = Math.max(1, ...sites.map(s => s.dt || 0));
+  const siteRows = sites.length ? sites.map((s, n) => {
+    const sev = sevClass(s.openNow, s.lastDown);
+    const muted = isMuted('site', s.code);
+    const up = s.minU30 != null ? ` · <span class="${uptimeCls(s.minU30)}">${fmtPct(s.minU30)} up</span>` : '';
+    return attnRow({
+      key: 'site:' + s.code, kind: 'site', id: s.code, muteLabel: 'Site ' + s.code, muted,
+      title: `<span class="at-code">${escHtml(s.code)}</span>`,
+      sub: s.monitorCount ? `${s.monitorCount} monitor${s.monitorCount === 1 ? '' : 's'}${s.worst ? ' · worst: ' + escHtml(s.worst.name) : ''}` : 'tracked via Asana tickets',
+      sev, barPct: Math.max(3, Math.round((s.dt || 0) / maxSiteDt * 100)),
+      barLabel: `<b>${s.inc || 0}</b> outage${(s.inc || 0) === 1 ? '' : 's'} · <b>${fmtDur(s.dt || 0)}</b> down${up}`,
+      sparkDays: s.days, sparkPct: s.minU30, badge: statusBadge(sev), when: fmtAgo(s.lastDown),
+    }, n);
+  }).join('') : `<div class="iempty">No site outages in the window — everything's been stable. ✦</div>`;
+  const srcSub = aVals.length ? 'ranked by outages + downtime · click a row for its tickets · 90d' : (asanaHistoryLoading ? 'loading Asana incidents…' : 'ranked by downtime · click a row for detail · 30d');
+  const sitesCard = `<div class="icard"><div class="icard-title">Sites needing attention <span class="icard-sub">${srcSub}</span></div>${siteRows}${mutedFooter('site', hiddenSites)}</div>`;
+
+  // ── Devices needing attention ──
+  const allDevs = agg.perMonitor.filter(p => p.score > 0 || p.eff === 'down' || p.eff === 'warn')
+    .sort((a, b) => ((b.eff === 'down') - (a.eff === 'down')) || (b.dt30 - a.dt30) || (b.inc30 - a.inc30));
+  const hiddenDevs = allDevs.filter(p => isMuted('mon', p.name)).length;
+  const devs = allDevs.filter(p => insightsShowMuted || !isMuted('mon', p.name)).slice(0, 10);
+  const maxDevDt = Math.max(1, ...devs.map(p => p.dt30));
+  const devRows = devs.length ? devs.map((p, n) => {
+    const sev = sevClass(p.eff === 'down', p.lastDown);
+    const code = propCode(p.name);
+    // Don't echo "site HY35" under a device literally named "HY35"; show 90-day uptime instead.
+    const sub = (code && !normCode(p.name).includes(code))
+      ? `site ${escHtml(code)}`
+      : (p.u90 != null ? `90-day uptime ${fmtPct(p.u90)}` : '');
+    return attnRow({
+      key: 'mon:' + p.name, kind: 'mon', id: p.name, muteLabel: p.name, muted: isMuted('mon', p.name),
+      title: `<span class="at-name" title="${escHtml(p.name)}">${escHtml(p.name)}</span>`,
+      sub,
+      sev, barPct: Math.max(3, Math.round(p.dt30 / maxDevDt * 100)),
+      barLabel: `<b>${p.inc30}</b> outage${p.inc30 === 1 ? '' : 's'} · <b>${fmtDur(p.dt30)}</b> down · <span class="${uptimeCls(p.u30)}">${fmtPct(p.u30)} up</span>`,
+      sparkDays: p.days, sparkPct: p.u90, badge: statusBadge(sev), when: fmtAgo(p.lastDown),
+    }, n);
+  }).join('') : `<div class="iempty">All devices healthy — no outages in 30 days. ✦</div>`;
+  const devCard = `<div class="icard"><div class="icard-title">Devices needing attention <span class="icard-sub">ranked by downtime · click a row for down events &amp; tickets · 30d</span></div>${devRows}${mutedFooter('mon', hiddenDevs)}</div>`;
+
+  // ── Recent outages feed (Asana = named & cross-service, else UptimeRobot) ──
+  let feed;
+  if (aVals.length) {
+    feed = aVals.flatMap(a => (a.incidents || []).map(inc => {
+      const st = Math.floor((Date.parse(inc.created_at || '') || 0) / 1000);
+      const dur = inc.ongoing ? null : Math.max(0, Math.floor(((Date.parse(inc.completed_at || '') || Date.now()) - (Date.parse(inc.created_at || '') || Date.now())) / 1000));
+      return { name: inc.title, site: a.code, datetime: st, duration: dur, ongoing: inc.ongoing };
+    }));
+  } else {
+    feed = agg.recentOutages.map(r => ({ name: r.name, site: propCode(r.name), datetime: r.datetime, duration: r.duration, ongoing: false }));
+  }
+  feed = feed.filter(f => f.datetime).sort((a, b) => b.datetime - a.datetime).slice(0, 14);
+  const feedRows = feed.length ? feed.map(f => `<div class="ifeed-row">
+      <span class="dot dot-${f.ongoing ? 'down' : 'warn'}"></span>
+      <span class="ifeed-name" title="${escHtml(f.name)}">${escHtml(f.name)}</span>
+      <span class="ifeed-site">${escHtml(f.site || '')}</span>
+      <span class="ifeed-time">${fmtClock(f.datetime)} · ${fmtAgo(f.datetime)}</span>
+      ${f.ongoing ? `<span class="ongoing-badge"><span class="dot dot-down"></span>ongoing</span>` : `<span class="ifeed-dur">${fmtDur(f.duration)}</span>`}
+    </div>`).join('') : `<div class="iempty">No recent outages. ✦</div>`;
+  const feedCard = `<div class="icard"><div class="icard-title">Recent outages <span class="icard-sub">latest ${feed.length || ''} · newest first</span></div>${feedRows}</div>`;
+
+  host.innerHTML = `<div class="insights-stack">${fleet}${heatmap}${sitesCard}${devCard}${feedCard}</div>`;
+  attachHeatHover(host);
 }
 
 function toggleAlertDetail(el) { el.classList.toggle('open'); }
@@ -2114,6 +2694,11 @@ function updateSummaryCards() {
   document.getElementById('cnt-down').textContent  = down;
   document.getElementById('cnt-total').textContent = `${monitors.length} total`;
   document.getElementById('cnt-paused').textContent = `${paused} paused`;
+  // Ratio bar reflects the up/down split (paused monitors are excluded).
+  const denom = up + down;
+  const upPct = denom ? (100 * up / denom) : 100;
+  document.getElementById('bar-up').style.width   = upPct + '%';
+  document.getElementById('bar-down').style.width = (100 - upPct) + '%';
   updateStatusBanner();
 }
 
@@ -2295,7 +2880,31 @@ async function unackProperty(name) {
 // Like acks, kept in a localStorage cache for instant render; the server is the truth.
 function loadIgnores() { try { return JSON.parse(localStorage.getItem(LS_IGNORES)) || {}; } catch { return {}; } }
 function saveIgnores() { try { localStorage.setItem(LS_IGNORES, JSON.stringify(ignoreMap)); } catch (e) {} }
-function ignoredList() { return Object.values(ignoreMap).filter(x => x && !x.deleted).sort((a, b) => (a.property || '').localeCompare(b.property || '') || (a.name || '').localeCompare(b.name || '')); }
+// Insight mutes live in the same shared ignore store under an `ins…_` key namespace so they
+// sync across screens like device ignores — but they're a DIFFERENT thing (hide a noisy
+// site/device from the History panel's "needs attention" lists; they do NOT suppress live
+// offline alerting). Keep them out of the UniFi "ignored devices" list/count.
+const isInsKey = (k) => /^ins(site|mon)_/.test(k);
+function ignoredList() { return Object.values(ignoreMap).filter(x => x && !x.deleted && !isInsKey(x.mac || '')).sort((a, b) => (a.property || '').localeCompare(b.property || '') || (a.name || '').localeCompare(b.name || '')); }
+const insKey = (kind, id) => (kind === 'site' ? 'inssite_' : 'insmon_') + String(id).toLowerCase().replace(/[^a-z0-9]+/g, '');
+function isMuted(kind, id) { const e = ignoreMap[insKey(kind, id)]; return !!(e && !e.deleted); }
+function mutedInsights() { return Object.values(ignoreMap).filter(x => x && !x.deleted && isInsKey(x.mac || '')); }
+async function muteInsight(kind, id, label) {
+  const key = insKey(kind, id);
+  const { ok, data } = await callFn(FN_IGNORES, { action: 'ignore', mac: key, name: label, property: 'insights:' + kind });
+  if (ok && data && data.ignores) applyServerIgnores(data.ignores);
+  else { ignoreMap[key] = { mac: key, name: label, property: 'insights:' + kind, at: Date.now() }; saveIgnores(); }
+  showToast(`Hidden from attention: ${label}`);
+  renderInsights();
+}
+async function unmuteInsight(kind, id) {
+  const key = insKey(kind, id);
+  const { ok, data } = await callFn(FN_IGNORES, { action: 'unignore', mac: key });
+  if (ok && data && data.ignores) applyServerIgnores(data.ignores);
+  else { ignoreMap[key] = { deleted: true, at: Date.now(), mac: key }; saveIgnores(); }
+  showToast('Shown in attention again');
+  renderInsights();
+}
 
 // Same monotonic, tombstone-aware merge as acks (see applyServerAcks): a missing mac means
 // "no news, keep local"; an entry only moves forward when the server's `at` is newer. This
@@ -2755,8 +3364,17 @@ async function getJWT() {
 // ─────────────────────────────────────────────────────────────────────────────
 // Bump BUILD on every deploy so the header always reflects what is live.
 // User-facing changelog, newest first; the entry matching BUILD is marked "Now".
-const BUILD = 'v2.7';
+const BUILD = 'v3.0';
 const RELEASE_NOTES = [
+  { v: 'v3.0', d: '2026-06-16 15:28', items: [
+    'New “History & insights” panel (next to “All monitors”) — open it for fleet uptime (7/30/90-day) with a trend, a 90-day outage timeline you can hover for exactly what went down each day, and full-width “Sites needing attention” / “Devices needing attention” lists ranked by real outage history (downtime bars, 90-day health ribbons, current-status badges). Click any row to see the Asana tickets it opened, plus recent down events. Site history and the feed draw on the Asana incident tickets, so outages of any kind (UniFi/OvrC/UPS, not just website checks) show up.',
+    'Hide a chronically-noisy site or device from the attention lists with its “hide” button — shared across screens, with a “show hidden” toggle to bring them back.',
+    'Top summary cards are now equal-sized and fit on one row (iPad mini included): the “Monitors” card leads with how many are up, a small down count, and an at-a-glance up/down bar.',
+    'Hid the APC SmartConnect card for now while we sort out its feed.',
+  ]},
+  { v: 'v2.8', d: '2026-06-15 16:20', items: [
+    'OvrC now stays connected on its own — the dashboard signs in to OvrC automatically and refreshes its session in the background, so the OvrC card no longer drops to “not connected” when a token expires. No more manual token pasting.',
+  ]},
   { v: 'v2.7', d: '2026-06-15 15:49', items: [
     'Acknowledging in Asana now calms the wall even when a property’s wall name differs from its code (e.g. “zDOUBLENAT - WS22” ↔ WS22) — the two are matched up now.',
     'A property only shows acknowledged once ALL of its open tickets are acknowledged; the moment another device at that property goes offline, it re-alarms. An operator’s timed ACK on the wall still holds for its full window.',
@@ -2932,7 +3550,7 @@ function closeGuide() { document.getElementById('guide-modal').classList.remove(
 
 function updateIgnoredCount() {
   const el = document.getElementById('menu-ignored-count');
-  if (el) el.textContent = Object.values(ignoreMap).filter(x => x && !x.deleted).length;
+  if (el) el.textContent = Object.values(ignoreMap).filter(x => x && !x.deleted && !isInsKey(x.mac || '')).length;
 }
 function renderIgnored() {
   const body = document.getElementById('ignored-body');
