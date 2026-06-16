@@ -3,9 +3,9 @@
 <head>
 
 <script>
-/* ===== DEMO DATA LAYER (no live systems). Feeds the real Beacon v2.8 UI, including the
-   new History & insights panel (UptimeRobot logs + Asana-history). One property is
-   DEGRADED so the alert + ack flow, ticket link, and incident history all populate. ===== */
+/* ===== DEMO DATA LAYER (no live systems). Feeds the real Beacon UI including the
+   History & insights panel (UptimeRobot logs + Asana-history). One property is DEGRADED
+   so the alert + ack flow, ticket link, and incident history all populate. ===== */
 (function(){
   var now=Math.floor(Date.now()/1000), DAY=86400;
   var PROPS=[
@@ -28,7 +28,6 @@
       : {name:p.name, deviceCount:p.dev, offlineDeviceCount:0, offlineDevices:[]}; })};
   var slack={ok:true, messages:PROPS.map(function(p){ return {type:'message', text:'UPS: '+p.name+' | online'}; })};
   var tickets={}; tickets[degraded.name]=[{gid:'1208887766', title:degraded.name+' network device offline (Boathouse Camera)', statusName:'Alert!', kind:'unifi', permalink:'#'}];
-
   function iso(sec){ return new Date(sec*1000).toISOString(); }
   function mkInc(seed,n,openFirst,label){ var arr=[]; for(var i=0;i<n;i++){ var daysAgo=((i*16+seed*5)%84)+2; var st=now-daysAgo*DAY; var dur=[1800,3600,7200,5400,2400][(i+seed)%5]; var ongoing=(openFirst&&i===0);
       arr.push({title:(ongoing?'[OFFLINE] ':'')+'Whole site outage: '+label, permalink:'#', created_at:iso(st), completed_at: ongoing?null:iso(st+dur), ongoing:ongoing}); }
@@ -38,7 +37,6 @@
     var dt=incs.reduce(function(t,inc){ return t+(inc.ongoing?0:Math.max(0,(Date.parse(inc.completed_at)-Date.parse(inc.created_at))/1000)); },0);
     hist[s[0]]={code:s[0], count:s[1], openCount:(s[2]?1:0), totalDowntimeSec:Math.floor(dt), incidents:incs}; });
   var history={ok:true, sites:hist, generatedAt:iso(now)};
-
   function J(o){ return new Response(JSON.stringify(o), {status:200, headers:{'Content-Type':'application/json'}}); }
   var realFetch=window.fetch?window.fetch.bind(window):null;
   window.fetch=function(url,opts){
@@ -1171,35 +1169,121 @@
     .abadge-ok{color:var(--teal-dim);}
     .abadge .dot{width:6px;height:6px;}
 
-    /* Recent outages table */
-    .ifeed-row{display:grid;grid-template-columns:12px minmax(150px,1fr) 70px 200px 92px;gap:12px;align-items:center;
-      padding:7px 4px;border-bottom:1px dotted rgba(63,224,216,0.14);font-size:0.8rem;}
-    .ifeed-row:last-child{border-bottom:none;}
-    .ifeed-row .dot{width:8px;height:8px;}
-    .ifeed-name{color:var(--teal);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;min-width:0;}
-    .ifeed-site{color:var(--amber);font-family:'VT323',monospace;font-size:1.05rem;}
-    .ifeed-time{color:var(--teal-dim);text-shadow:none;font-size:0.72rem;white-space:nowrap;}
-    .ifeed-dur{color:var(--teal-bright);text-shadow:none;font-size:0.74rem;white-space:nowrap;text-align:right;}
     .ongoing-badge{display:inline-flex;align-items:center;gap:4px;font-size:0.64rem;text-transform:uppercase;
       letter-spacing:0.08em;color:var(--red)!important;text-shadow:0 0 7px rgba(255,59,47,0.8);justify-content:flex-end;}
     .ongoing-badge .dot{width:6px;height:6px;}
 
+    /* Fleet-health 90-day trend (inline SVG area + line) */
+    .fleet-trend{margin-top:4px;}
+    .fleet-trend svg{width:100%;height:54px;display:block;cursor:crosshair;}
+    .ft-line{fill:none;stroke:var(--teal-bright);stroke-width:1.6;filter:drop-shadow(0 0 3px rgba(63,224,216,.55));}
+    .ft-ref{stroke:var(--teal-dim);stroke-width:0.6;stroke-dasharray:2 3;opacity:0.5;}
+    .ft-cursor{stroke:var(--amber-bright);stroke-width:0.8;opacity:0.85;}
+    .fleet-trend-cap{display:flex;justify-content:space-between;font-size:0.6rem;color:var(--teal-dim);
+      text-shadow:none;text-transform:uppercase;letter-spacing:0.1em;margin-top:3px;}
+
+    /* "Where to focus": scatter | spectrum — cassette-futurism graph-paper plot */
+    .focus-grid{display:grid;grid-template-columns:minmax(0,1.25fr) minmax(0,1fr);gap:20px;align-items:start;}
+    .scatter{position:relative;border:1px solid var(--border);border-radius:6px;padding:6px;
+      background:linear-gradient(180deg,rgba(63,224,216,0.05),rgba(63,224,216,0.01));
+      box-shadow:inset 0 0 26px rgba(63,224,216,0.05);}
+    .scatter-svg{width:100%;height:auto;aspect-ratio:4/3;min-height:210px;display:block;}
+    .sc-plot{fill:rgba(4,16,15,0.5);stroke:none;}
+    .sc-grid{stroke:rgba(63,224,216,0.10);stroke-width:0.6;}
+    .sc-tick{stroke:var(--teal-dim);stroke-width:0.8;}
+    .sc-axis{stroke:var(--border);stroke-width:1.1;}
+    .sc-guide{stroke:var(--teal-dim);stroke-width:0.8;stroke-dasharray:3 4;opacity:0.55;}
+    .sc-axis-l{fill:var(--teal-dim);font-family:'Share Tech Mono',monospace;font-size:8px;letter-spacing:0.04em;}
+    .sc-focus{fill:var(--red);font-family:'Share Tech Mono',monospace;font-size:8px;opacity:0.85;letter-spacing:0.1em;
+      text-shadow:0 0 6px rgba(255,59,47,.6);}
+    .sc-label{fill:var(--teal-bright);font-family:'Share Tech Mono',monospace;font-size:9px;letter-spacing:0.03em;}
+    .sc-label-p1{fill:var(--amber-bright);font-weight:700;}
+    .sc-p1{fill:none;stroke:var(--amber-bright);stroke-width:1.2;opacity:0.85;stroke-dasharray:2 2;}
+    .sc-dot{cursor:pointer;}
+    .sc-dot:hover circle{stroke:#fff;stroke-width:1.5;}
+
+    /* P1 flagship-site badge + row accent */
+    .p1-badge{display:inline-block;margin-left:7px;font-family:'Share Tech Mono',monospace;font-size:0.56rem;
+      font-weight:700;letter-spacing:0.1em;color:var(--bg);background:var(--amber-bright);border-radius:3px;
+      padding:1px 5px;vertical-align:middle;text-shadow:none;box-shadow:0 0 7px rgba(255,210,138,.5);}
+    .rel-p1{background:rgba(255,184,77,0.07);border-left:2px solid var(--amber);border-radius:3px;padding-left:6px;}
+    .rel-p1 .rel-code{color:var(--amber-bright);}
+    .spectrum .board-h{margin-bottom:8px;}
+    .spec-row{display:grid;grid-template-columns:54px 1fr 64px;gap:10px;align-items:center;padding:5px 4px;cursor:pointer;
+      border-bottom:1px dotted rgba(63,224,216,0.12);}
+    .spec-row:last-child{border-bottom:none;}
+    .spec-row:hover{background:rgba(63,224,216,0.05);}
+    .spec-code{font-family:'VT323',monospace;font-size:1.2rem;color:var(--amber);text-shadow:0 0 5px rgba(255,184,77,.4);}
+    .spec-row .at-bar-track{height:10px;}
+    .spec-stat{font-size:0.72rem;color:var(--teal-dim);text-align:right;white-space:nowrap;}
+
+    /* Sites board: needs attention | most reliable */
+    .sites-board{display:grid;grid-template-columns:minmax(0,1.5fr) minmax(0,1fr);gap:22px;align-items:start;}
+    .board-h{font-family:'Share Tech Mono',monospace;font-size:0.72rem;text-transform:uppercase;letter-spacing:0.1em;
+      color:var(--teal-dim);text-shadow:none;margin-bottom:10px;padding-bottom:5px;border-bottom:1px solid var(--border);}
+    .board-h-bad{color:var(--amber);} .board-h-good{color:var(--teal);}
+    .rel-row{display:grid;grid-template-columns:56px 64px 1fr;gap:10px;align-items:baseline;padding:7px 4px;cursor:pointer;
+      border-bottom:1px dotted rgba(63,224,216,0.12);}
+    .rel-row:last-child{border-bottom:none;}
+    .rel-row:hover{background:rgba(63,224,216,0.05);}
+    .rel-code{font-family:'VT323',monospace;font-size:1.3rem;color:var(--teal-bright);text-shadow:0 0 5px rgba(63,224,216,.4);}
+    .rel-up{font-family:'VT323',monospace;font-size:1.2rem;}
+    .rel-meta{font-size:0.68rem;color:var(--teal-dim);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+
+    /* Timeline 7-day strip (replaces the old recent-outages list) */
+    .tl-summary{display:flex;flex-wrap:wrap;gap:6px 10px;align-items:center;margin-top:10px;font-size:0.74rem;}
+    .tl-head{color:var(--teal-dim);text-transform:uppercase;letter-spacing:0.06em;font-size:0.66rem;}
+    .tl-head b{font-family:'VT323',monospace;font-size:1rem;color:var(--amber-bright);}
+    .tl-chip{color:var(--teal);background:rgba(63,224,216,0.06);border:1px solid var(--border);border-radius:4px;
+      padding:2px 7px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:240px;}
+    .tl-chip em{color:var(--amber);font-style:normal;}
+    .tl-more{color:var(--teal-dim);font-size:0.7rem;}
+
     /* Keep content clear of the neon frame + rounded display corners on mobile */
+    /* Insights LAYOUT for tablets + phones: the dense desktop attention-row grid needs
+       ~880px, so anything narrower stacks (name + actions on top, full-width bar, badge
+       below) and the feed/detail collapse — prevents horizontal overflow. */
+    @media (max-width:900px){
+      .arow{grid-template-columns:1fr auto;grid-template-areas:"id act" "bar bar" "stat stat";
+        gap:8px 10px;align-items:start;padding:10px 11px;}
+      .at-id{grid-area:id;min-width:0;}
+      .at-act{grid-area:act;flex-direction:row;align-items:center;gap:8px;}
+      .at-bar{grid-area:bar;}
+      .at-bar-track{width:100%;}
+      .at-bar-label{white-space:normal;}
+      .at-stat{grid-area:stat;flex-direction:row;align-items:center;justify-content:flex-start;gap:12px;}
+      .at-spark{display:none;}
+      .at-when{font-size:0.64rem;}
+      .hgrid{height:24px;gap:1.5px;}
+      .attn-foot{margin-top:8px;}
+      .adetail-row{grid-template-columns:9px 1fr auto;}
+      .focus-grid{grid-template-columns:1fr;gap:18px;}
+      .sites-board{grid-template-columns:1fr;gap:18px;}
+      .scatter-svg{aspect-ratio:16/10;min-height:200px;}
+    }
+
     @media (max-width:640px){
       header{padding-left:max(16px,env(safe-area-inset-left));padding-right:max(16px,env(safe-area-inset-right));}
       main{padding-left:max(14px,env(safe-area-inset-left));padding-right:max(14px,env(safe-area-inset-right));}
       .hide-mobile{display:none!important;}
       #last-refresh{display:inline-block!important;font-size:0.72rem;}
-      .hgrid{height:22px;gap:1.5px;}
-      .arow{grid-template-columns:1fr;gap:8px;}
-      .at-spark{display:none;}
-      .istats{gap:14px 22px;}
-      .istat-val{font-size:1.9rem;}
+      .icard{padding:12px 13px 14px;}
+      .icard-title{font-size:1.3rem;}
+      .hgrid{height:22px;}
+      .at-code{font-size:1.5rem;}
+      .istats{gap:12px 20px;}
+      .istat-val{font-size:1.8rem;}
       .itrend{margin-left:0;}
-      .ifeed-row{grid-template-columns:10px 1fr auto;row-gap:2px;}
-      .ifeed-time,.ifeed-dur{grid-column:2/4;text-align:left;}
-      .ifeed-site{grid-row:1;}
-      #ins-tip{max-width:260px;}
+      .adetail{padding:2px 4px 10px 6px;}
+      .adetail-inner{padding-left:10px;}
+      .adetail-row{font-size:0.74rem;}
+      .adetail-when{display:none;}
+      #ins-tip{max-width:240px;}
+      .fleet-trend svg{height:46px;}
+      .spec-code,.rel-code{font-size:1.1rem;}
+      .spec-stat,.rel-meta{font-size:0.66rem;}
+      .tl-summary{font-size:0.7rem;}
+      .sc-label{font-size:10px;}
     }
 
     @media (prefers-reduced-motion: reduce){
@@ -1497,8 +1581,13 @@ let asanaHistoryTs = 0;    // when asanaHistory last loaded (ms); refreshed lazi
 let asanaHistoryLoading = false;
 const ASANA_HISTORY_TTL = 10 * 60 * 1000; // 10 min — Asana scan is heavy; never on the 60s loop
 let insightsDayDetail = [];   // [90] per-day { date, items:[{label,sev,site}] } for the timeline hover tooltip
+let insightsFleetDaily = [];  // [90] fleet-health % per day, for the trend-line hover tooltip
+let insightsSites = {};       // code → { up, inc, dt, sev, p1, recent[] } for the scatter-dot hover
 let insightsExpanded = new Set(); // attention-row keys ('site:CODE' / 'mon:NAME') currently expanded
 let insightsShowMuted = false;    // reveal muted (hidden) sites/devices for un-hiding
+// Priority-1 flagship sites — always highlighted (pinned + badged) in the insights board.
+const P1_SITES = new Set(['LS03', 'LS18', 'CHR1', 'UN16']);
+const isP1 = (code) => P1_SITES.has(String(code || '').toUpperCase().replace(/[^A-Z0-9]/g, ''));
 let refreshing = false;    // guard against concurrent refreshes
 let kioskDenied = false;   // kiosk display whose network isn't allow-listed
 const LS_ACK = 'dashboard_acks';
@@ -1998,6 +2087,8 @@ function aggregateHistory(mons) {
   const W30 = 30 * INCIDENT_DAY, W90 = 90 * INCIDENT_DAY;
   const RANK = { down: 3, warn: 2, up: 1, unknown: 0 };
   const dailyHeat = new Array(HEAT_DAYS).fill(0);
+  const upByDay = new Array(HEAT_DAYS).fill(0);     // monitors 'up' on day i
+  const knownByDay = new Array(HEAT_DAYS).fill(0);  // monitors with non-'unknown' status on day i
   const perMonitor = [];
   const siteMap = new Map();
   const recent = [];
@@ -2009,7 +2100,10 @@ function aggregateHistory(mons) {
     if (m.url === 'simulated') return;              // synthetic TEST_MON
     const logs = m.logs || [];
     const days = computeDailyStatuses(logs, HEAT_DAYS, m.create_datetime);
-    for (let i = 0; i < HEAT_DAYS; i++) if (days[i] === 'down' || days[i] === 'warn') dailyHeat[i]++;
+    for (let i = 0; i < HEAT_DAYS; i++) {
+      if (days[i] === 'down' || days[i] === 'warn') dailyHeat[i]++;
+      if (days[i] !== 'unknown') { knownByDay[i]++; if (days[i] === 'up') upByDay[i]++; }
+    }
 
     let inc30 = 0, dt30 = 0, inc90 = 0, dt90 = 0, lastDown = 0;
     logs.forEach(l => {
@@ -2059,9 +2153,10 @@ function aggregateHistory(mons) {
     const d = meanU7 - meanU90;
     trend = d > 0.05 ? 'up' : d < -0.05 ? 'down' : 'steady';
   }
+  const fleetHealthDaily = upByDay.map((u, i) => knownByDay[i] ? (u / knownByDay[i]) * 100 : null);
   return {
     fleetStats: { meanU7, meanU30, meanU90, trend, totalIncidents30, totalDowntime30 },
-    dailyHeat, perMonitor, perSite, recentOutages: recent,
+    dailyHeat, fleetHealthDaily, perMonitor, perSite, recentOutages: recent,
   };
 }
 
@@ -2145,6 +2240,62 @@ function attachHeatHover(host) {
   grid.addEventListener('mouseleave', () => { tip.style.display = 'none'; });
 }
 
+// Mouse-over for the high-level fleet-health trend line: nearest day → date + fleet up%.
+function attachTrendHover(host) {
+  const svg = host.querySelector('.fleet-trend svg');
+  if (!svg) return;
+  const cursor = svg.querySelector('.ft-cursor');
+  const tip = ensureInsightsTip();
+  const move = (e) => {
+    const r = svg.getBoundingClientRect();
+    if (!r.width) return;
+    let i = Math.round(((e.clientX - r.left) / r.width) * (HEAT_DAYS - 1));
+    i = Math.max(0, Math.min(HEAT_DAYS - 1, i));
+    const v = insightsFleetDaily[i];
+    const det = insightsDayDetail[i];
+    if (v == null) { tip.style.display = 'none'; if (cursor) cursor.style.display = 'none'; return; }
+    if (cursor) { const cx = (i * (300 / (HEAT_DAYS - 1))).toFixed(1); cursor.setAttribute('x1', cx); cursor.setAttribute('x2', cx); cursor.style.display = 'block'; }
+    tip.innerHTML = `<div class="tip-date">${det ? det.date : ''}</div>` +
+      `<div class="tip-count"><span class="${uptimeCls(v)}">${fmtPct(v)}</span> fleet up</div>`;
+    tip.style.display = 'block';
+    const pad = 16, tw = tip.offsetWidth, th = tip.offsetHeight;
+    let x = e.clientX + pad, y = e.clientY + pad;
+    if (x + tw > window.innerWidth - 8) x = e.clientX - tw - pad;
+    if (y + th > window.innerHeight - 8) y = e.clientY - th - pad;
+    tip.style.left = Math.max(8, x) + 'px';
+    tip.style.top = Math.max(8, y) + 'px';
+  };
+  svg.addEventListener('mousemove', move);
+  svg.addEventListener('mouseleave', () => { tip.style.display = 'none'; if (cursor) cursor.style.display = 'none'; });
+}
+
+// Hover a scatter dot → site name + 30-day history & tickets (click to open them).
+function attachScatterHover(host) {
+  const svg = host.querySelector('.scatter .scatter-svg');
+  if (!svg) return;
+  const tip = ensureInsightsTip();
+  const show = (g, e) => {
+    const code = g.getAttribute('data-code');
+    const d = insightsSites[code]; if (!d) { tip.style.display = 'none'; return; }
+    const up = d.up != null ? `<span class="${uptimeCls(d.up)}">${fmtPct(d.up)} up</span> · ` : '';
+    const rows = d.recent.length
+      ? d.recent.map(r => `<div class="tip-item"><span class="dot dot-${r.ongoing ? 'down' : 'warn'}"></span><span>${escHtml(r.title)} <em>${r.ongoing ? 'ongoing' : fmtDur(r.dur)}</em></span></div>`).join('')
+      : `<div class="tip-none">No tickets in the last 30 days</div>`;
+    tip.innerHTML = `<div class="tip-date">${escHtml(code)}${d.p1 ? ' <span class="p1-badge">P1</span>' : ''}</div>` +
+      `<div class="tip-count">${up}${d.inc} outage${d.inc === 1 ? '' : 's'} · ${fmtDur(d.dt)} · 30d</div>` +
+      rows + `<div class="tip-more">click to open tickets →</div>`;
+    tip.style.display = 'block';
+    const pad = 16, tw = tip.offsetWidth, th = tip.offsetHeight;
+    let x = e.clientX + pad, y = e.clientY + pad;
+    if (x + tw > window.innerWidth - 8) x = e.clientX - tw - pad;
+    if (y + th > window.innerHeight - 8) y = e.clientY - th - pad;
+    tip.style.left = Math.max(8, x) + 'px';
+    tip.style.top = Math.max(8, y) + 'px';
+  };
+  svg.addEventListener('mousemove', (e) => { const g = e.target.closest('.sc-dot'); if (g) show(g, e); else tip.style.display = 'none'; });
+  svg.addEventListener('mouseleave', () => { tip.style.display = 'none'; });
+}
+
 // Severity → bar-fill / badge class.
 function sevClass(downNow, recentSec) {
   if (downNow) return 'down';
@@ -2166,6 +2317,136 @@ function mutedFooter(kind, hidden) {
   if (!hidden && !insightsShowMuted) return '';
   const label = insightsShowMuted ? 'hide muted' : `${hidden} hidden`;
   return `<div class="attn-foot"><button class="at-showmuted" onclick="toggleShowMuted()">${insightsShowMuted ? '▾' : '▸'} ${label}</button></div>`;
+}
+
+// ── Inline-SVG graphs (no charting lib) ──────────────────────────────────────
+// 90-day fleet-health trend: daily % of monitors that were up. Area + line, with
+// faint 99%/95% reference lines. Y is clamped to [min(95,lo)…100] so small dips read.
+function fleetTrendSVG(daily) {
+  const known = (daily || []).filter(v => v != null);
+  if (!known.length) return `<div class="fleet-trend-cap"><span>90-day fleet health — no history yet</span></div>`;
+  const W = 300, H = 56, top = 4, bot = 52, span = bot - top;
+  const lo = Math.min(95, Math.min(...known)), hi = 100, denom = Math.max(0.01, hi - lo);
+  const X = i => i * (W / (HEAT_DAYS - 1));
+  const Y = v => bot - ((Math.max(lo, Math.min(hi, v)) - lo) / denom) * span;
+  const segs = []; let cur = [];
+  daily.forEach((v, i) => { if (v == null) { if (cur.length) { segs.push(cur); cur = []; } } else cur.push([X(i), Y(v)]); });
+  if (cur.length) segs.push(cur);
+  const pts = s => s.map(p => p[0].toFixed(1) + ',' + p[1].toFixed(1)).join(' ');
+  const areas = segs.filter(s => s.length > 1).map(s => `<polygon fill="url(#ftg)" points="${s[0][0].toFixed(1)},${bot} ${pts(s)} ${s[s.length - 1][0].toFixed(1)},${bot}"/>`).join('');
+  const lines = segs.map(s => `<polyline class="ft-line" points="${pts(s)}"/>`).join('');
+  const refs = [99, 95].map(r => (r > lo && r < hi) ? `<line class="ft-ref" x1="0" y1="${Y(r).toFixed(1)}" x2="${W}" y2="${Y(r).toFixed(1)}"/>` : '').join('');
+  return `<div class="fleet-trend">
+    <svg viewBox="0 0 ${W} ${H}" preserveAspectRatio="none" role="img" aria-label="90-day fleet health trend">
+      <defs><linearGradient id="ftg" x1="0" y1="0" x2="0" y2="1"><stop offset="0%" stop-color="#3fe0d8" stop-opacity="0.30"/><stop offset="100%" stop-color="#3fe0d8" stop-opacity="0"/></linearGradient></defs>
+      ${refs}${areas}${lines}
+      <line class="ft-cursor" x1="0" x2="0" y1="${top}" y2="${bot}" style="display:none"/>
+    </svg>
+    <div class="fleet-trend-cap"><span>90-day fleet health</span><span class="${uptimeCls(known[known.length - 1])}">${fmtPct(known[known.length - 1])} today</span></div>
+  </div>`;
+}
+
+// Impact × frequency scatter: x = outage count, y = total downtime (sqrt scale to tame
+// multi-day outliers). Dots heat up toward the top-right (combined intensity → dim teal →
+// teal → amber → red, with growing glow). Cassette-futurism grid + ticks; P1 sites ringed.
+// Clickable; hover shows 30-day history + tickets (see attachScatterHover).
+function focusScatterSVG(sites) {
+  if (!sites.length) return `<div class="iempty">No site activity to plot — all clear. ✦</div>`;
+  const W = 320, H = 240, L = 36, R = 310, T = 14, B = 210, pw = R - L, ph = B - T;
+  const xMax = Math.max(1, ...sites.map(s => s.inc || 0));
+  const yMax = Math.max(1, ...sites.map(s => s.dt || 0));
+  const PX = v => L + (v / xMax) * pw;
+  const PY = v => B - (Math.sqrt(Math.max(0, v)) / Math.sqrt(yMax)) * ph;
+  // intensity 0..1 from combined position (right + up); drives color + size + glow.
+  const intensity = s => {
+    const xn = (s.inc || 0) / xMax, yn = Math.sqrt(Math.max(0, s.dt || 0)) / Math.sqrt(yMax);
+    return Math.max(xn, yn) * 0.55 + ((xn + yn) / 2) * 0.45;
+  };
+  const ramp = t => t >= 0.78 ? ['#ff3b2f', 9] : t >= 0.52 ? ['#ff8a3d', 6] : t >= 0.28 ? ['#ffb84d', 4] : t >= 0.12 ? ['#3fe0d8', 2] : ['#2a8c88', 0];
+  // background graph-paper grid (cassette-futurism)
+  let grid = '';
+  for (let g = 1; g < 5; g++) { const gxp = (L + (pw * g / 5)).toFixed(1), gyp = (T + (ph * g / 5)).toFixed(1); grid += `<line class="sc-grid" x1="${gxp}" y1="${T}" x2="${gxp}" y2="${B}"/><line class="sc-grid" x1="${L}" y1="${gyp}" x2="${R}" y2="${gyp}"/>`; }
+  let ticks = '';
+  for (let g = 0; g <= 5; g++) { const gxp = (L + (pw * g / 5)).toFixed(1), gyp = (B - (ph * g / 5)).toFixed(1); ticks += `<line class="sc-tick" x1="${gxp}" y1="${B}" x2="${gxp}" y2="${B + 3}"/><line class="sc-tick" x1="${L - 3}" y1="${gyp}" x2="${L}" y2="${gyp}"/>`; }
+  const med = arr => { const a = [...arr].sort((x, y) => x - y); const n = a.length; return n ? (n % 2 ? a[(n - 1) / 2] : (a[n / 2 - 1] + a[n / 2]) / 2) : 0; };
+  const gx = sites.length >= 2 ? PX(med(sites.map(s => s.inc || 0))) : (L + pw / 2);
+  const gy = sites.length >= 2 ? PY(med(sites.map(s => s.dt || 0))) : (T + ph / 2);
+  const ranked = [...sites].sort((a, b) => ((b.dt || 0) + (b.inc || 0) * 3600) - ((a.dt || 0) + (a.inc || 0) * 3600));
+  const labelSet = new Set(ranked.slice(0, 8).map(s => s.code));
+  const placed = [];
+  const dots = sites.map(s => {
+    const cx = PX(s.inc || 0), cy = PY(s.dt || 0);
+    const t = intensity(s);
+    const [fill, glow] = ramp(t);
+    const r = (4 + t * 4).toFixed(1);
+    const ring = isP1(s.code) ? `<circle class="sc-p1" cx="${cx.toFixed(1)}" cy="${cy.toFixed(1)}" r="${(+r + 3.5).toFixed(1)}"/>` : '';
+    let label = '';
+    if (labelSet.has(s.code) || isP1(s.code)) {
+      const left = cx > L + pw * 0.7;
+      let lx = left ? cx - 8 : cx + 8, ly = cy + 3;
+      while (placed.some(p => Math.abs(p.y - ly) < 11 && Math.abs(p.x - lx) < 44)) ly += 11;
+      placed.push({ x: lx, y: ly });
+      label = `<text class="sc-label${isP1(s.code) ? ' sc-label-p1' : ''}" x="${lx.toFixed(1)}" y="${ly.toFixed(1)}" text-anchor="${left ? 'end' : 'start'}">${escHtml(s.code)}</text>`;
+    }
+    const style = glow ? ` style="filter:drop-shadow(0 0 ${glow}px ${fill})"` : '';
+    return `<g class="sc-dot" data-code="${escHtml(s.code)}">${ring}<circle cx="${cx.toFixed(1)}" cy="${cy.toFixed(1)}" r="${r}" fill="${fill}"${style}/>${label}</g>`;
+  }).join('');
+  return `<svg class="scatter-svg" viewBox="0 0 ${W} ${H}" role="img" aria-label="site impact versus frequency">
+    <rect class="sc-plot" x="${L}" y="${T}" width="${pw}" height="${ph}"/>
+    ${grid}${ticks}
+    <line class="sc-guide" x1="${gx.toFixed(1)}" y1="${T}" x2="${gx.toFixed(1)}" y2="${B}"/>
+    <line class="sc-guide" x1="${L}" y1="${gy.toFixed(1)}" x2="${R}" y2="${gy.toFixed(1)}"/>
+    <line class="sc-axis" x1="${L}" y1="${B}" x2="${R}" y2="${B}"/>
+    <line class="sc-axis" x1="${L}" y1="${T}" x2="${L}" y2="${B}"/>
+    <text class="sc-focus" x="${R - 3}" y="${T + 10}" text-anchor="end">◤ FOCUS ZONE</text>
+    <text class="sc-axis-l" x="${R}" y="${B + 17}" text-anchor="end">more outages →</text>
+    <text class="sc-axis-l" x="${L - 5}" y="${T - 4}" text-anchor="start">↑ more downtime</text>
+    ${dots}
+  </svg>`;
+}
+
+// Reliability spectrum: every site as one bar, worst (longest/red) → most reliable (teal).
+function focusSpectrumHTML(sites) {
+  if (!sites.length) return `<div class="iempty">No sites to rank. ✦</div>`;
+  const sorted = [...sites].sort((a, b) => {
+    const au = a.minU30, bu = b.minU30;
+    if (au == null && bu == null) return (b.dt || 0) - (a.dt || 0);
+    if (au == null) return -1; if (bu == null) return 1;
+    return au - bu || (b.dt || 0) - (a.dt || 0) || a.code.localeCompare(b.code);
+  }).slice(0, 14);
+  const ups = sorted.filter(s => s.minU30 != null).map(s => s.minU30);
+  const worstUp = ups.length ? Math.min(...ups) : 95;
+  const maxDt = Math.max(1, ...sorted.map(s => s.dt || 0));
+  return sorted.map(s => {
+    const up = s.minU30;
+    const fill = up == null ? 'f-down' : (up >= 99.5 ? 'f-ok' : up >= 95 ? 'f-warn' : 'f-down');
+    const w = up == null ? Math.max(4, (s.dt || 0) / maxDt * 100)
+      : Math.max(3, (100 - up) / Math.max(0.01, 100 - worstUp) * 100);
+    const stat = up != null ? `<span class="${uptimeCls(up)}">${fmtPct(up)}</span>` : `${fmtDur(s.dt || 0)} down`;
+    return `<div class="spec-row sc-dot" data-code="${escHtml(s.code)}">
+      <span class="spec-code">${escHtml(s.code)}</span>
+      <span class="at-bar-track"><i class="${fill}" style="width:${w.toFixed(0)}%"></i></span>
+      <span class="spec-stat">${stat}</span>
+    </div>`;
+  }).join('');
+}
+
+// Clicking a scatter dot / spectrum row expands the matching attention row (if any) and
+// scrolls to it; otherwise scrolls to its "most reliable" row. Re-attached each render.
+function attachFocusClicks(host) {
+  host.querySelectorAll('.sc-dot').forEach(el => {
+    el.addEventListener('click', () => {
+      const code = el.getAttribute('data-code'); if (!code) return;
+      const key = 'site:' + code;
+      const inAttn = !!host.querySelector(`.aitem[data-key="${key}"]`);
+      if (inAttn && !insightsExpanded.has(key)) insightsExpanded.add(key);
+      if (inAttn) renderInsights();
+      requestAnimationFrame(() => {
+        const t = document.querySelector(`.aitem[data-key="${key}"]`) || document.querySelector(`.rel-row[data-code="${code}"]`);
+        if (t) t.scrollIntoView({ behavior: 'smooth', block: 'center' });
+      });
+    });
+  });
 }
 
 // Expandable detail for a site/device row: its Asana tickets (links) + recent down events.
@@ -2213,7 +2494,7 @@ function attnRow(d, n) {
   const actBtn = d.muted
     ? `<button class="at-mute at-unmute" title="Show in attention again" onclick="event.stopPropagation();unmuteInsight('${d.kind}','${jsStr(d.id)}')">↺ unhide</button>`
     : `<button class="at-mute" title="Hide this from the attention list" onclick="event.stopPropagation();muteInsight('${d.kind}','${jsStr(d.id)}','${jsStr(d.muteLabel)}')">⊘ hide</button>`;
-  return `<div class="aitem ${open ? 'open' : ''}${d.muted ? ' muted' : ''}">
+  return `<div class="aitem ${open ? 'open' : ''}${d.muted ? ' muted' : ''}" data-key="${escHtml(d.key)}">
     <div class="arow sev-${d.sev}" onclick="toggleAttn('${jsStr(d.key)}')">
       <div class="at-id"><div class="at-head"><span class="at-rank">#${n + 1}</span>${d.title}</div><div class="at-sub">${d.sub}</div></div>
       <div class="at-bar"><div class="at-bar-track"><i class="f-${d.sev}" style="width:${d.barPct}%"></i></div><div class="at-bar-label">${d.barLabel}</div></div>
@@ -2233,6 +2514,7 @@ function renderInsights() {
 
   const agg = aggregateHistory(monitors);
   const fs = agg.fleetStats;
+  insightsFleetDaily = agg.fleetHealthDaily;   // for the trend-line hover
   const aSites = (asanaHistory && asanaHistory.sites) || {};
   const aVals = Object.values(aSites);
   const nowSec = Math.floor(Date.now() / 1000);
@@ -2248,46 +2530,55 @@ function renderInsights() {
       <div class="istat"><div class="istat-val text-warn">${fs.totalIncidents30}</div><div class="istat-label">outages · 30d</div></div>
       <div class="istat"><div class="istat-val text-up">${fmtDur(fs.totalDowntime30)}</div><div class="istat-label">total outage · 30d</div></div>
       ${trendChip}
-    </div></div>`;
+    </div>
+    ${fleetTrendSVG(agg.fleetHealthDaily)}</div>`;
 
-  // ── Outage timeline: per-day detail (hover) + heat counts ──
+  // ── Outage timeline: 90 days of history. UptimeRobot per-monitor day-status covers the
+  // full 90 days; Asana incident tickets (only as far back as the engine has run) overlay
+  // named, cross-service detail on the recent days. Heat = distinct outages per day. ──
+  const noun = 'outage';
   const detail = Array.from({ length: HEAT_DAYS }, () => []);
-  let heat, noun;
-  if (aVals.length) {
-    const ah = new Array(HEAT_DAYS).fill(0);
-    aVals.forEach(a => {
-      const active = new Array(HEAT_DAYS).fill(false);
-      (a.incidents || []).forEach(inc => {
-        const st = Math.floor((Date.parse(inc.created_at || '') || 0) / 1000);
-        if (!st) return;
-        const en = inc.ongoing ? nowSec : Math.floor((Date.parse(inc.completed_at || '') || nowSec) / 1000);
-        for (let i = 0; i < HEAT_DAYS; i++) {
-          const ds = nowSec - (HEAT_DAYS - i) * INCIDENT_DAY, de = ds + INCIDENT_DAY;
-          if (st < de && en > ds) { active[i] = true; detail[i].push({ label: inc.title, sev: inc.ongoing ? 'down' : 'warn', site: a.code }); }
-        }
-      });
-      for (let i = 0; i < HEAT_DAYS; i++) if (active[i]) ah[i]++;
+  agg.perMonitor.forEach(p => {
+    for (let i = 0; i < HEAT_DAYS; i++) { const s = p.days[i]; if (s === 'down' || s === 'warn') detail[i].push({ label: p.name, sev: s, site: propCode(p.name) }); }
+  });
+  aVals.forEach(a => {
+    (a.incidents || []).forEach(inc => {
+      const st = Math.floor((Date.parse(inc.created_at || '') || 0) / 1000);
+      if (!st) return;
+      const en = inc.ongoing ? nowSec : Math.floor((Date.parse(inc.completed_at || '') || nowSec) / 1000);
+      for (let i = 0; i < HEAT_DAYS; i++) {
+        const ds = nowSec - (HEAT_DAYS - i) * INCIDENT_DAY, de = ds + INCIDENT_DAY;
+        if (st < de && en > ds) detail[i].push({ label: inc.title, sev: inc.ongoing ? 'down' : 'warn', site: a.code });
+      }
     });
-    heat = ah; noun = 'site';
-  } else {
-    agg.perMonitor.forEach(p => { for (let i = 0; i < HEAT_DAYS; i++) { const s = p.days[i]; if (s === 'down' || s === 'warn') detail[i].push({ label: p.name, sev: s }); } });
-    heat = agg.dailyHeat; noun = 'device';
-  }
+  });
   insightsDayDetail = detail.map((items, i) => {
     const seen = new Set(), uniq = [];
     items.forEach(it => { if (!seen.has(it.label)) { seen.add(it.label); uniq.push(it); } });
     const d = new Date(Date.now() - (HEAT_DAYS - i) * INCIDENT_DAY * 1000);
     return { date: d.toLocaleDateString([], { weekday: 'short', month: 'short', day: 'numeric' }), items: uniq, noun };
   });
+  const heat = insightsDayDetail.map(d => d.items.length);
   const maxHeat = Math.max(1, ...heat);
   const cells = heat.map((c, i) => heatCell(c, maxHeat, i)).join('');
+  // 7-day summary strip (replaces the old standalone "recent outages" card) — from the
+  // already-built insightsDayDetail, newest first, deduped by name.
+  const last7 = insightsDayDetail.slice(-7);
+  const seen7 = new Set(), names7 = [];
+  for (let i = last7.length - 1; i >= 0; i--) for (const it of last7[i].items) if (!seen7.has(it.label)) { seen7.add(it.label); names7.push(it); }
+  const n7 = seen7.size;
+  const chips7 = names7.slice(0, 5).map(it => `<span class="tl-chip">${escHtml(it.label)}${it.site ? ` <em>${escHtml(it.site)}</em>` : ''}</span>`).join('');
+  const strip7 = n7
+    ? `<div class="tl-summary"><span class="tl-head">Last 7 days · <b>${n7}</b> outage${n7 === 1 ? '' : 's'}</span>${chips7}${names7.length > 5 ? `<span class="tl-more">+${names7.length - 5} more</span>` : ''}</div>`
+    : `<div class="tl-summary"><span class="tl-head">Last 7 days · all clear ✦</span></div>`;
   const heatmap = `<div class="icard">
-    <div class="icard-title">Outage timeline <span class="icard-sub">90 days · hover any day to see what went down · darker = more ${noun}s with an outage</span></div>
+    <div class="icard-title">Outage timeline <span class="icard-sub">90 days · hover any day to see what went down · darker = more outages</span></div>
     <div class="hgrid">${cells}</div>
-    <div class="ubar-footer"><span>90 days ago</span><span class="ubar-pct">busiest day: ${maxHeat} ${noun}${maxHeat === 1 ? '' : 's'} down</span><span>Today</span></div>
+    <div class="ubar-footer"><span>90 days ago</span><span class="ubar-pct">busiest day: ${maxHeat} outage${maxHeat === 1 ? '' : 's'}</span><span>Today</span></div>
+    ${strip7}
   </div>`;
 
-  // ── Sites needing attention ──
+  // ── Merged per-site dataset (used by focus graphs + both board columns) ──
   const byCode = new Map();
   agg.perSite.forEach(s => byCode.set(s.code, {
     code: s.code, days: s.days, worst: s.worst, monitorCount: s.monitorCount,
@@ -2300,27 +2591,76 @@ function renderInsights() {
     if (last && last > e.lastDown) e.lastDown = last;
     byCode.set(a.code, e);
   });
-  const allSites = [...byCode.values()].map(s => ({ ...s, openNow: (s.aOpen || s.downNow) ? 1 : 0 }))
-    .filter(s => (s.inc || 0) > 0 || s.openNow)
-    .sort((a, b) => (b.openNow - a.openNow) || ((b.dt || 0) - (a.dt || 0)) || ((b.inc || 0) - (a.inc || 0)));
-  const hiddenSites = allSites.filter(s => isMuted('site', s.code)).length;
-  const sites = allSites.filter(s => insightsShowMuted || !isMuted('site', s.code)).slice(0, 8);
+  const merged = [...byCode.values()].map(s => ({ ...s, openNow: (s.aOpen || s.downNow) ? 1 : 0 }));
+  const needsAttn = s => (s.inc || 0) > 0 || s.openNow;
+  const visible = merged.filter(s => insightsShowMuted || !isMuted('site', s.code));
+
+  // Per-site lookup for the scatter-dot hover: last-30d incident titles + headline stats.
+  const cut30 = Date.now() - 30 * 86400 * 1000;
+  insightsSites = {};
+  merged.forEach(s => {
+    const a = aSites[s.code];
+    const recent = a ? (a.incidents || [])
+      .filter(inc => (Date.parse(inc.created_at || '') || 0) >= cut30)
+      .slice(0, 5)
+      .map(inc => {
+        const st = Math.floor((Date.parse(inc.created_at || '') || 0) / 1000);
+        const dur = inc.ongoing ? null : Math.max(0, Math.floor(((Date.parse(inc.completed_at || '') || Date.now()) - (st * 1000 || Date.now())) / 1000));
+        return { title: inc.title, when: st ? fmtClock(st) : '', dur, ongoing: inc.ongoing };
+      }) : [];
+    insightsSites[s.code] = { code: s.code, up: s.minU30, inc: s.inc || 0, dt: s.dt || 0, sev: sevClass(s.openNow, s.lastDown), p1: isP1(s.code), monitorCount: s.monitorCount, recent };
+  });
+
+  // ── "Where to focus" — impact × frequency scatter + reliability spectrum ──
+  const focusSub = aVals.length ? 'outage impact × frequency · click a site to jump to it · 90d' : (asanaHistoryLoading ? 'loading Asana incidents…' : 'outage impact × frequency · click a site to jump to it · 30d');
+  const focus = `<div class="icard"><div class="icard-title">Where to focus <span class="icard-sub">${focusSub}</span></div>
+    <div class="focus-grid">
+      <div class="scatter">${focusScatterSVG(visible)}</div>
+      <div class="spectrum"><div class="board-h">Reliability — worst to best</div>${focusSpectrumHTML(visible)}</div>
+    </div></div>`;
+
+  // ── Sites board: needs-attention (left) | most reliable (right) ──
+  const attnAll = merged.filter(needsAttn);
+  const hiddenSites = attnAll.filter(s => isMuted('site', s.code)).length;
+  const sites = (insightsShowMuted ? attnAll : attnAll.filter(s => !isMuted('site', s.code)))
+    .sort((a, b) => (b.openNow - a.openNow) || ((b.dt || 0) - (a.dt || 0)) || ((b.inc || 0) - (a.inc || 0)))
+    .slice(0, 8);
   const maxSiteDt = Math.max(1, ...sites.map(s => s.dt || 0));
   const siteRows = sites.length ? sites.map((s, n) => {
     const sev = sevClass(s.openNow, s.lastDown);
-    const muted = isMuted('site', s.code);
     const up = s.minU30 != null ? ` · <span class="${uptimeCls(s.minU30)}">${fmtPct(s.minU30)} up</span>` : '';
     return attnRow({
-      key: 'site:' + s.code, kind: 'site', id: s.code, muteLabel: 'Site ' + s.code, muted,
-      title: `<span class="at-code">${escHtml(s.code)}</span>`,
+      key: 'site:' + s.code, kind: 'site', id: s.code, muteLabel: 'Site ' + s.code, muted: isMuted('site', s.code),
+      title: `<span class="at-code">${escHtml(s.code)}</span>${isP1(s.code) ? '<span class="p1-badge">P1</span>' : ''}`,
       sub: s.monitorCount ? `${s.monitorCount} monitor${s.monitorCount === 1 ? '' : 's'}${s.worst ? ' · worst: ' + escHtml(s.worst.name) : ''}` : 'tracked via Asana tickets',
       sev, barPct: Math.max(3, Math.round((s.dt || 0) / maxSiteDt * 100)),
       barLabel: `<b>${s.inc || 0}</b> outage${(s.inc || 0) === 1 ? '' : 's'} · <b>${fmtDur(s.dt || 0)}</b> down${up}`,
       sparkDays: s.days, sparkPct: s.minU30, badge: statusBadge(sev), when: fmtAgo(s.lastDown),
     }, n);
   }).join('') : `<div class="iempty">No site outages in the window — everything's been stable. ✦</div>`;
-  const srcSub = aVals.length ? 'ranked by outages + downtime · click a row for its tickets · 90d' : (asanaHistoryLoading ? 'loading Asana incidents…' : 'ranked by downtime · click a row for detail · 30d');
-  const sitesCard = `<div class="icard"><div class="icard-title">Sites needing attention <span class="icard-sub">${srcSub}</span></div>${siteRows}${mutedFooter('site', hiddenSites)}</div>`;
+
+  // Most reliable: the healthiest sites by uptime — everything not in the worst-8 attention
+  // list and not down right now (a long-ago resolved blip shouldn't bar a site from here).
+  // P1 flagship sites pinned to the top. Generous cap so plenty of reliable sites show.
+  const attnCodes = new Set(sites.map(s => s.code));
+  const reliable = visible.filter(s => s.minU30 != null && !attnCodes.has(s.code) && !s.openNow)
+    .sort((a, b) => (isP1(b.code) - isP1(a.code)) || (b.minU30 - a.minU30) || ((a.inc || 0) - (b.inc || 0)) || a.code.localeCompare(b.code))
+    .slice(0, 16);
+  const relRows = reliable.length ? reliable.map(s => {
+    const p1 = isP1(s.code);
+    const clean = s.lastDown ? `${Math.max(0, Math.floor((nowSec - s.lastDown) / 86400))}d clean` : '✓ 90d clean';
+    return `<div class="rel-row sc-dot${p1 ? ' rel-p1' : ''}" data-code="${escHtml(s.code)}">
+      <span class="rel-code">${escHtml(s.code)}${p1 ? '<span class="p1-badge">P1</span>' : ''}</span>
+      <span class="rel-up ${uptimeCls(s.minU30)}">${fmtPct(s.minU30)}</span>
+      <span class="rel-meta">${s.monitorCount} monitor${s.monitorCount === 1 ? '' : 's'} · ${clean}</span>
+    </div>`;
+  }).join('') : `<div class="iempty">All tracked sites currently need attention.</div>`;
+
+  const sitesBoard = `<div class="icard"><div class="icard-title">Sites <span class="icard-sub">${aVals.length ? 'ranked by outages + downtime · 90d' : 'ranked by downtime · 30d'} · click a row for tickets</span></div>
+    <div class="sites-board">
+      <div class="board-col"><div class="board-h board-h-bad">⚠ Needs attention</div>${siteRows}${mutedFooter('site', hiddenSites)}</div>
+      <div class="board-col"><div class="board-h board-h-good">✓ Most reliable</div>${relRows}</div>
+    </div></div>`;
 
   // ── Devices needing attention ──
   const allDevs = agg.perMonitor.filter(p => p.score > 0 || p.eff === 'down' || p.eff === 'warn')
@@ -2346,29 +2686,11 @@ function renderInsights() {
   }).join('') : `<div class="iempty">All devices healthy — no outages in 30 days. ✦</div>`;
   const devCard = `<div class="icard"><div class="icard-title">Devices needing attention <span class="icard-sub">ranked by downtime · click a row for down events &amp; tickets · 30d</span></div>${devRows}${mutedFooter('mon', hiddenDevs)}</div>`;
 
-  // ── Recent outages feed (Asana = named & cross-service, else UptimeRobot) ──
-  let feed;
-  if (aVals.length) {
-    feed = aVals.flatMap(a => (a.incidents || []).map(inc => {
-      const st = Math.floor((Date.parse(inc.created_at || '') || 0) / 1000);
-      const dur = inc.ongoing ? null : Math.max(0, Math.floor(((Date.parse(inc.completed_at || '') || Date.now()) - (Date.parse(inc.created_at || '') || Date.now())) / 1000));
-      return { name: inc.title, site: a.code, datetime: st, duration: dur, ongoing: inc.ongoing };
-    }));
-  } else {
-    feed = agg.recentOutages.map(r => ({ name: r.name, site: propCode(r.name), datetime: r.datetime, duration: r.duration, ongoing: false }));
-  }
-  feed = feed.filter(f => f.datetime).sort((a, b) => b.datetime - a.datetime).slice(0, 14);
-  const feedRows = feed.length ? feed.map(f => `<div class="ifeed-row">
-      <span class="dot dot-${f.ongoing ? 'down' : 'warn'}"></span>
-      <span class="ifeed-name" title="${escHtml(f.name)}">${escHtml(f.name)}</span>
-      <span class="ifeed-site">${escHtml(f.site || '')}</span>
-      <span class="ifeed-time">${fmtClock(f.datetime)} · ${fmtAgo(f.datetime)}</span>
-      ${f.ongoing ? `<span class="ongoing-badge"><span class="dot dot-down"></span>ongoing</span>` : `<span class="ifeed-dur">${fmtDur(f.duration)}</span>`}
-    </div>`).join('') : `<div class="iempty">No recent outages. ✦</div>`;
-  const feedCard = `<div class="icard"><div class="icard-title">Recent outages <span class="icard-sub">latest ${feed.length || ''} · newest first</span></div>${feedRows}</div>`;
-
-  host.innerHTML = `<div class="insights-stack">${fleet}${heatmap}${sitesCard}${devCard}${feedCard}</div>`;
+  host.innerHTML = `<div class="insights-stack">${fleet}${focus}${heatmap}${sitesBoard}${devCard}</div>`;
   attachHeatHover(host);
+  attachTrendHover(host);
+  attachFocusClicks(host);
+  attachScatterHover(host);
 }
 
 function toggleAlertDetail(el) { el.classList.toggle('open'); }
@@ -3364,8 +3686,18 @@ async function getJWT() {
 // ─────────────────────────────────────────────────────────────────────────────
 // Bump BUILD on every deploy so the header always reflects what is live.
 // User-facing changelog, newest first; the entry matching BUILD is marked "Now".
-const BUILD = 'v3.0';
+const BUILD = 'v3.2';
 const RELEASE_NOTES = [
+  { v: 'v3.2', d: '2026-06-16 16:24', items: [
+    'History & insights got a visual overhaul. The fleet header now draws a 90-day health trend line — hover it for any day’s fleet uptime.',
+    'New “Where to focus” map: every site plotted by how often it goes down vs. how much downtime it racks up. Dots heat up toward the top-right (your real problems), and hovering one shows that site’s last-30-day history and tickets; click to jump to it.',
+    'The Sites section is now a two-column board — “Needs attention” alongside a fuller “Most reliable” list, with your priority sites (LS03, LS18, CHR1, UN16) pinned and badged so they’re always front-and-centre.',
+    'The outage timeline spans the full 90 days again — it draws on UptimeRobot’s history (which covers the whole window) and overlays the named Asana incidents on recent days, instead of only the ~10 days the ticketing engine has been running.',
+    'Folded the old “Recent outages” list into a compact “last 7 days” line under the timeline — same info, less duplication.',
+  ]},
+  { v: 'v3.1', d: '2026-06-16 15:40', items: [
+    'History & insights now reads cleanly on phones and tablets — the “needs attention” rows stack (name, full-width downtime bar, status) instead of running off the edge, and the recent-outages feed and expanded ticket lists fit the screen.',
+  ]},
   { v: 'v3.0', d: '2026-06-16 15:28', items: [
     'New “History & insights” panel (next to “All monitors”) — open it for fleet uptime (7/30/90-day) with a trend, a 90-day outage timeline you can hover for exactly what went down each day, and full-width “Sites needing attention” / “Devices needing attention” lists ranked by real outage history (downtime bars, 90-day health ribbons, current-status badges). Click any row to see the Asana tickets it opened, plus recent down events. Site history and the feed draw on the Asana incident tickets, so outages of any kind (UniFi/OvrC/UPS, not just website checks) show up.',
     'Hide a chronically-noisy site or device from the attention lists with its “hide” button — shared across screens, with a “show hidden” toggle to bring them back.',
