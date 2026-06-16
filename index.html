@@ -137,6 +137,11 @@ a.ch{cursor:pointer;}
 .hub b{font-family:var(--disp); font-style:italic; font-weight:800; text-transform:uppercase; font-size:15px; color:var(--white); text-shadow:var(--glow);}
 .hub span{font-size:12px; color:#bfeee8;}
 
+/* ---- signal diagram ---- */
+.diagram{margin-top:20px;}
+.diagram svg{width:100%; height:auto; display:block; overflow:visible;}
+.diagram-note{margin-top:16px; color:var(--teald); font-size:12.5px; letter-spacing:.04em; text-align:center;}
+
 /* ---- footer ---- */
 .foot{margin-top:26px; padding-top:18px; border-top:1px solid var(--line); color:var(--teald); font-size:11.5px; letter-spacing:.05em; line-height:1.8; text-transform:uppercase;}
 .foot .fineprint{display:block; margin-top:8px; color:#2c5e5a; font-size:10.5px; letter-spacing:.04em; text-transform:none;}
@@ -157,22 +162,22 @@ a.ch{cursor:pointer;}
 
     <div class="hud">
       <span class="live"><span class="dot"></span>ON THE AIR</span>
-      <span class="label">Field Ops // Operations Technology</span>
+      <span class="label">Field Ops // Channel 01</span>
       <span class="readout">
         <div class="r1">REC ●  CH.01 / 60FPS</div>
         <div class="r2">5 models · in stock</div>
       </span>
     </div>
 
-    <p class="eyebrow"><b>Chris Gachot</b> &nbsp;//&nbsp; Director of Home Technology &nbsp;//&nbsp; Operations Technology, On the Air</p>
+    <p class="eyebrow"><b>Chris Gachot</b> &nbsp;//&nbsp; Director of Home Technology &nbsp;//&nbsp; A Live Demonstration</p>
     <h1 class="title">Field Ops</h1>
     <p class="tagline">Five tireless machines. One modern estate. Zero dead air.</p>
     <p class="lede">
-      Five working systems I designed and shipped to run technology operations across a portfolio of luxury estates.
-      Each one replaced a manual, reactive headache, <b>missed outages, hand-written reports, inconsistent field work</b>,
-      with something automated and always-on. The payoff is real: failures caught before a client ever notices, hours
-      of busywork erased every week, and a team that runs on rails. Every demonstration below is live and runs right in
-      your browser. No login, all data fictional.
+      Step right up! Five honest-to-goodness working machines that took the drudgery clean out of running a portfolio
+      of luxury estates. <b>No more midnight outages! No more hand-written reports! No more guesswork in the field!</b>
+      Each one runs around the clock so the team doesn't have to, catching trouble before the client ever notices and
+      handing back hours of every single week. Step up and take one for a spin. Every demonstration is live, no purchase
+      necessary, and all the data is purely fictional.
     </p>
 
     <div class="stats">
@@ -256,29 +261,75 @@ a.ch{cursor:pointer;}
 
     <div class="sec-head"><span class="t">They Work Beautifully Together!</span><span class="s">The whole system, as one</span><span class="rule"></span></div>
     <div class="signal">
-      <p class="lede" style="max-width:840px;">
-        Here's the real marvel, friends: these aren't five gadgets in five boxes. They're <b>one operations platform</b>,
-        all wired to a shared work-management backbone. Detection feeds the ticket queue, fieldwork feeds the records,
-        the records become polished client reports, and the Coach keeps the whole team sharp. And here's the clever part , 
-        every machine is built to stand on its own, so if one ever takes a tumble, the others <b>never miss a beat</b>.
+      <p class="lede" style="max-width:860px;">
+        Here's the real marvel: these aren't five gadgets in five boxes. They're <b>one operations platform</b>, all
+        wired to a shared backbone. Watch how the signal flows, inputs on the left, the system of record in the middle,
+        and finished work on the right.
       </p>
-      <div class="flow">
-        <div class="fcol">
-          <span class="lab">Detect &amp; capture</span>
-          <div class="node"><b>The Dispatcher</b><span>Spots outages, files &amp; clears tickets</span></div>
-          <div class="node"><b>The Inspector</b><span>Captures on-site audits as records</span></div>
-        </div>
-        <div class="fcol">
-          <span class="lab">Coordinate</span>
-          <div class="hub"><b>The Shared Backbone</b><span>The system of record every machine reads &amp; writes</span></div>
-          <div class="node"><b>The Sentry</b><span>Live status wall, two-way ticket sync</span></div>
-        </div>
-        <div class="fcol">
-          <span class="lab">Report &amp; improve</span>
-          <div class="node"><b>The Correspondent</b><span>Turns the work into client reports</span></div>
-          <div class="node"><b>The Coach</b><span>Measures &amp; coaches how it's all used</span></div>
-        </div>
+      <div class="diagram" role="img" aria-label="Signal flow diagram: Engine and Recon feed the shared backbone, Beacon syncs two ways, and Generator and Tempo turn it into client reports and coaching.">
+        <svg viewBox="0 0 1000 470" xmlns="http://www.w3.org/2000/svg">
+          <defs>
+            <marker id="ar" markerWidth="12" markerHeight="12" refX="8" refY="4" orient="auto-start-reverse"><path d="M0,0 L9,4 L0,8 Z" fill="#3fe0d8"/></marker>
+            <filter id="glow" x="-50%" y="-50%" width="200%" height="200%"><feDropShadow dx="0" dy="0" stdDeviation="3" flood-color="#3fe0d8" flood-opacity="0.55"/></filter>
+            <style>
+              .nr{fill:rgba(63,224,216,.06);stroke-width:2;}
+              .hub{fill:rgba(63,224,216,.14);stroke:#96fff7;stroke-width:2.5;}
+              .nm{font-family:'Barlow Condensed',sans-serif;font-style:italic;font-weight:800;fill:#ecfffc;}
+              .nk{font-family:'Share Tech Mono',monospace;fill:#3a9690;letter-spacing:.06em;}
+              .rl{font-family:'Share Tech Mono',monospace;fill:#a9ddd7;}
+              .fl{fill:none;stroke:#3fe0d8;stroke-width:2;opacity:.9;}
+              .lb{font-family:'Share Tech Mono',monospace;fill:#3a9690;}
+              .colh{font-family:'Barlow Condensed',sans-serif;font-style:italic;font-weight:800;fill:#3a9690;letter-spacing:.14em;}
+            </style>
+          </defs>
+
+          <text class="colh" x="135" y="22" text-anchor="middle" font-size="15">INPUTS</text>
+          <text class="colh" x="500" y="22" text-anchor="middle" font-size="15">COORDINATE</text>
+          <text class="colh" x="865" y="22" text-anchor="middle" font-size="15">OUTPUTS</text>
+
+          <path class="fl" d="M240,161 C322,170 332,206 398,214" marker-end="url(#ar)"/>
+          <text class="lb" x="298" y="171" font-size="12">outage tickets</text>
+          <path class="fl" d="M240,329 C322,320 332,284 398,256" marker-end="url(#ar)"/>
+          <text class="lb" x="298" y="323" font-size="12">field audits</text>
+          <path class="fl" d="M500,110 L500,188" marker-end="url(#ar)" marker-start="url(#ar)"/>
+          <text class="lb" x="514" y="153" font-size="12">live status, ack sync</text>
+          <path class="fl" d="M602,214 C678,206 688,170 758,161" marker-end="url(#ar)"/>
+          <text class="lb" x="648" y="171" font-size="12">the work</text>
+          <path class="fl" d="M602,256 C678,284 688,320 758,329" marker-end="url(#ar)"/>
+          <text class="lb" x="642" y="323" font-size="12">usage signals</text>
+
+          <rect class="hub" x="400" y="190" width="200" height="90" rx="12" filter="url(#glow)"/>
+          <text class="nm" x="500" y="227" text-anchor="middle" font-size="26">THE BACKBONE</text>
+          <text class="rl" x="500" y="249" text-anchor="middle" font-size="11">system of record</text>
+          <text class="rl" x="500" y="266" text-anchor="middle" font-size="11">every machine reads &amp; writes</text>
+
+          <rect class="nr" x="405" y="32" width="190" height="76" rx="10" stroke="#3fe0d8"/>
+          <text class="nm" x="500" y="63" text-anchor="middle" font-size="22">BEACON</text>
+          <text class="nk" x="500" y="81" text-anchor="middle" font-size="11">THE SENTRY</text>
+          <text class="rl" x="500" y="98" text-anchor="middle" font-size="10.5">live status wall</text>
+
+          <rect class="nr" x="30" y="120" width="210" height="82" rx="10" stroke="#19e3ff"/>
+          <text class="nm" x="135" y="154" text-anchor="middle" font-size="22">ENGINE</text>
+          <text class="nk" x="135" y="172" text-anchor="middle" font-size="11">THE DISPATCHER</text>
+          <text class="rl" x="135" y="189" text-anchor="middle" font-size="10.5">files &amp; clears tickets</text>
+
+          <rect class="nr" x="30" y="288" width="210" height="82" rx="10" stroke="#ffd23f"/>
+          <text class="nm" x="135" y="322" text-anchor="middle" font-size="22">RECON</text>
+          <text class="nk" x="135" y="340" text-anchor="middle" font-size="11">THE INSPECTOR</text>
+          <text class="rl" x="135" y="357" text-anchor="middle" font-size="10.5">files field audits</text>
+
+          <rect class="nr" x="760" y="120" width="210" height="82" rx="10" stroke="#ff9e3d"/>
+          <text class="nm" x="865" y="150" text-anchor="middle" font-size="21">GENERATOR</text>
+          <text class="nk" x="865" y="168" text-anchor="middle" font-size="11">THE CORRESPONDENT</text>
+          <text class="rl" x="865" y="185" text-anchor="middle" font-size="10.5">builds client reports</text>
+
+          <rect class="nr" x="760" y="288" width="210" height="82" rx="10" stroke="#ff2e88"/>
+          <text class="nm" x="865" y="322" text-anchor="middle" font-size="22">TEMPO</text>
+          <text class="nk" x="865" y="340" text-anchor="middle" font-size="11">THE COACH</text>
+          <text class="rl" x="865" y="357" text-anchor="middle" font-size="10.5">measures &amp; coaches</text>
+        </svg>
       </div>
+      <p class="diagram-note">Built decoupled on purpose: every machine stands on its own, so a fault in one never takes the others down.</p>
     </div>
 
     <p class="foot">
