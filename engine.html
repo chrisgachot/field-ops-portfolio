@@ -39,14 +39,10 @@ header{display:flex; align-items:center; justify-content:space-between; gap:14px
 .btn.good{color:var(--green); border-color:rgba(75,208,123,.4);}
 .btn.good:hover{background:rgba(75,208,123,.12);}
 .btn:disabled{opacity:.4; cursor:not-allowed;}
-main{max-width:1280px; margin:0 auto; padding:22px 24px 70px; display:grid; grid-template-columns:1.1fr 1fr; gap:18px;}
-@media(max-width:880px){ main{grid-template-columns:1fr;} }
-.col-h{font-family:var(--disp); font-style:italic; font-weight:700; text-transform:uppercase; letter-spacing:.05em;
-  font-size:16px; color:var(--muted); margin:0 0 10px; display:flex; align-items:center; justify-content:space-between;}
-.col-h .cnt{font-size:12px; color:var(--dim); font-family:var(--mono); font-style:normal;}
+main{max-width:1100px; margin:0 auto; padding:22px 24px 70px; display:flex; flex-direction:column; gap:18px;}
 
 /* Pipeline strip */
-.pipe{grid-column:1/-1; display:grid; grid-template-columns:repeat(4,1fr); gap:10px; margin-bottom:4px;}
+.pipe{display:grid; grid-template-columns:repeat(4,1fr); gap:10px;}
 .stage{background:var(--panel); border:1px solid var(--border); border-radius:10px; padding:13px 15px; position:relative;}
 .stage .n{font-family:var(--disp); font-style:italic; font-weight:800; font-size:13px; color:var(--cyan); text-transform:uppercase;}
 .stage .d{font-size:11.5px; color:var(--muted); margin-top:4px; line-height:1.4;}
@@ -54,73 +50,100 @@ main{max-width:1280px; margin:0 auto; padding:22px 24px 70px; display:grid; grid
 .stage:last-child::after{display:none;}
 .stage.hot{border-color:var(--blue); box-shadow:0 0 0 1px rgba(74,168,255,.3);}
 
+.row2{display:grid; grid-template-columns:1fr 1fr; gap:18px;}
+.col-h{font-family:var(--disp); font-style:italic; font-weight:700; text-transform:uppercase; letter-spacing:.05em;
+  font-size:15px; color:var(--muted); margin:0 0 10px; display:flex; align-items:center; justify-content:space-between;}
+.col-h .cnt{font-size:12px; color:var(--dim); font-family:var(--mono); font-style:normal;}
+
 /* Devices */
 .list{background:var(--panel); border:1px solid var(--border); border-radius:11px; overflow:hidden;}
-.dev{display:grid; grid-template-columns:14px 1fr auto; gap:12px; align-items:center; padding:11px 15px; border-top:1px solid var(--border-soft); font-size:13px;}
+.dev{display:grid; grid-template-columns:14px 1fr auto; gap:12px; align-items:center; padding:10px 15px; border-top:1px solid var(--border-soft); font-size:13px;}
 .dev:first-child{border-top:none;}
 .dev .dot{width:9px; height:9px; border-radius:50%; background:var(--green); box-shadow:0 0 7px var(--green);}
 .dev.down .dot{background:var(--red); box-shadow:0 0 7px var(--red); animation:bl .9s steps(2) infinite;}
 .dev.confirming .dot{background:var(--amber); box-shadow:0 0 7px var(--amber);}
 @keyframes bl{50%{opacity:.3;}}
-.dev .meta{color:var(--dim); font-size:11px;}
+.dev .meta{color:var(--dim); font-size:10.5px; display:block; margin-top:2px;}
 .dev .st{font-family:var(--disp); font-style:italic; text-transform:uppercase; font-size:12px; letter-spacing:.04em; color:var(--green);}
 .dev.down .st{color:var(--red);} .dev.confirming .st{color:var(--amber);}
-.dname{color:var(--text);} .dev .meta{display:block; margin-top:2px;}
-
-/* Tickets */
-.ticket{border:1px solid var(--border); border-radius:11px; padding:14px 16px; margin-bottom:11px; background:var(--panel); position:relative; animation:slidein .3s ease;}
-@keyframes slidein{from{opacity:0; transform:translateY(-8px);} to{opacity:1; transform:none;}}
-.ticket::before{content:''; position:absolute; left:0; top:0; bottom:0; width:4px; border-radius:4px 0 0 4px;}
-.ticket.alert::before{background:var(--red);}
-.ticket.recovered::before{background:var(--green);}
-.tk-top{display:flex; align-items:center; gap:10px; flex-wrap:wrap;}
-.tk-badge{font-family:var(--disp); font-style:italic; font-weight:800; text-transform:uppercase; font-size:11px; letter-spacing:.05em; padding:3px 9px; border-radius:5px;}
-.tk-badge.alert{color:var(--red); background:rgba(255,93,108,.13); border:1px solid rgba(255,93,108,.35);}
-.tk-badge.recovered{color:var(--green); background:rgba(75,208,123,.13); border:1px solid rgba(75,208,123,.35);}
-.tk-type{font-size:10.5px; color:var(--dim); text-transform:uppercase; letter-spacing:.08em; border:1px solid var(--border); padding:2px 7px; border-radius:5px;}
-.tk-title{font-weight:600; font-size:14px; margin-top:9px; color:var(--text);}
-.tk-tag{font-size:11px; color:var(--cyan); margin-top:6px; font-family:var(--mono);}
-.tk-foot{font-size:11px; color:var(--dim); margin-top:8px; line-height:1.6;}
-.tk-empty{color:var(--dim); font-size:13px; padding:24px; text-align:center; border:1px dashed var(--border); border-radius:11px;}
+.dname{color:var(--text);}
 
 /* Log */
-.log{grid-column:1/-1; background:#0b0e13; border:1px solid var(--border); border-radius:11px; padding:14px 16px; height:190px; overflow:auto; font-size:12px; line-height:1.7;}
+.log{background:#0b0e13; border:1px solid var(--border); border-radius:11px; padding:13px 15px; height:228px; overflow:auto; font-size:12px; line-height:1.7;}
 .log .ln{white-space:pre-wrap;}
 .log .t{color:var(--dim);}
 .log .ok{color:var(--green);} .log .warn{color:var(--amber);} .log .err{color:var(--red);} .log .info{color:var(--blue);} .log .acc{color:var(--cyan);}
-.note{grid-column:1/-1; color:var(--dim); font-size:12px; line-height:1.6;}
 
-/* ---- tablet: collapse the pipeline to 2 across, drop side arrows ---- */
-@media(max-width:720px){
-  .pipe{grid-template-columns:1fr 1fr;}
-  .stage::after{display:none;}
-}
-/* ---- phone ---- */
+/* ===== Asana ticket ===== */
+.ticket{border:1px solid var(--border); border-radius:12px; background:var(--panel); overflow:hidden; animation:slidein .3s ease;}
+@keyframes slidein{from{opacity:0; transform:translateY(-8px);} to{opacity:1; transform:none;}}
+.tk-empty{border:1px dashed var(--border); border-radius:12px; color:var(--dim); font-size:13px; padding:30px; text-align:center;}
+.tk-bar{height:4px;}
+.tk-bar.alert{background:var(--red);} .tk-bar.acked{background:var(--amber);} .tk-bar.recovered{background:var(--green);} .tk-bar.fixed{background:var(--violet);}
+.tk-head{padding:16px 18px 14px; border-bottom:1px solid var(--border-soft);}
+.tk-row{display:flex; align-items:center; gap:10px; flex-wrap:wrap;}
+.tk-app{font-size:10.5px; letter-spacing:.12em; text-transform:uppercase; color:var(--dim);}
+.tk-app b{color:#e4625b;} /* asana coral wordmark */
+.tk-name{font-size:17px; color:#fff; font-weight:600; margin:8px 0 12px; line-height:1.35;}
+.chip{font-size:10.5px; font-weight:700; letter-spacing:.05em; text-transform:uppercase; padding:4px 10px; border-radius:999px; border:1px solid; display:inline-flex; align-items:center; gap:6px;}
+.chip .d{width:6px; height:6px; border-radius:50%;}
+.chip.alert{color:var(--red); border-color:rgba(255,93,108,.4); background:rgba(255,93,108,.1);} .chip.alert .d{background:var(--red); box-shadow:0 0 6px var(--red);}
+.chip.acked{color:var(--amber); border-color:rgba(245,181,63,.4); background:rgba(245,181,63,.1);} .chip.acked .d{background:var(--amber);}
+.chip.recovered{color:var(--green); border-color:rgba(75,208,123,.4); background:rgba(75,208,123,.1);} .chip.recovered .d{background:var(--green);}
+.chip.fixed{color:var(--violet); border-color:rgba(154,125,255,.4); background:rgba(154,125,255,.1);} .chip.fixed .d{background:var(--violet);}
+.tk-type{font-size:10px; letter-spacing:.08em; text-transform:uppercase; color:var(--dim); border:1px solid var(--border); padding:3px 8px; border-radius:5px;}
+.tk-meta{display:flex; flex-wrap:wrap; gap:14px; margin-top:12px; font-size:11.5px; color:var(--muted);}
+.tk-meta b{color:var(--dim); font-weight:400; text-transform:uppercase; letter-spacing:.06em; font-size:10px; display:block; margin-bottom:2px;}
+.tk-actions{display:flex; gap:10px; flex-wrap:wrap; margin-top:14px;}
+
+/* tabs */
+.tabs{display:flex; gap:0; border-bottom:1px solid var(--border-soft); padding:0 14px;}
+.tab{padding:11px 14px; font-size:11.5px; text-transform:uppercase; letter-spacing:.06em; color:var(--muted); cursor:pointer; border-bottom:2px solid transparent; margin-bottom:-1px;}
+.tab.on{color:#fff; border-bottom-color:var(--cyan);}
+.tab .b{display:inline-block; min-width:16px; text-align:center; margin-left:6px; font-size:10px; color:var(--dim); background:var(--panel-2); border:1px solid var(--border); border-radius:8px; padding:0 5px;}
+.tabwrap{padding:16px 18px 20px;}
+
+/* SOP rich text (mirrors the Asana html_notes body) */
+.sop{font-size:13px; line-height:1.6; color:#cdd7e2; max-height:420px; overflow:auto;}
+.sop h1{font-family:var(--mono); font-size:15px; color:#fff; font-weight:700; margin:0 0 10px;}
+.sop h2{font-family:var(--disp); font-style:italic; font-weight:800; text-transform:uppercase; letter-spacing:.04em; font-size:14px; color:var(--cyan); margin:18px 0 8px;}
+.sop p{margin:0 0 8px;}
+.sop ul,.sop ol{margin:0 0 8px; padding-left:22px;}
+.sop li{margin-bottom:5px;}
+.sop b{color:#eef3f8; font-weight:600;}
+.sop code{background:#0b0e13; border:1px solid var(--border); border-radius:4px; padding:1px 6px; font-size:12px; color:var(--cyan);}
+.sop a{color:var(--blue); text-decoration:none; border-bottom:1px dotted var(--blue);}
+.sop hr{border:none; border-top:1px solid var(--border); margin:12px 0;}
+.sop .entity{color:var(--dim); font-size:11.5px;}
+
+/* activity / comments */
+.act{display:flex; flex-direction:column; gap:14px;}
+.cmt{display:grid; grid-template-columns:30px 1fr; gap:11px;}
+.cmt .av{width:30px; height:30px; border-radius:50%; display:flex; align-items:center; justify-content:center; font-size:14px; border:1px solid var(--border);}
+.cmt.bot .av{background:linear-gradient(150deg,var(--cyan),var(--blue)); color:#06121a;}
+.cmt.you .av{background:var(--panel-2); color:var(--amber);}
+.cmt.sys .av{background:var(--panel-2); color:var(--dim);}
+.cmt .who{font-size:12px; color:#fff; font-weight:600;}
+.cmt .who span{color:var(--dim); font-weight:400; font-size:11px; margin-left:7px; text-transform:none; letter-spacing:0;}
+.cmt .txt{font-size:12.5px; color:#c4cedb; line-height:1.55; margin-top:4px;}
+.cmt.status .txt{color:var(--muted); font-style:italic;}
+.note{color:var(--dim); font-size:12px; line-height:1.6;}
+
+@media(max-width:720px){ .pipe{grid-template-columns:1fr 1fr;} .stage::after{display:none;} }
 @media(max-width:600px){
-  .demobar{font-size:10px; padding:7px 12px; gap:8px;}
-  .demobar .tag{flex:1; min-width:0;}
+  .demobar{font-size:10px; padding:7px 12px;}
   header{padding:13px 15px; gap:10px;}
-  .brand{gap:10px;}
-  .brand .mk{font-size:12px; padding:5px 9px;}
-  .brand h1{font-size:23px;}
-  .brand .sub{font-size:9.5px; letter-spacing:.06em;}
-  .controls{width:100%; gap:8px;}
-  .poll{flex:1 1 100%; order:-1; font-size:12px;}
-  .controls .btn{flex:1 1 auto; font-size:12px; padding:12px 10px; text-align:center;}
+  .brand h1{font-size:23px;} .brand .sub{font-size:9.5px;}
+  .controls{width:100%; gap:8px;} .poll{flex:1 1 100%; order:-1; font-size:12px;}
+  .controls .btn{flex:1 1 auto; text-align:center; padding:12px 10px;}
   main{padding:16px 14px 54px; gap:14px;}
-  /* stack the pipeline vertically with downward arrows so the sequence reads clearly */
-  .pipe{grid-template-columns:1fr; gap:18px; margin-bottom:16px;}
-  .stage{padding:12px 14px;}
-  .stage .d{font-size:11.5px;}
+  .pipe{grid-template-columns:1fr; gap:18px;}
   .stage::after{display:block; content:'↓'; right:auto; left:50%; top:auto; bottom:-15px; transform:translateX(-50%); font-size:14px;}
   .stage:last-child::after{display:none;}
-  .col-h{font-size:14px;}
-  .dev{padding:10px 12px; font-size:12.5px; gap:10px;}
-  .dev .meta{font-size:10.5px;}
-  .ticket{padding:12px 13px;}
-  .tk-title{font-size:13.5px;}
-  .log{height:150px; font-size:11px; padding:12px 13px; line-height:1.6;}
-  .note{font-size:11.5px;}
+  .row2{grid-template-columns:1fr;}
+  .log{height:170px;}
+  .tk-name{font-size:15.5px;} .sop{max-height:none;}
+  .tk-actions .btn{flex:1 1 auto; text-align:center;}
 }
 </style>
 </head>
@@ -150,152 +173,230 @@ main{max-width:1280px; margin:0 auto; padding:22px 24px 70px; display:grid; grid
 
   <div class="pipe">
     <div class="stage" id="st1"><div class="n">1 · Poll</div><div class="d">Fetch every device &amp; monitor across all consoles, every 2 min.</div></div>
-    <div class="stage" id="st2"><div class="n">2 · Confirm</div><div class="d">Flap protection, must stay down 2 cycles before filing.</div></div>
-    <div class="stage" id="st3"><div class="n">3 · File</div><div class="d">One incident → one ticket, categorized &amp; tagged.</div></div>
-    <div class="stage" id="st4"><div class="n">4 · Recover</div><div class="d">Clears on its own → ticket auto-closed with a note.</div></div>
+    <div class="stage" id="st2"><div class="n">2 · Confirm</div><div class="d">Flap protection. Must stay down 2 cycles before filing.</div></div>
+    <div class="stage" id="st3"><div class="n">3 · File</div><div class="d">One incident, one ticket, with an SOP anyone can act on.</div></div>
+    <div class="stage" id="st4"><div class="n">4 · Resolve</div><div class="d">Auto-recovers, or a human marks it fixed. Comments track it all.</div></div>
+  </div>
+
+  <div class="row2">
+    <div>
+      <div class="col-h">Live device feed <span class="cnt" id="devCnt"></span></div>
+      <div class="list" id="devList"></div>
+    </div>
+    <div>
+      <div class="col-h">Engine run log</div>
+      <div class="log" id="log"></div>
+    </div>
   </div>
 
   <div>
-    <div class="col-h">Live device feed <span class="cnt" id="devCnt"></span></div>
-    <div class="list" id="devList"></div>
-    <p class="note" style="margin-top:14px;">
-      Knock a whole property offline and watch the engine confirm it across poll cycles, then file a
-      <b>single</b> property-outage ticket, not one per device. Bring it back and the ticket auto-recovers.
-    </p>
+    <div class="col-h">The Asana ticket it files <span class="cnt">SOP + live comment thread</span></div>
+    <div id="ticketHost"><div class="tk-empty">No open ticket. Knock the site offline to watch Engine file one, complete with a troubleshooting SOP and an automated comment trail.</div></div>
   </div>
-
-  <div>
-    <div class="col-h">Asana ticket queue <span class="cnt" id="tkCnt">0 open</span></div>
-    <div id="tickets"><div class="tk-empty">No open tickets, all systems nominal.</div></div>
-  </div>
-
-  <div class="log" id="log"></div>
 
   <p class="note">
-    Faithful demo of the Engine service. The real pipeline runs as a scheduled function every 2 minutes, is
-    idempotent (each ticket carries a tag so it can never be duplicated), and is fail-safe (a total source outage
-    writes nothing rather than mass-closing tickets). Time is compressed here so a "cycle" is ~2 seconds.
+    Faithful demo of Engine. The real service files this exact ticket body (a triage SOP, the device list, a lifecycle
+    explainer, and a hidden <code>beacon-entity</code> tag for idempotent auto-close) and posts the comments below as the
+    incident moves. Acknowledge it, mark it fixed by hand, or click <b>Bring it back</b> to watch it auto-recover.
   </p>
 
 </main>
 
 <script>
-const DEVICES = [
-  {name:'CR · Gateway',        cls:'gateway'},
-  {name:'CR · Core Switch',    cls:'switch'},
-  {name:'CR · AP, Great Room',cls:'ap'},
-  {name:'CR · AP, Guest Wing',cls:'ap'},
-  {name:'CR · NVR / Cameras',  cls:'nvr'},
-  {name:'CR · Uptime monitor', cls:'monitor'},
+const PROP="Cedar Ridge Estate", CODE="CR", HOST="7a3f-c91";
+const DEVICES=[
+  {name:'CR · Gateway (UDM Pro)', cls:'Gateway', ip:'10.20.0.1'},
+  {name:'CR · Core Switch (USW-24-PoE)', cls:'Switch', ip:'10.20.0.2'},
+  {name:'CR · AP, Great Room (U6-Pro)', cls:'Access point', ip:'10.20.0.14'},
+  {name:'CR · AP, Guest Wing (U6-Lite)', cls:'Access point', ip:'10.20.0.16'},
+  {name:'CR · NVR / Cameras (UNVR)', cls:'NVR', ip:'10.20.0.30'},
+  {name:'CR · Patio PDU (USP-PDU)', cls:'PDU / power', ip:'10.20.0.41'},
 ];
-let poll=0, phase='nominal', cycles=0, ticketFiled=false, timer=null;
+let poll=0, phase='nominal', cycles=0, timer=null, comments=[], tab='activity';
 
-function log(msg, cls='t'){
-  const el=document.getElementById('log');
-  const ts=new Date().toLocaleTimeString('en-US',{hour12:false});
-  el.insertAdjacentHTML('afterbegin', `<div class="ln"><span class="t">[${ts}] poll#${poll} </span><span class="${cls}">${msg}</span></div>`);
-}
+const $=id=>document.getElementById(id);
+function now(){ return new Date().toLocaleTimeString('en-US',{hour12:false}); }
+function setStage(i){ ['st1','st2','st3','st4'].forEach((id,n)=>$(id).classList.toggle('hot', n===i)); }
+function log(msg,cls='t'){ $('log').insertAdjacentHTML('afterbegin',`<div class="ln"><span class="t">[${now()}] poll#${poll} </span><span class="${cls}">${msg}</span></div>`); }
+
 function renderDevices(){
-  const down = (phase!=='nominal');
-  const confirming = (phase==='confirming');
-  document.getElementById('devCnt').textContent = down ? `${DEVICES.length} offline` : 'all online';
-  document.getElementById('devList').innerHTML = DEVICES.map(d=>{
-    const cls = down ? (confirming?'dev confirming':'dev down') : 'dev';
-    const st  = down ? (confirming?'CONFIRMING':'OFFLINE') : 'ONLINE';
+  const down=(phase!=='nominal'&&phase!=='recovered'&&phase!=='fixed');
+  const confirming=(phase==='confirming');
+  $('devCnt').textContent = down ? '6 offline' : 'all online';
+  $('devList').innerHTML=DEVICES.map(d=>{
+    const cls=down?(confirming?'dev confirming':'dev down'):'dev';
+    const st=down?(confirming?'CONFIRMING':'OFFLINE'):'ONLINE';
     return `<div class="${cls}"><span class="dot"></span>
-      <span><span class="dname">${d.name}</span><span class="meta">class: ${d.cls} · keyed by MAC</span></span>
+      <span><span class="dname">${d.name}</span><span class="meta">${d.cls} · ${d.ip} · keyed by MAC</span></span>
       <span class="st">${st}</span></div>`;
   }).join('');
 }
-function renderTickets(){
-  const box=document.getElementById('tickets');
-  if(!ticketFiled && phase!=='recovered'){
-    box.innerHTML='<div class="tk-empty">No open tickets, all systems nominal.</div>';
-    document.getElementById('tkCnt').textContent='0 open'; return;
-  }
-  const recovered = (phase==='recovered');
-  document.getElementById('tkCnt').textContent = recovered ? '0 open' : '1 open';
-  box.innerHTML = `
-    <div class="ticket ${recovered?'recovered':'alert'}">
-      <div class="tk-top">
-        <span class="tk-badge ${recovered?'recovered':'alert'}">${recovered?'● Recovered':'● Alert!'}</span>
-        <span class="tk-type">Task type: ALERT</span>
-        <span class="tk-type">Property Code: CR</span>
-      </div>
-      <div class="tk-title">Cedar Ridge Estate, property network outage</div>
-      <div class="tk-tag">beacon-entity: prop:CR</div>
-      <div class="tk-foot">
-        ${recovered
-          ? 'Condition cleared for 2 clean cycles · moved to Recovered (Done) · recovery comment added · task completed.'
-          : 'Whole site dark, UniFi + uptime monitor agree, coalesced into one ticket. Filed automatically, assigned, awaiting recovery.'}
-      </div>
+
+const STATUS={alert:['alert','● Alert!'],acked:['acked','◍ Acknowledged'],recovering:['alert','● Alert!'],recovered:['recovered','✓ Recovered'],fixed:['fixed','🔧 Fixed via Intervention']};
+function sopHTML(){return `
+  <h1>🚨 Whole site outage: ${PROP}</h1>
+  <p>Every UniFi device at <b>${PROP}</b> is offline (6 of 6). A full-site outage almost always means the property has lost <b>internet or power</b>, or the site gateway/router is down, which takes everything downstream with it.</p>
+  <h2>📋 Site details</h2>
+  <ul>
+    <li><b>Property / site:</b> ${PROP} (${CODE})</li>
+    <li><b>Devices offline:</b> 6 of 6 (all of them)</li>
+    <li><b>UniFi console (host ID):</b> <code>${HOST}</code></li>
+    <li><b>First detected offline:</b> just now</li>
+    <li><b>Outside-in confirmation:</b> the UptimeRobot monitor <b>${CODE}</b> also reports this property unreachable, consistent with a site-wide internet or power loss.</li>
+  </ul>
+  <h2>📡 Affected devices</h2>
+  <ul>${DEVICES.map(d=>`<li><b>${d.name.replace('CR · ','')}</b>, ${d.cls.toLowerCase()}, last IP ${d.ip}</li>`).join('')}</ul>
+  <h2>🛠️ Troubleshooting steps</h2>
+  <ol>
+    <li>Confirm whether the property has <b>internet and power</b> at all. A whole-site outage usually points to the ISP or a power failure rather than UniFi itself.</li>
+    <li>Open the console in <a href="https://unifi.ui.com" target="_blank" rel="noopener">UniFi Site Manager</a> and check whether it is reachable.</li>
+    <li>Verify the <b>gateway/router</b> has power and a live WAN/internet connection.</li>
+    <li>If reachable on site, power-cycle the gateway, then the switches, and wait for devices to re-adopt.</li>
+    <li>If the ISP is down, open a ticket with the provider and note the outage here.</li>
+  </ol>
+  <h2>🔗 Helpful links</h2>
+  <ul>
+    <li><a href="https://unifi.ui.com" target="_blank" rel="noopener">UniFi Site Manager, open the property console</a></li>
+    <li><a href="https://help.ui.com" target="_blank" rel="noopener">Ubiquiti: Troubleshooting Offline UniFi Devices</a></li>
+  </ul>
+  <h2>🤖 How this alert works</h2>
+  <p>Opened automatically by the monitoring engine after the site was fully offline across 2 consecutive checks (about 4 minutes). It is on the <b>ALERT</b> task type and its status tracks the lifecycle:</p>
+  <ul>
+    <li><b>Alert!</b>: active, the site is still down.</li>
+    <li><b>Acknowledged</b>: an operator has seen this and silenced the wall alarm on the <a href="beacon.html">Beacon dashboard</a> for a set window (a timestamped note is added here when they do). The ticket stays open and reverts to Alert! automatically when the window lapses if the site is still down.</li>
+    <li><b>Recovered</b>: set automatically once the site comes back online, which closes the ticket. No action needed.</li>
+    <li><b>Fixed via Intervention</b>: set this yourself if a human had to step in to bring it back.</li>
+  </ul>
+  <p class="entity">Please do not edit or remove the line below. The automation uses it to track and auto-close this ticket.</p>
+  <hr>
+  <code>beacon-entity: prop:${CODE}</code>`;
+}
+function renderTicket(){
+  const host=$('ticketHost');
+  if(phase==='nominal'||(!comments.length && phase!=='alert')){ host.innerHTML='<div class="tk-empty">No open ticket. Knock the site offline to watch Engine file one, complete with a troubleshooting SOP and an automated comment trail.</div>'; return; }
+  const [scls,slabel]=STATUS[phase]||STATUS.alert;
+  const completed=(phase==='recovered'||phase==='fixed');
+  const canAck=(phase==='alert'); const canFix=(phase==='alert'||phase==='acked');
+  const actions = completed ? '' : `<div class="tk-actions">
+      ${canAck?'<button class="btn" onclick="acknowledge()">◍ Acknowledge (silence 1h)</button>':''}
+      ${canFix?'<button class="btn" style="color:var(--violet);border-color:rgba(154,125,255,.4)" onclick="fixedIntervention()">🔧 Fixed via Intervention</button>':''}
     </div>`;
+  host.innerHTML=`<div class="ticket">
+    <div class="tk-bar ${scls}"></div>
+    <div class="tk-head">
+      <div class="tk-row" style="justify-content:space-between">
+        <span class="tk-app">via <b>asana</b> · auto-filed by Engine</span>
+        <span class="tk-type">Task type: ALERT</span>
+      </div>
+      <div class="tk-name">[OFFLINE] Whole site outage: ${PROP}</div>
+      <div class="tk-row">
+        <span class="chip ${scls}"><span class="d"></span>${slabel}</span>
+        ${completed?'<span class="tk-type">✓ Completed</span>':''}
+      </div>
+      <div class="tk-meta">
+        <span><b>Assignee</b>A. Rivera</span>
+        <span><b>Due</b>Today</span>
+        <span><b>Property Code</b>${CODE}</span>
+        <span><b>Project</b>Technology</span>
+      </div>
+      ${actions}
+    </div>
+    <div class="tabs">
+      <span class="tab ${tab==='activity'?'on':''}" onclick="setTab('activity')">Activity<span class="b">${comments.length}</span></span>
+      <span class="tab ${tab==='sop'?'on':''}" onclick="setTab('sop')">Description / SOP</span>
+    </div>
+    <div class="tabwrap">
+      ${tab==='sop'?`<div class="sop">${sopHTML()}</div>`:`<div class="act">${comments.map(cmtHTML).join('')}</div>`}
+    </div>
+  </div>`;
 }
-function setStage(active){
-  ['st1','st2','st3','st4'].forEach((id,i)=>{
-    document.getElementById(id).classList.toggle('hot', i===active);
-  });
+function cmtHTML(c){
+  const av={bot:'⚙',you:'🧑',sys:'◷'}[c.kind]||'◷';
+  return `<div class="cmt ${c.kind} ${c.status?'status':''}">
+    <div class="av">${av}</div>
+    <div><div class="who">${c.who}<span>${c.time}</span></div><div class="txt">${c.text}</div></div>
+  </div>`;
 }
+function addComment(kind,who,text,status){ comments.push({kind,who,text,time:now(),status:!!status}); renderTicket(); }
+function setTab(t){ tab=t; renderTicket(); }
+
 function knockOut(){
   if(phase!=='nominal') return;
-  phase='confirming'; cycles=0; ticketFiled=false;
-  document.getElementById('knockBtn').disabled=true;
-  document.getElementById('restoreBtn').disabled=false;
-  log('UniFi reports Cedar Ridge (CR), all 5 devices + monitor offline', 'err');
+  phase='confirming'; cycles=0; comments=[];
+  $('knockBtn').disabled=true; $('restoreBtn').disabled=false;
+  log('UniFi reports '+PROP+' (CR), all 6 devices offline', 'err');
+  log('UptimeRobot monitor CR also reporting down (outside-in)', 'warn');
   log('flap protection engaged, needs 2 confirmed cycles before filing', 'warn');
-  renderDevices(); renderTickets();
-  runLoop();
+  renderDevices(); renderTicket(); runLoop();
+}
+function fileTicket(){
+  phase='alert'; tab='activity';
+  addComment('bot','Engine','Created this task and placed it on the ALERT task type at status <b>Alert!</b>. Confirmed offline across 2 consecutive checks (about 4 minutes).');
+  addComment('bot','Engine','📡 Outside-in confirmation: the UptimeRobot monitor <b>CR</b> also reports this property unreachable, consistent with a site-wide internet or power loss.');
+  log('confirmed down → filing ONE property-outage ticket (prop:CR) with SOP', 'info');
+  log('task created · ALERT type · status Alert! · synced to Beacon', 'acc');
+}
+function acknowledge(){
+  if(phase!=='alert') return;
+  phase='acked';
+  addComment('you','A. Rivera','<b>Acknowledged</b> on the Beacon wall. Wall alarm silenced for 1 hour. The ticket stays open and reverts to Alert! automatically if the site is still down when the window lapses.');
+  addComment('sys','Asana','changed status from Alert! to Acknowledged.', true);
+  log('operator acknowledged on Beacon → status Acknowledged (synced)', 'warn');
+  renderTicket();
+}
+function fixedIntervention(){
+  if(phase!=='alert'&&phase!=='acked') return;
+  phase='fixed';
+  addComment('you','A. Rivera','🔧 Marked <b>Fixed via Intervention</b>. A human stepped in on site to restore service, so this was not an automatic recovery.');
+  addComment('sys','Asana','changed status to Fixed via Intervention and completed the task.', true);
+  log('human marked Fixed via Intervention → task completed', 'ok');
+  renderDevices(); renderTicket();
+  endIncident();
 }
 function restore(){
-  if(!ticketFiled){ /* still confirming */ }
+  if(phase==='nominal'||phase==='recovered'||phase==='fixed') return;
   phase='recovering'; cycles=0;
-  document.getElementById('restoreBtn').disabled=true;
+  $('restoreBtn').disabled=true;
   log('CR devices responding again, starting recovery confirmation', 'ok');
   renderDevices();
-  runLoop();
+}
+function recover(){
+  phase='recovered';
+  addComment('bot','Engine','✓ Recovered automatically, back online at '+now()+'. Moved to the Recovered status, which completes the task. No action needed.');
+  addComment('sys','Asana','changed status to Recovered and completed the task.', true);
+  log('every source clear → status Recovered + task completed', 'ok');
+  renderDevices(); renderTicket();
+  endIncident();
+}
+function endIncident(){
+  if(timer){ clearInterval(timer); timer=null; }
+  setStage(-1); $('pollLbl').textContent=`poll #${poll} · 1 ticket closed`;
+  setTimeout(()=>{
+    phase='nominal'; comments=[]; tab='activity';
+    $('knockBtn').disabled=false; $('restoreBtn').disabled=true;
+    $('pollLbl').textContent=`poll #${poll} · idle · all nominal`;
+    renderDevices(); renderTicket(); log('back to nominal, watching.', 'acc');
+  }, 2600);
 }
 function runLoop(){
   if(timer) return;
   timer=setInterval(()=>{
     poll++;
     if(phase==='confirming'){
-      cycles++;
-      setStage(1);
-      document.getElementById('pollLbl').textContent=`poll #${poll} · confirming (${cycles}/2)`;
+      cycles++; setStage(1); $('pollLbl').textContent=`poll #${poll} · confirming (${cycles}/2)`;
       log(`CR still offline, confirm cycle ${cycles}/2`, 'warn');
-      if(cycles>=2){
-        phase='alert'; ticketFiled=true; setStage(2);
-        log('confirmed down → filing ONE property-outage ticket (prop:CR)', 'info');
-        log('task created · put on ALERT type · status = Alert! · synced to Beacon', 'acc');
-        renderTickets();
-      } else { renderDevices(); }
-    } else if(phase==='alert'){
-      setStage(2);
-      document.getElementById('pollLbl').textContent=`poll #${poll} · 1 open ticket`;
+      if(cycles>=2){ setStage(2); fileTicket(); renderTicket(); }
+    } else if(phase==='alert'||phase==='acked'){
+      setStage(2); $('pollLbl').textContent=`poll #${poll} · 1 open ticket`;
       log('CR outage persists, ticket already open, no duplicate filed (idempotent)', 't');
     } else if(phase==='recovering'){
-      cycles++;
-      setStage(3);
-      document.getElementById('pollLbl').textContent=`poll #${poll} · recovering (${cycles}/2)`;
+      cycles++; setStage(3); $('pollLbl').textContent=`poll #${poll} · recovering (${cycles}/2)`;
       log(`CR clean, recovery cycle ${cycles}/2`, 'ok');
-      if(cycles>=2){
-        phase='recovered';
-        log('every source clear → moving ticket to Recovered + closing', 'ok');
-        renderDevices(); renderTickets();
-        setTimeout(()=>{
-          phase='nominal'; ticketFiled=false; setStage(-1);
-          document.getElementById('pollLbl').textContent=`poll #${poll} · idle · all nominal`;
-          document.getElementById('knockBtn').disabled=false;
-          renderDevices(); renderTickets();
-          clearInterval(timer); timer=null;
-          log('back to nominal, watching.', 'acc');
-        }, 1800);
-        clearInterval(timer); timer=null;
-      }
+      if(cycles>=2){ recover(); }
     }
   }, 2000);
 }
-renderDevices(); renderTickets();
+renderDevices(); renderTicket();
 log('engine started · polling UniFi + UptimeRobot every 2 min · 6 entities watched', 'acc');
 </script>
 </body>
