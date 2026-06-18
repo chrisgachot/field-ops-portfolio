@@ -3,18 +3,20 @@
 <head>
 
 <script>
-/* DEMO DATA LAYER (no live systems). Feeds the real Beacon UI incl. History & insights + reliability widgets; Cedar Ridge degraded. */
+/* DEMO DATA LAYER (no live systems). Feeds the real Beacon UI incl. History & insights, ISP
+   reliability, root-cause; one property degraded; acks + ignores are STATEFUL so ack/hide stick. */
 (function(){
   var now=Math.floor(Date.now()/1000), DAY=86400;
+  function dailyIsp(seed,dips){ var a=[]; for(var i=0;i<30;i++){ var v=100; if(((i*7+seed)%30)<dips) v=100-([6,14,3,22,9][(i+seed)%5]); a.push(v); } return a; }
   var PROPS=[
-    {name:'Cedar Ridge (CR12)', code:'CR12', dev:24, u:[99.21,98.64,98.12]},
-    {name:'Harbor Point (HP08)', code:'HP08', dev:18, u:[99.98,99.71,99.42]},
-    {name:'Aspen Hollow (AH21)', code:'AH21', dev:31, u:[100,99.99,99.95]},
-    {name:'Lakeside (LK33)', code:'LK33', dev:22, u:[99.95,99.41,98.92]},
-    {name:'Summit View (SV45)', code:'SV45', dev:16, u:[99.99,99.97,99.96]},
-    {name:'Orchard Lane (OL52)', code:'OL52', dev:27, u:[99.97,99.90,99.83]},
-    {name:'Birch Hollow (BH14)', code:'BH14', dev:14, u:[99.90,99.78,99.66]},
-    {name:'Marsh Landing (ML19)', code:'ML19', dev:19, u:[99.96,99.90,99.85]}
+    {name:'Cedar Ridge (CR12)', code:'CR12', dev:24, u:[99.21,98.64,98.12], isp:{ispName:'Comcast Business', uptimePct:97.8, avgLatencyMs:21, latencyMs:24, daily:dailyIsp(1,5)}},
+    {name:'Harbor Point (HP08)', code:'HP08', dev:18, u:[99.98,99.71,99.42], isp:{ispName:'Comcast Business', uptimePct:99.6, avgLatencyMs:18, latencyMs:17, daily:dailyIsp(2,2)}},
+    {name:'Aspen Hollow (AH21)', code:'AH21', dev:31, u:[100,99.99,99.95], isp:{ispName:'Starlink', uptimePct:99.9, avgLatencyMs:44, latencyMs:41, daily:dailyIsp(3,1)}},
+    {name:'Lakeside (LK33)', code:'LK33', dev:22, u:[99.95,99.41,98.92], isp:{ispName:'Verizon Fios', uptimePct:99.2, avgLatencyMs:9, latencyMs:8, daily:dailyIsp(4,3)}},
+    {name:'Summit View (SV45)', code:'SV45', dev:16, u:[99.99,99.97,99.96], isp:{ispName:'Verizon Fios', uptimePct:99.95, avgLatencyMs:8, latencyMs:9, daily:dailyIsp(5,0)}},
+    {name:'Orchard Lane (OL52)', code:'OL52', dev:27, u:[99.97,99.90,99.83], isp:{ispName:'Comcast Business', uptimePct:99.7, avgLatencyMs:19, latencyMs:20, daily:dailyIsp(6,1)}},
+    {name:'Birch Hollow (BH14)', code:'BH14', dev:14, u:[99.90,99.78,99.66], isp:{ispName:'Starlink', uptimePct:99.4, avgLatencyMs:47, latencyMs:52, daily:dailyIsp(7,2)}},
+    {name:'Marsh Landing (ML19)', code:'ML19', dev:19, u:[99.96,99.90,99.85], isp:{ispName:'Verizon Fios', uptimePct:99.9, avgLatencyMs:8, latencyMs:8, daily:dailyIsp(8,0)}}
   ];
   var degraded=PROPS[0];
   function logsFor(seed,n){ var a=[]; for(var i=0;i<n;i++){ var daysAgo=((i*13+seed*7)%85)+2; var dt=now-daysAgo*DAY-seed*3600; var dur=[1320,2640,5400,900,4200][(i+seed)%5]; a.push({type:1,datetime:dt,duration:dur}); } return a; }
@@ -22,8 +24,8 @@
     return {id:1000+i, friendly_name:p.name, url:'https://example.com', type:1, status:2, custom_uptime_ratio:p.u.join('-'), create_datetime:now-200*DAY, logs:logsFor(i,n)}; });
   var ovrc={items:[{displayAs:'Estate Portfolio', locations:PROPS.map(function(p){ return {name:p.name, deviceCount:p.dev, offlineDeviceCount:(p===degraded?1:0)}; })}]};
   var unifi={hosts:PROPS.map(function(p){ return (p===degraded)
-      ? {name:p.name, deviceCount:p.dev, offlineDeviceCount:1, offlineDevices:[{mac:'a1:b2:c3:d4:e5:f6', name:'Boathouse Camera'}]}
-      : {name:p.name, deviceCount:p.dev, offlineDeviceCount:0, offlineDevices:[]}; })};
+      ? {name:p.name, deviceCount:p.dev, offlineDeviceCount:1, offlineDevices:[{mac:'a1:b2:c3:d4:e5:f6', name:'Boathouse Camera'}], isp:p.isp}
+      : {name:p.name, deviceCount:p.dev, offlineDeviceCount:0, offlineDevices:[], isp:p.isp}; })};
   var slack={ok:true, messages:PROPS.map(function(p){ return {type:'message', text:'UPS: '+p.name+' | online'}; })};
   var tickets={}; tickets[degraded.name]=[{gid:'1208887766', title:degraded.name+' network device offline (Boathouse Camera)', statusName:'Alert!', kind:'unifi', permalink:'#'}];
   function iso(sec){ return new Date(sec*1000).toISOString(); }
@@ -35,7 +37,11 @@
     var dt=incs.reduce(function(t,inc){ return t+(inc.ongoing?0:Math.max(0,(Date.parse(inc.completed_at)-Date.parse(inc.created_at))/1000)); },0);
     hist[s[0]]={code:s[0], count:s[1], openCount:(s[2]?1:0), totalDowntimeSec:Math.floor(dt), incidents:incs}; });
   var history={ok:true, sites:hist, generatedAt:iso(now)};
+
+  /* stateful acks + ignores so Acknowledge and Hide persist (server echoes the updated map) */
+  var ackState={}, ignState={};
   function J(o){ return new Response(JSON.stringify(o), {status:200, headers:{'Content-Type':'application/json'}}); }
+  function parseBody(opts){ try{ return JSON.parse(opts&&opts.body||'{}'); }catch(e){ return {}; } }
   var realFetch=window.fetch?window.fetch.bind(window):null;
   window.fetch=function(url,opts){
     try{ var u=(typeof url==='string')?url:(url&&url.url)||'';
@@ -46,8 +52,14 @@
         if(u.indexOf('slack')!==-1) return Promise.resolve(J(slack));
         if(u.indexOf('asana-history')!==-1) return Promise.resolve(J(history));
         if(u.indexOf('asana-tickets')!==-1) return Promise.resolve(J({ok:true, tickets:tickets}));
-        if(u.indexOf('acks')!==-1) return Promise.resolve(J({ok:true, acks:{}}));
-        if(u.indexOf('ignores')!==-1) return Promise.resolve(J({ok:true, ignores:{}}));
+        if(u.indexOf('acks')!==-1){ var b=parseBody(opts);
+          if(b.action==='set'){ ackState[b.name]={until:Date.now()+(b.durationMs||3600000), by:'A. Rivera', at:Date.now()}; }
+          else if(b.action==='clear'){ ackState[b.name]={deleted:true, at:Date.now()}; }
+          return Promise.resolve(J({ok:true, acks:ackState})); }
+        if(u.indexOf('ignores')!==-1){ var ib=parseBody(opts);
+          if(ib.action==='ignore'){ ignState[ib.mac]={mac:ib.mac, name:ib.name, property:ib.property, at:Date.now()}; }
+          else if(ib.action==='unignore'){ ignState[ib.mac]={deleted:true, at:Date.now(), mac:ib.mac}; }
+          return Promise.resolve(J({ok:true, ignores:ignState})); }
         if(u.indexOf('asana')!==-1) return Promise.resolve(J({ok:true, commented:1, test:false}));
         return Promise.resolve(J({ok:true}));
       }
