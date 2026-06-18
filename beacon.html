@@ -2,9 +2,8 @@
 <html lang="en">
 <head>
 
-
 <script>
-/* DEMO DATA LAYER (no live systems). Feeds the real Beacon UI incl. History & insights; Cedar Ridge degraded. */
+/* DEMO DATA LAYER (no live systems). Feeds the real Beacon UI incl. History & insights + reliability widgets; Cedar Ridge degraded. */
 (function(){
   var now=Math.floor(Date.now()/1000), DAY=86400;
   var PROPS=[
@@ -71,10 +70,8 @@
 <meta property="og:image:type" content="image/png" />
 <meta property="og:image:width" content="1200" />
 <meta property="og:image:height" content="630" />
-<meta property="og:image:alt" content="Field Ops, teal cassette-futurism cover" />
 <meta name="twitter:card" content="summary_large_image" />
 <meta name="twitter:title" content="Beacon, a Field Ops live demo" />
-<meta name="twitter:description" content="Live in-browser demo: an always-on infrastructure status wall. Part of the Field Ops portfolio by Chris Gachot." />
 <meta name="twitter:image" content="https://demos.chrisgachot.com/og-image.png" />
   <title>Beacon — the Estate Status</title>
 
@@ -90,6 +87,17 @@
   <link rel="apple-touch-icon" href="/apple-touch-icon.png">
 
   <!-- Social sharing -->
+  <meta property="og:type" content="website">
+  <meta property="og:title" content="Beacon — the Estate Status">
+  <meta property="og:description" content="Live infrastructure monitoring for the Estate.">
+  <meta property="og:url" content="https://#/">
+  <meta property="og:image" content="https://#/og-image.png">
+  <meta property="og:image:width" content="1200">
+  <meta property="og:image:height" content="630">
+  <meta name="twitter:card" content="summary_large_image">
+  <meta name="twitter:title" content="Beacon — the Estate Status">
+  <meta name="twitter:description" content="Live infrastructure monitoring for the Estate.">
+  <meta name="twitter:image" content="https://#/og-image.png">
 
   <!-- Invite/recovery flow, step 1 of 2: if Identity sends an invite or recovery
        token in the URL hash, stash it and strip the hash BEFORE the widget loads so
@@ -594,8 +602,6 @@
       .cards .card { flex: 1 1 calc(50% - 5px); } /* equal cards, two per row */
       .card { padding: 12px 12px; }
       .card-value { font-size: 1.6rem; }
-      .hero-n { font-size: 2rem; }
-      .hero-down .hero-n { font-size: 1.4rem; }
 
       .controls {
         gap: 6px;
@@ -811,20 +817,15 @@
     .card-dual{display:flex;gap:20px;align-items:baseline;}
     .card-stat{display:flex;flex-direction:column;}
     .card-dual .card-value{font-size:2.2rem;}
+    /* Calm, unified loading tag: pinned top-right of the card, dim, gently pulsing — so it
+       signals "in progress" without the amber blink the old inline "Loading…" caused. It's
+       a persistent element shown only while .is-syncing, so a refresh keeps the existing
+       values on screen (no blanking) and just flags that fresh data is on the way. */
+    .card-loading{position:absolute;top:14px;right:14px;font-family:'Share Tech Mono',monospace;
+      font-size:0.58rem;letter-spacing:0.16em;text-transform:uppercase;color:var(--teal-dim);
+      opacity:0;transition:opacity .25s;pointer-events:none;}
+    .card.is-syncing .card-loading{opacity:0.7;animation:blink 1.8s ease-in-out infinite;}
 
-    /* ── Monitors hero (up = big number, down badge, up/down ratio bar) ── */
-    .card-hero{display:flex;flex-direction:column;}
-    .hero-top{display:flex;align-items:flex-end;justify-content:space-between;gap:16px;margin:2px 0 12px;}
-    .hero-up{display:flex;align-items:baseline;gap:9px;}
-    .hero-down{display:flex;align-items:baseline;gap:7px;}
-    .hero-n{font-family:'VT323',monospace;font-size:2.4rem;line-height:0.8;text-shadow:0 0 14px currentColor;}
-    .hero-down .hero-n{font-size:1.6rem;}
-    .hero-l{font-size:0.66rem;color:var(--teal-dim);text-shadow:none;text-transform:uppercase;letter-spacing:0.14em;}
-    .hero-bar{height:8px;border-radius:4px;overflow:hidden;display:flex;border:1px solid var(--border);background:#0a1a18;margin-top:auto;}
-    .hero-bar i{display:block;height:100%;transition:width .4s ease;}
-    .hero-bar .up{background:var(--teal);box-shadow:0 0 10px var(--teal);}
-    .hero-bar .down{background:var(--red);box-shadow:0 0 10px var(--red);}
-    .hero-foot{display:flex;justify-content:space-between;font-size:0.7rem;color:var(--teal-dim);text-shadow:none;margin-top:7px;}
     /* Roomier padding on wide displays; the bar lengthens as cards grow. */
     @media (min-width:1200px){
       .cards .card{padding:16px 18px;}
@@ -993,9 +994,9 @@
     .tile.tile-ack{border-left:3px solid var(--amber);opacity:0.78;}
 
     /* ── Alert panel (state-driven, glanceable from across the room) ── */
-    #alert-panel{display:flex;flex-direction:column;gap:14px;margin-bottom:18px;}
+    #alert-panel{display:flex;flex-direction:column;gap:10px;margin-bottom:16px;}
     .alert-card{
-      position:relative;border:2px solid var(--red);border-radius:10px;cursor:pointer;padding:16px 22px;
+      position:relative;border:2px solid var(--red);border-radius:10px;cursor:pointer;padding:11px 20px;
       background:linear-gradient(180deg,rgba(255,40,28,0.12),rgba(255,40,28,0.03));
       animation:alertCardPulse 1.6s ease-in-out infinite;transition:background .15s;
     }
@@ -1007,14 +1008,21 @@
       50%{box-shadow:0 0 36px rgba(255,40,28,0.6),inset 0 0 42px rgba(255,40,28,0.12);}
     }
     .alert-card-head{display:flex;align-items:center;gap:16px;flex-wrap:wrap;}
-    .alert-card-name{font-family:'VT323',monospace;font-size:2.7rem;line-height:1;color:#fff;letter-spacing:0.04em;text-shadow:0 0 15px rgba(255,59,47,0.9);}
+    .alert-card-name{font-family:'VT323',monospace;font-size:2.4rem;line-height:1;color:#fff;letter-spacing:0.04em;text-shadow:0 0 15px rgba(255,59,47,0.9);}
     .alert-card.alert-warn .alert-card-name,.alert-card.alert-ack .alert-card-name{text-shadow:0 0 12px rgba(255,184,77,0.75);}
     .alert-card-level{font-family:'VT323',monospace;font-size:1.5rem;letter-spacing:0.06em;text-transform:uppercase;color:var(--red);}
     .alert-card.alert-warn .alert-card-level,.alert-card.alert-ack .alert-card-level{color:var(--amber);}
     .alert-card-spacer{flex:1;}
-    .alert-card-summary{margin-top:8px;font-size:1rem;color:var(--teal);letter-spacing:0.03em;}
-    .alert-card-hint{margin-top:6px;font-size:0.68rem;color:var(--teal-dim);text-transform:uppercase;letter-spacing:0.12em;}
+    .alert-card-summary{margin-top:5px;font-size:1rem;color:var(--teal);letter-spacing:0.03em;}
+    /* Inferred "likely cause" chip — confidence is encoded in the colour/weight so it reads
+       from across the room without over-claiming when the signal is weak. */
+    .alert-card-cause{margin-top:5px;font-size:0.92rem;letter-spacing:0.02em;display:inline-flex;align-items:center;gap:6px;}
+    .alert-card-cause.cause-likely{color:var(--amber-bright);}
+    .alert-card-cause.cause-possible{color:var(--teal-dim);font-style:italic;}
+    .alert-card-hint{margin-top:5px;font-size:0.68rem;color:var(--teal-dim);text-transform:uppercase;letter-spacing:0.12em;}
     .alert-card.open .alert-card-hint{opacity:0.4;}
+    /* Signage can't be clicked — drop the "click for details" hint on the wall to save height. */
+    body.kiosk .alert-card-hint{display:none;}
     .alert-detail{margin-top:14px;padding-top:12px;border-top:1px solid rgba(63,224,216,0.2);display:none;}
     .alert-card.open .alert-detail{display:block;}
     .dtl-row{display:flex;justify-content:space-between;gap:16px;padding:5px 0;border-bottom:1px dotted rgba(63,224,216,0.12);font-size:0.88rem;}
@@ -1024,16 +1032,25 @@
     .dtl-section{margin-top:14px;}
     .dtl-section:first-child{margin-top:0;}
     .dtl-section-title{color:var(--teal-dim);text-transform:uppercase;letter-spacing:0.1em;font-size:0.68rem;margin-bottom:6px;}
+    .isp-line{font-size:0.85rem;color:var(--teal);}
     .ticket-link{display:flex;align-items:center;gap:8px;padding:7px 10px;margin-bottom:6px;font-size:0.86rem;
       color:var(--teal);text-decoration:none;border:1px solid rgba(63,224,216,0.3);border-radius:6px;background:rgba(63,224,216,0.06);}
     .ticket-link:hover{border-color:var(--teal);background:rgba(63,224,216,0.14);}
     .ticket-link:last-child{margin-bottom:0;}
     .ticket-status{color:var(--teal-dim);font-size:0.78rem;}
     .ticket-none{font-size:0.82rem;color:var(--teal-dim);font-style:italic;}
+    /* Past-ticket history rows: compact one-liners (title + when · duration). */
+    .ticket-hist{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:4px 0;
+      font-size:0.82rem;color:var(--teal);text-decoration:none;border-bottom:1px dotted rgba(63,224,216,0.12);}
+    .ticket-hist:last-child{border-bottom:none;}
+    .ticket-hist-title{overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
+    .ticket-hist:hover .ticket-hist-title{color:var(--teal-bright);text-decoration:underline;}
+    .ticket-hist-meta{color:var(--teal-dim);font-size:0.74rem;white-space:nowrap;flex:none;}
+    .ticket-hist-more{color:var(--teal-dim);font-size:0.74rem;font-style:italic;padding-top:4px;}
     /* Signage has no one to click — hide ticket links there (fetch is skipped too). */
     body.kiosk .ticket-section{display:none;}
     /* Offline UniFi devices listed right on a degraded bar (no expand needed). */
-    .offline-list{margin-top:10px;display:flex;flex-wrap:wrap;gap:8px;}
+    .offline-list{margin-top:8px;display:flex;flex-wrap:wrap;gap:8px;}
     .offline-chip{display:inline-flex;align-items:center;gap:6px;font-size:0.82rem;color:var(--amber);
       background:rgba(255,184,77,0.08);border:1px solid rgba(255,184,77,0.3);border-radius:6px;padding:3px 8px;}
     .offline-chip .dot{width:7px;height:7px;margin-right:0;}
@@ -1067,6 +1084,39 @@
       text-shadow:none;letter-spacing:0.06em;text-transform:none;}
     .iempty{color:var(--teal-dim);font-size:0.85rem;padding:8px 0;}
 
+    /* Configurable widgets: per-widget drag/collapse/hide chrome + edit-mode toolbar */
+    .widget{display:block;}
+    .wctl{display:inline-flex;align-items:center;gap:5px;margin-right:6px;align-self:center;}
+    .wbtn{background:none;border:none;color:var(--teal-dim);cursor:pointer;font-size:0.95rem;line-height:1;padding:0 2px;text-shadow:none;}
+    .wbtn:hover{color:var(--teal);}
+    .whide:hover{color:var(--amber);}
+    .wdrag{color:var(--teal-dim);cursor:grab;font-size:0.95rem;user-select:none;}
+    .widget.editing{outline:1px dashed var(--border);outline-offset:3px;border-radius:8px;cursor:grab;}
+    .widget.editing:hover{outline-color:var(--teal-dim);}
+    .widget.dragging{opacity:0.45;}
+    .widget.drop-before{box-shadow:0 -3px 0 0 var(--teal);}
+    .widget.drop-after{box-shadow:0 3px 0 0 var(--teal);}
+    /* Rolled-up widget: keep only the title row as a slim header */
+    .widget.collapsed .icard > *:not(.icard-title){display:none;}
+    .widget.collapsed .icard{gap:0;padding-bottom:15px;}
+    .widget.collapsed .icard-sub,.widget.collapsed .rel-toggle{display:none;}
+    .insights-toolbar.editing{display:flex;flex-direction:column;gap:9px;margin-bottom:12px;padding:10px 12px;
+      border:1px dashed var(--teal-dim);border-radius:8px;background:rgba(63,224,216,0.04);}
+    .wedit-head{display:flex;flex-wrap:wrap;align-items:center;gap:7px 12px;}
+    .wedit-title{font-family:'Share Tech Mono',monospace;font-size:0.74rem;letter-spacing:0.08em;text-transform:uppercase;color:var(--teal);}
+    .wedit-hint{font-size:0.66rem;color:var(--teal-dim);}
+    .wedit-hint b{color:var(--teal);font-weight:normal;}
+    .wedit-head .wedit{margin-left:auto;}
+    .wedit-hidden{display:flex;flex-wrap:wrap;align-items:center;gap:8px;}
+    .wedit-hidden .wreset{margin-left:auto;}
+    .wedit,.wreset,.whidden-chip{background:none;border:1px solid var(--border);color:var(--teal-dim);border-radius:5px;cursor:pointer;
+      font-family:'Share Tech Mono',monospace;font-size:0.68rem;letter-spacing:0.05em;text-transform:uppercase;padding:5px 11px;white-space:nowrap;}
+    .wedit:hover,.wreset:hover,.whidden-chip:hover{color:var(--teal);border-color:var(--teal);}
+    .wedit.on{color:var(--bg);background:var(--teal);border-color:var(--teal);}
+    .whidden-label{font-size:0.66rem;color:var(--teal-dim);text-transform:uppercase;letter-spacing:0.08em;}
+    .whidden-none{font-size:0.7rem;color:var(--teal-dim);font-style:italic;}
+    body.kiosk .wctl,body.kiosk .insights-toolbar{display:none;}
+
     /* Fleet headline stats */
     .istats{display:flex;flex-wrap:wrap;gap:16px 32px;align-items:center;}
     .istat{display:flex;flex-direction:column;gap:3px;}
@@ -1076,16 +1126,6 @@
       padding:5px 11px;border-radius:999px;border:1px solid var(--border);}
     .itrend-up{color:var(--teal);} .itrend-down{color:var(--red);} .itrend-steady{color:var(--teal-dim);}
 
-    /* 90-day outage heatmap */
-    .hgrid{display:flex;gap:2px;height:30px;align-items:stretch;}
-    .hcell{flex:1;min-width:2px;border-radius:2px;cursor:crosshair;transition:transform .08s,opacity .08s;}
-    .hcell:hover{transform:scaleY(1.2);opacity:.92;}
-    .hcell-l0{background:#0f231f;}
-    .hcell-l1{background:var(--teal-dim);}
-    .hcell-l2{background:var(--amber);opacity:.85;}
-    .hcell-l3{background:var(--amber);box-shadow:0 0 6px rgba(255,184,77,.55);}
-    .hcell-l4{background:var(--red);box-shadow:0 0 8px rgba(255,59,47,.65);}
-
     /* Outage-timeline hover tooltip */
     #ins-tip{position:fixed;z-index:10050;pointer-events:none;display:none;max-width:340px;min-width:170px;
       background:#06201d;border:1px solid var(--teal);border-radius:7px;padding:9px 11px;
@@ -1093,16 +1133,19 @@
       font-family:'Share Tech Mono',monospace;font-size:0.76rem;color:var(--teal);text-shadow:none;}
     #ins-tip .tip-date{font-family:'VT323',monospace;font-size:1.3rem;color:var(--amber-bright);line-height:1;}
     #ins-tip .tip-count{font-size:0.62rem;color:var(--teal-dim);text-transform:uppercase;letter-spacing:0.1em;margin:2px 0 7px;}
-    #ins-tip .tip-item{display:flex;gap:7px;align-items:center;padding:2px 0;line-height:1.25;}
+    #ins-tip .tip-item{display:flex;gap:7px;align-items:baseline;padding:2px 0;line-height:1.25;}
     #ins-tip .tip-item em{color:var(--amber);font-style:normal;}
-    #ins-tip .tip-item .dot{flex:none;width:7px;height:7px;}
+    #ins-tip .tip-item .dot{flex:none;width:7px;height:7px;align-self:center;}
+    #ins-tip .tip-item-name{flex:1;min-width:0;}
+    #ins-tip .tip-item-dur{flex:none;color:var(--teal-dim);font-variant-numeric:tabular-nums;margin-left:8px;white-space:nowrap;}
     #ins-tip .tip-more{color:var(--teal-dim);font-size:0.7rem;margin-top:5px;}
     #ins-tip .tip-none{color:var(--teal-bright);}
+    #ins-tip .tip-note{color:var(--teal-dim);font-size:0.66rem;line-height:1.3;margin-top:6px;padding-top:5px;border-top:1px dotted rgba(63,224,216,0.18);}
 
     /* Attention rows (sites + devices) */
     .aitem + .aitem{margin-top:8px;}
     .aitem.muted{opacity:0.5;}
-    .arow{display:grid;grid-template-columns:200px minmax(160px,1fr) 158px 118px 66px;gap:16px;align-items:center;
+    .arow{display:grid;grid-template-columns:minmax(140px,1.5fr) minmax(150px,1.25fr) auto auto;gap:14px;align-items:center;
       padding:11px 12px;border:1px solid transparent;border-left-width:3px;border-radius:8px;background:rgba(63,224,216,0.02);
       cursor:pointer;transition:background .12s;}
     .arow:hover{background:rgba(63,224,216,0.06);}
@@ -1125,13 +1168,6 @@
     .at-bar-track i.f-ok{background:var(--teal);box-shadow:0 0 10px rgba(63,224,216,.5);}
     .at-bar-label{font-size:0.74rem;color:var(--teal-dim);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
     .at-bar-label b{font-family:'VT323',monospace;font-size:1.05rem;color:var(--teal-bright);letter-spacing:0.02em;}
-    /* 90-day history as one clean continuous ribbon (no barcode gaps, clipped, no footer) */
-    .at-spark{display:flex;flex-direction:column;gap:4px;min-width:0;}
-    .at-spark .uptime-bars{gap:0;}
-    .at-spark .ubar-track{height:10px;gap:0;border-radius:5px;overflow:hidden;border:1px solid var(--border);background:#0a1a18;}
-    .at-spark .ubar{min-width:0;border-radius:0;}
-    .at-spark .ubar-footer{display:none;}
-    .at-spark-cap{font-size:0.56rem;color:var(--teal-dim);text-shadow:none;text-transform:uppercase;letter-spacing:0.1em;}
     .at-stat{display:flex;flex-direction:column;align-items:center;gap:3px;}
     /* Row actions: hide/unhide + expand caret */
     .at-act{display:flex;flex-direction:column;align-items:flex-end;gap:6px;}
@@ -1160,20 +1196,24 @@
     .adetail-dur{color:var(--teal-bright);font-size:0.72rem;white-space:nowrap;text-align:right;}
     .adetail-row .dot{width:8px;height:8px;}
     .adetail-note{color:var(--teal-dim);font-size:0.76rem;padding:6px 0;}
-    .attn-foot{margin-top:10px;}
+    .attn-foot{margin-top:10px;display:flex;gap:8px;flex-wrap:wrap;}
     .at-showmuted{background:none;border:1px dotted var(--border);color:var(--teal-dim);border-radius:4px;cursor:pointer;
       font-family:'Share Tech Mono',monospace;font-size:0.66rem;letter-spacing:0.06em;padding:4px 10px;text-transform:uppercase;}
     .at-showmuted:hover{color:var(--teal);border-color:var(--teal);}
+    .at-unhideall{color:var(--amber);border-color:var(--amber);}
+    .at-unhideall:hover{color:var(--amber-bright);border-color:var(--amber-bright);}
     .at-when{font-size:0.6rem;color:var(--teal-dim);}
     .abadge{display:inline-flex;align-items:center;gap:5px;font-size:0.66rem;font-weight:600;text-transform:uppercase;
       letter-spacing:0.07em;padding:5px 10px;border-radius:999px;border:1px solid var(--border);white-space:nowrap;}
     .abadge-down{color:var(--red);border-color:rgba(255,59,47,.5);text-shadow:0 0 7px rgba(255,59,47,.7);}
     .abadge-warn{color:var(--amber);border-color:rgba(255,184,77,.5);}
-    .abadge-ok{color:var(--teal-dim);}
+    .abadge-recovered{color:var(--teal-dim);}            /* grey — recently recovered */
+    .abadge-healthy{color:var(--teal);border-color:rgba(63,224,216,.5);text-shadow:0 0 7px rgba(63,224,216,.55);} /* green */
     .abadge .dot{width:6px;height:6px;}
 
     .ongoing-badge{display:inline-flex;align-items:center;gap:4px;font-size:0.64rem;text-transform:uppercase;
       letter-spacing:0.08em;color:var(--red)!important;text-shadow:0 0 7px rgba(255,59,47,0.8);justify-content:flex-end;}
+    .ongoing-badge.ongoing-degraded{color:var(--amber)!important;text-shadow:0 0 7px rgba(255,184,77,0.6);}
     .ongoing-badge .dot{width:6px;height:6px;}
 
     /* Fleet-health 90-day trend (inline SVG area + line) */
@@ -1182,11 +1222,19 @@
     .ft-line{fill:none;stroke:var(--teal-bright);stroke-width:1.6;filter:drop-shadow(0 0 3px rgba(63,224,216,.55));}
     .ft-ref{stroke:var(--teal-dim);stroke-width:0.6;stroke-dasharray:2 3;opacity:0.5;}
     .ft-cursor{stroke:var(--amber-bright);stroke-width:0.8;opacity:0.85;}
+    .ft-cutoff{stroke:var(--teal-dim);stroke-width:1;stroke-dasharray:3 3;opacity:0.6;vector-effect:non-scaling-stroke;}
+    /* Per-day outage markers on the trend line (amber = some, red = a busy day) */
+    .ft-dot{stroke:#06201d;stroke-width:0.6;}
+    .ft-dot-mid{fill:var(--amber);filter:drop-shadow(0 0 3px rgba(255,184,77,.65));}
+    .ft-dot-hi{fill:var(--red);filter:drop-shadow(0 0 4px rgba(255,59,47,.75));}
     .fleet-trend-cap{display:flex;justify-content:space-between;font-size:0.6rem;color:var(--teal-dim);
       text-shadow:none;text-transform:uppercase;letter-spacing:0.1em;margin-top:3px;}
+    .ft-cap-note{color:var(--teal-dim);opacity:0.7;letter-spacing:0.06em;}
 
-    /* "Where to focus": scatter | spectrum — cassette-futurism graph-paper plot */
-    .focus-grid{display:grid;grid-template-columns:minmax(0,1.25fr) minmax(0,1fr);gap:20px;align-items:start;}
+    /* "Where to focus": scatter | needs-attention — cassette-futurism graph-paper plot.
+       Scatter narrower-left, attention list wider-right (it gains more from the width). */
+    .focus-attn{display:grid;grid-template-columns:minmax(0,0.85fr) minmax(0,1.15fr);gap:20px;align-items:start;}
+    .attn-col{min-width:0;}
     .scatter{position:relative;border:1px solid var(--border);border-radius:6px;padding:6px;
       background:linear-gradient(180deg,rgba(63,224,216,0.05),rgba(63,224,216,0.01));
       box-shadow:inset 0 0 26px rgba(63,224,216,0.05);}
@@ -1211,27 +1259,56 @@
       padding:1px 5px;vertical-align:middle;text-shadow:none;box-shadow:0 0 7px rgba(255,210,138,.5);}
     .rel-p1{background:rgba(255,184,77,0.07);border-left:2px solid var(--amber);border-radius:3px;padding-left:6px;}
     .rel-p1 .rel-code{color:var(--amber-bright);}
-    .spectrum .board-h{margin-bottom:8px;}
-    .spec-row{display:grid;grid-template-columns:54px 1fr 64px;gap:10px;align-items:center;padding:5px 4px;cursor:pointer;
-      border-bottom:1px dotted rgba(63,224,216,0.12);}
-    .spec-row:last-child{border-bottom:none;}
-    .spec-row:hover{background:rgba(63,224,216,0.05);}
-    .spec-code{font-family:'VT323',monospace;font-size:1.2rem;color:var(--amber);text-shadow:0 0 5px rgba(255,184,77,.4);}
-    .spec-row .at-bar-track{height:10px;}
-    .spec-stat{font-size:0.72rem;color:var(--teal-dim);text-align:right;white-space:nowrap;}
-
-    /* Sites board: needs attention | most reliable */
-    .sites-board{display:grid;grid-template-columns:minmax(0,1.5fr) minmax(0,1fr);gap:22px;align-items:start;}
     .board-h{font-family:'Share Tech Mono',monospace;font-size:0.72rem;text-transform:uppercase;letter-spacing:0.1em;
       color:var(--teal-dim);text-shadow:none;margin-bottom:10px;padding-bottom:5px;border-bottom:1px solid var(--border);}
-    .board-h-bad{color:var(--amber);} .board-h-good{color:var(--teal);}
-    .rel-row{display:grid;grid-template-columns:56px 64px 1fr;gap:10px;align-items:baseline;padding:7px 4px;cursor:pointer;
-      border-bottom:1px dotted rgba(63,224,216,0.12);}
-    .rel-row:last-child{border-bottom:none;}
+    .board-h-bad{color:var(--amber);}
+
+    /* Site-reliability widget: ranked rows that expand to a root-cause drill-down */
+    .rel-toggle{display:inline-flex;margin-left:auto;border:1px solid var(--border);border-radius:5px;overflow:hidden;align-self:center;}
+    .rel-seg{background:none;border:none;color:var(--teal-dim);font-family:'Share Tech Mono',monospace;
+      font-size:0.62rem;letter-spacing:0.07em;text-transform:uppercase;padding:5px 11px;cursor:pointer;}
+    .rel-seg + .rel-seg{border-left:1px solid var(--border);}
+    .rel-seg:hover{color:var(--teal);}
+    .rel-seg.on{color:var(--bg);background:var(--teal);}
+    .rel-item{border-bottom:1px dotted rgba(63,224,216,0.12);}
+    .rel-item:last-child{border-bottom:none;}
+    .rel-row{display:grid;grid-template-columns:minmax(64px,0.6fr) minmax(120px,1.8fr) 66px minmax(60px,0.8fr) 18px;gap:10px;align-items:center;
+      padding:7px 4px;cursor:pointer;}
     .rel-row:hover{background:rgba(63,224,216,0.05);}
     .rel-code{font-family:'VT323',monospace;font-size:1.3rem;color:var(--teal-bright);text-shadow:0 0 5px rgba(63,224,216,.4);}
     .rel-up{font-family:'VT323',monospace;font-size:1.2rem;}
     .rel-meta{font-size:0.68rem;color:var(--teal-dim);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+    .rel-row .at-caret{color:var(--teal-dim);font-size:0.8rem;text-align:right;}
+    /* Root-cause breakdown rows inside the drill-down */
+    .rc-row{display:grid;grid-template-columns:120px 1fr auto;gap:10px;align-items:center;padding:3px 0;font-size:0.76rem;}
+    .rc-label{color:var(--teal);white-space:nowrap;}
+    .rc-bar{height:9px;}
+    .rc-stat{color:var(--teal-dim);white-space:nowrap;font-variant-numeric:tabular-nums;}
+    .rc-stat b{font-family:'VT323',monospace;font-size:1rem;color:var(--teal-bright);}
+    .rc-live{display:flex;align-items:center;gap:7px;font-size:0.76rem;color:var(--amber);padding:2px 0;}
+    .rc-live .dot{width:7px;height:7px;flex:none;}
+
+    /* ISP-reliability widget: provider rows expand to their sites */
+    .isp-prov{border-bottom:1px dotted rgba(63,224,216,0.12);}
+    .isp-prov:last-child{border-bottom:none;}
+    .isp-prov-row{display:grid;grid-template-columns:minmax(0,1fr) minmax(90px,1.3fr) 66px 56px 18px;gap:10px;align-items:center;
+      padding:8px 4px;cursor:pointer;}
+    .isp-prov-row:hover{background:rgba(63,224,216,0.05);}
+    .isp-prov-name{font-family:'Share Tech Mono',monospace;font-size:0.9rem;color:var(--teal-bright);
+      white-space:nowrap;overflow:hidden;text-overflow:ellipsis;align-self:baseline;}
+    .isp-prov-count{color:var(--teal-dim);font-size:0.66rem;margin-left:8px;}
+    .isp-prov-meta{font-size:0.7rem;color:var(--teal-dim);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;align-self:baseline;}
+    .isp-prov-row .at-caret{color:var(--teal-dim);font-size:0.8rem;text-align:right;align-self:baseline;}
+    .isp-sites{padding:2px 0 8px 14px;border-left:2px solid var(--border);margin:0 0 6px 6px;
+      display:flex;flex-direction:column;gap:2px;animation:dtlIn .18s ease;}
+    .isp-site{display:grid;grid-template-columns:minmax(0,0.8fr) minmax(80px,1.3fr) 60px 52px;gap:10px;align-items:center;
+      padding:3px 0;font-size:0.76rem;}
+    .isp-site-code{font-family:'VT323',monospace;font-size:1.1rem;color:var(--amber);align-self:baseline;}
+    .isp-site-meta{color:var(--teal-dim);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;align-self:baseline;}
+    /* Compact 30-day ISP uptime ribbon (reuses .ubar colours; no footer) */
+    .isp-bars{display:block;min-width:0;}
+    .isp-bars .ubar-track{display:flex;gap:1px;height:14px;width:100%;border-radius:3px;overflow:hidden;}
+    .isp-bars .ubar{flex:1;min-width:0;border-radius:0;}
 
     /* Timeline 7-day strip (replaces the old recent-outages list) */
     .tl-summary{display:flex;flex-wrap:wrap;gap:6px 10px;align-items:center;margin-top:10px;font-size:0.74rem;}
@@ -1255,13 +1332,10 @@
       .at-bar-track{width:100%;}
       .at-bar-label{white-space:normal;}
       .at-stat{grid-area:stat;flex-direction:row;align-items:center;justify-content:flex-start;gap:12px;}
-      .at-spark{display:none;}
       .at-when{font-size:0.64rem;}
-      .hgrid{height:24px;gap:1.5px;}
       .attn-foot{margin-top:8px;}
       .adetail-row{grid-template-columns:9px 1fr auto;}
-      .focus-grid{grid-template-columns:1fr;gap:18px;}
-      .sites-board{grid-template-columns:1fr;gap:18px;}
+      .focus-attn{grid-template-columns:1fr;gap:18px;}
       .scatter-svg{aspect-ratio:16/10;min-height:200px;}
     }
 
@@ -1272,7 +1346,6 @@
       #last-refresh{display:inline-block!important;font-size:0.72rem;}
       .icard{padding:12px 13px 14px;}
       .icard-title{font-size:1.3rem;}
-      .hgrid{height:22px;}
       .at-code{font-size:1.5rem;}
       .istats{gap:12px 20px;}
       .istat-val{font-size:1.8rem;}
@@ -1283,8 +1356,8 @@
       .adetail-when{display:none;}
       #ins-tip{max-width:240px;}
       .fleet-trend svg{height:46px;}
-      .spec-code,.rel-code{font-size:1.1rem;}
-      .spec-stat,.rel-meta{font-size:0.66rem;}
+      .rel-code{font-size:1.1rem;}
+      .rel-meta{font-size:0.66rem;}
       .tl-summary{font-size:0.7rem;}
       .sc-label{font-size:10px;}
     }
@@ -1359,6 +1432,9 @@
         <div class="menu-item" role="menuitem" tabindex="0" onclick="openIgnored();closeMenu()">
           <span class="menu-label">Ignored devices</span><span class="menu-val" id="menu-ignored-count">0</span>
         </div>
+        <div class="menu-item" role="menuitem" tabindex="0" onclick="editInsightsLayout();closeMenu()">
+          <span class="menu-label">Edit layout</span><span class="menu-val">✎</span>
+        </div>
         <div class="menu-item" role="menuitem" tabindex="0" onclick="refreshAll();closeMenu()">
           <span class="menu-label">Refresh now</span>
         </div>
@@ -1378,30 +1454,15 @@
 
   <!-- Summary cards -->
   <div class="cards">
-    <div class="card card-hero">
+    <div class="card">
+      <span class="card-loading">loading</span>
       <div class="card-label">Monitors</div>
-      <div class="hero-top">
-        <div class="hero-up">
-          <span class="hero-n text-up" id="cnt-up">—</span>
-          <span class="hero-l">up</span>
-        </div>
-        <div class="hero-down">
-          <span class="hero-n text-down" id="cnt-down">—</span>
-          <span class="hero-l">down</span>
-        </div>
-      </div>
-      <div class="hero-bar">
-        <i class="up" id="bar-up" style="width:100%"></i>
-        <i class="down" id="bar-down" style="width:0%"></i>
-      </div>
-      <div class="hero-foot">
-        <span id="cnt-total">Loading…</span>
-        <span id="cnt-paused">—</span>
-      </div>
+      <div id="monitors-card"></div>
     </div>
     <a class="card card-clickable" href="https://app.ovrc.com/#/customers" target="_blank" rel="noopener">
+      <span class="card-loading">loading</span>
       <div class="card-label">OvrC</div>
-      <div class="card-status-line" id="ovrc-card"></div>
+      <div id="ovrc-card"></div>
     </a>
     <!-- APC SmartConnect chip hidden until the Slack feed is fixed; JS (showApcCard) still runs harmlessly. -->
     <a class="card card-clickable" href="https://smartconnect.apc.com" target="_blank" rel="noopener" style="display:none">
@@ -1410,6 +1471,7 @@
       <div id="apc-stale-note" class="apc-stale-note" style="display:none"></div>
     </a>
     <a class="card card-clickable" href="https://unifi.ui.com" target="_blank" rel="noopener">
+      <span class="card-loading">loading</span>
       <div class="card-label">UniFi devices</div>
       <div id="unifi-card"></div>
     </a>
@@ -1569,7 +1631,7 @@ let kiosk = false;
 let monitors = [];
 let ovrcMap  = {};   // { locationName: { deviceCount, offlineDeviceCount } }
 let apcMap   = {};   // { monitorName: [{ pluginStatus, upsOperatingMode, name }] }
-let unifiMap = {};   // { unifiKey(property): { deviceCount, offlineDeviceCount, offlineDevices:[{mac,name}], siteName } }
+let unifiMap = {};   // { unifiKey(property): { deviceCount, offlineDeviceCount, offlineDevices:[{mac,name}], siteName, isp:{ispName,uptimePct,avgLatencyMs,avgPacketLoss,latencyMs,…}|null } }
 let apcFromSlack = false; // true when live Slack data was loaded this cycle
 
 let currentFilter = 'all';
@@ -1584,10 +1646,13 @@ let asanaHistoryTs = 0;    // when asanaHistory last loaded (ms); refreshed lazi
 let asanaHistoryLoading = false;
 const ASANA_HISTORY_TTL = 10 * 60 * 1000; // 10 min — Asana scan is heavy; never on the 60s loop
 let insightsDayDetail = [];   // [90] per-day { date, items:[{label,sev,site}] } for the timeline hover tooltip
+let insightsSiteDayDetail = {}; // { [code]: [90] arrays of {label,sev,site,dur} } — per-site rich ribbon hover
 let insightsFleetDaily = [];  // [90] fleet-health % per day, for the trend-line hover tooltip
+let insightsDegradedSinceIdx = -1; // day index where UniFi/degraded tracking begins; days before it are outages-only (-1 = nothing to mark)
 let insightsSites = {};       // code → { up, inc, dt, sev, p1, recent[] } for the scatter-dot hover
-let insightsExpanded = new Set(); // attention-row keys ('site:CODE' / 'mon:NAME') currently expanded
+let insightsExpanded = new Set(); // expanded row keys ('site:CODE' / 'mon:NAME' / 'rel:CODE' / 'isp:NAME')
 let insightsShowMuted = false;    // reveal muted (hidden) sites/devices for un-hiding
+let insightsReliableBest = false; // Site-reliability toggle: false = least reliable (default), true = most reliable
 // Priority-1 flagship sites — always highlighted (pinned + badged) in the insights board.
 const P1_SITES = new Set(['LS03', 'LS18', 'CHR1', 'UN16']);
 const isP1 = (code) => P1_SITES.has(String(code || '').toUpperCase().replace(/[^A-Z0-9]/g, ''));
@@ -1684,21 +1749,47 @@ function getOvrcCellStatus(locationData) {
   return { dot: 'dot-down',  cls: 'text-down',  text: `0/${deviceCount}` };
 }
 
+// First-load skeleton for the three summary cards (Monitors / OvrC / UniFi): muted "—"
+// placeholders under the real labels, so the very first paint isn't a blank card.
+function cardSkeletonHTML(labelA, labelB) {
+  return `<div class="card-dual">
+      <div class="card-stat"><div class="card-value text-na">—</div><div class="card-sub">${labelA}</div></div>
+      <div class="card-stat"><div class="card-value text-na">—</div><div class="card-sub">${labelB}</div></div>
+    </div>`;
+}
+
+// Flag a summary card as refreshing (dim "loading" tag, top-right) WITHOUT wiping what's already
+// on screen — values, OR a terminal "Not configured"/"Failed to load" state, stay put and are
+// swapped only when fresh data lands. The "—" skeleton shows only on the very first load, when
+// the card is still empty.
+function startCardSync(el, labelA, labelB) {
+  if (!el.firstElementChild) el.innerHTML = cardSkeletonHTML(labelA, labelB);
+  el.closest('.card').classList.add('is-syncing');
+}
+function endCardSync(el) { el.closest('.card')?.classList.remove('is-syncing'); }
+
 function showOvrcCard(state, msg) {
   const el = document.getElementById('ovrc-card');
-  if (state === 'loading') {
-    el.innerHTML = `<span class="dot dot-checking"></span><span class="text-checking">Loading…</span>`;
-  } else if (state === 'no-token') {
+  endCardSync(el);
+  if (state === 'no-token') {
     el.innerHTML = `<span class="dot dot-paused"></span><span class="text-paused">Not configured</span>`;
   } else if (state === 'error') {
     el.innerHTML = `<span class="dot dot-warn"></span><span class="text-warn">${msg}</span>`;
   } else if (state === 'ok') {
-    const total  = Object.keys(ovrcMap).length;
-    const down   = Object.values(ovrcMap).filter(l => l.offlineDeviceCount > 0).length;
-    const online = total - down;
-    const dot  = down === 0 ? 'dot-up'   : down < total ? 'dot-warn' : 'dot-down';
-    const tcls = down === 0 ? 'text-up'  : down < total ? 'text-warn' : 'text-down';
-    el.innerHTML = `<span class="dot ${dot}"></span><span class="${tcls}">${online}/${total} locations online</span>`;
+    // Same grammar as the UniFi card: two problem-framed ratios, amber when > 0, teal
+    // when all clear.
+    const sites        = Object.values(ovrcMap);
+    const totalLocs    = sites.length;
+    const totalDevices = sites.reduce((n, s) => n + (s.deviceCount || 0), 0);
+    const offDevices   = sites.reduce((n, s) => n + (s.offlineDeviceCount || 0), 0);
+    const downLocs     = sites.filter(s => s.offlineDeviceCount > 0).length;
+    const offCls = offDevices === 0 ? 'text-up' : 'text-warn';
+    const locCls = downLocs   === 0 ? 'text-up' : 'text-warn';
+    el.innerHTML = `
+      <div class="card-dual">
+        <div class="card-stat"><div class="card-value ${offCls}">${offDevices}/${totalDevices}</div><div class="card-sub">offline devices</div></div>
+        <div class="card-stat"><div class="card-value ${locCls}">${downLocs}/${totalLocs}</div><div class="card-sub">degraded sites</div></div>
+      </div>`;
   }
   updateStatusBanner();
 }
@@ -1733,20 +1824,50 @@ async function fetchUnifiData() {
   (data.hosts || []).forEach(h => {
     const k = unifiKey(h.name);
     if (!k) return;
-    if (!map[k]) map[k] = { deviceCount: 0, offlineDeviceCount: 0, offlineDevices: [], siteName: h.name };
+    if (!map[k]) map[k] = { deviceCount: 0, offlineDeviceCount: 0, offlineDevices: [], siteName: h.name, isp: null };
     map[k].deviceCount        += h.deviceCount || 0;
     map[k].offlineDeviceCount += h.offlineDeviceCount || 0;
     map[k].offlineDevices      = map[k].offlineDevices.concat(h.offlineDevices || []);
+    // Several hosts can roll into one property (e.g. "CN96" + "CN96 NVR"); the WAN/ISP
+    // metrics live on the gateway host, so keep the first non-null we see.
+    if (h.isp && !map[k].isp) map[k].isp = h.isp;
   });
+  // The fast refresh fetches devices only (no ISP — that's pulled separately in the
+  // background by fetchUnifiIsp). Carry over any ISP we already have so it isn't wiped.
+  Object.keys(map).forEach(k => { if (!map[k].isp && unifiMap[k] && unifiMap[k].isp) map[k].isp = unifiMap[k].isp; });
   return map;
+}
+
+// ISP/WAN metrics are heavy (30d of samples), so they're fetched out-of-band from the 60s
+// device refresh: a throttled background call (?isp=1) that merges ISP onto unifiMap and
+// re-renders the bits that show it. Never blocks the dashboard. TTL-throttled.
+let unifiIspTs = 0;
+const UNIFI_ISP_TTL = 10 * 60 * 1000; // 10 min — WAN metrics are hourly, no need to poll fast
+async function fetchUnifiIsp(force) {
+  if (kiosk) return;                       // signage shows the default board; skip the extra call
+  if (!force && Date.now() - unifiIspTs < UNIFI_ISP_TTL) return;
+  unifiIspTs = Date.now();
+  try {
+    const { ok, data } = await callFn(FN_UNIFI + '?isp=1');
+    if (!ok) { unifiIspTs = 0; return; }   // let it retry next cycle
+    let merged = false;
+    (data.hosts || []).forEach(h => {
+      if (!h.isp) return;
+      const k = unifiKey(h.name);
+      // Only annotate hosts the device fetch already knows — never synthesize a phantom
+      // 0-device entry. (fetchUnifiData runs first in the refresh, so real hosts exist here.)
+      if (!k || !unifiMap[k]) return;
+      unifiMap[k].isp = h.isp; merged = true;   // refresh (TTL-gated), not just first-fill
+    });
+    if (merged) { if (showInsights && !insightsEditMode) renderInsights(); renderAlertPanel(); }
+  } catch (e) { unifiIspTs = 0; }
 }
 
 function showUnifiCard(state, msg) {
   const el = document.getElementById('unifi-card');
   if (!el) return;
-  if (state === 'loading') {
-    el.innerHTML = `<span class="dot dot-checking"></span><span class="text-checking">Loading…</span>`;
-  } else if (state === 'no-token') {
+  endCardSync(el);
+  if (state === 'no-token') {
     el.innerHTML = `<span class="dot dot-paused"></span><span class="text-paused">Not configured</span>`;
   } else if (state === 'error') {
     el.innerHTML = `<span class="dot dot-warn"></span><span class="text-warn">${msg}</span>`;
@@ -2015,15 +2136,37 @@ function computeDailyStatuses(logs, numDays, createDatetime) {
       else if (downSecs[i] >= DAY_WARN_SECS) days[i] = 'warn';
     }
   }
+  // Stash per-day downtime + the reference 'now' so renderUptimeBars can build date/detail
+  // hover tooltips without recomputing. Extra props on the array; other callers ignore them.
+  days._downSecs = downSecs;
+  days._asOf = now;
   return days;
 }
 
+// The N per-bar date labels are identical for every row in a render (same day-aligned window),
+// so memoize them by (day-bucket, length). Without this, the table view formatted 90 Intl dates
+// per row on every refresh — thousands of Intl.DateTimeFormat calls for tooltips. Keyed per call.
+let _ubarDates = null, _ubarDatesKey = '';
+function ubarDateStrings(asOf, numDays) {
+  const key = Math.floor(asOf / 86400) + ':' + numDays;
+  if (_ubarDatesKey === key) return _ubarDates;
+  const arr = new Array(numDays);
+  for (let i = 0; i < numDays; i++) arr[i] = new Date((asOf - (numDays - 1 - i) * 86400) * 1000).toLocaleDateString([], { month: 'short', day: 'numeric' });
+  _ubarDates = arr; _ubarDatesKey = key;
+  return arr;
+}
 function renderUptimeBars(days, pct) {
   const LABELS = { up: 'Operational', warn: 'Degraded', down: 'Outage', unknown: 'No data' };
-  const bars = days.map(s =>
-    `<span class="ubar ubar-${s}" title="${LABELS[s]}"></span>`
-  ).join('');
   const numDays = days.length;
+  const asOf = days._asOf || Math.floor(Date.now() / 1000);
+  const downSecs = days._downSecs || null;
+  const dates = ubarDateStrings(asOf, numDays);
+  // Each bar's hover shows its date and status, plus the day's downtime when there was any.
+  const bars = days.map((s, i) => {
+    let detail = LABELS[s];
+    if (downSecs && downSecs[i] > 0) detail += ` · ${fmtDur(downSecs[i])} down`;
+    return `<span class="ubar ubar-${s}" title="${dates[i]} — ${detail}"></span>`;
+  }).join('');
   const pctText = pct !== null ? pct.toFixed(2) + '%' : '—';
   return `<div class="uptime-bars">
     <div class="ubar-track">${bars}</div>
@@ -2059,7 +2202,7 @@ function renderView() {
   else renderTable();
   updateAllToggle();
   updateInsightsToggle();
-  renderInsights();                 // early-returns unless the panel is open
+  if (!insightsEditMode) renderInsights();   // early-returns unless open; skip mid-edit so a refresh can't interrupt a drag
   if (showInsights) fetchAsanaHistory();  // self-throttled (TTL); refreshes the Asana side
 }
 
@@ -2133,13 +2276,12 @@ function aggregateHistory(mons) {
     const code = propCode(m.friendly_name);
     if (code) {
       let s = siteMap.get(code);
-      if (!s) { s = { code, days: new Array(HEAT_DAYS).fill('unknown'), inc30: 0, dt30: 0, monitorCount: 0, downNow: 0, worst: null, minU30: null, lastDown: 0 }; siteMap.set(code, s); }
+      if (!s) { s = { code, days: new Array(HEAT_DAYS).fill('unknown'), inc30: 0, dt30: 0, monitorCount: 0, downNow: 0, minU30: null, lastDown: 0 }; siteMap.set(code, s); }
       s.monitorCount++; s.inc30 += inc30; s.dt30 += dt30;
       if (eff === 'down') s.downNow++;
       if (lastDown > s.lastDown) s.lastDown = lastDown;
       if (u30 !== null && (s.minU30 === null || u30 < s.minU30)) s.minU30 = u30;
       for (let i = 0; i < HEAT_DAYS; i++) if (RANK[days[i]] > RANK[s.days[i]]) s.days[i] = days[i];
-      if (!s.worst || score > s.worst.score) s.worst = { name: m.friendly_name, score };
     }
   });
 
@@ -2172,7 +2314,7 @@ async function fetchAsanaHistory(force) {
   asanaHistoryLoading = true;
   try {
     const { ok, data } = await callFn(FN_ASANA_HISTORY, { days: 90 });
-    if (ok && data && data.sites) { asanaHistory = data; asanaHistoryTs = Date.now(); if (showInsights) renderInsights(); }
+    if (ok && data && data.sites) { asanaHistory = data; asanaHistoryTs = Date.now(); renderAlertPanel(); if (showInsights && !insightsEditMode) renderInsights(); }
   } catch (e) { /* non-fatal — widgets fall back to UptimeRobot-only */ }
   finally { asanaHistoryLoading = false; }
 }
@@ -2181,7 +2323,7 @@ function toggleInsights() {
   showInsights = !showInsights;
   document.getElementById('insights-body').style.display = showInsights ? 'block' : 'none';
   updateInsightsToggle();
-  if (showInsights) { renderInsights(); fetchAsanaHistory(); }
+  if (showInsights) { renderInsights(); fetchAsanaHistory(); fetchUnifiIsp(); }
 }
 function updateInsightsToggle() {
   const btn = document.getElementById('insights-toggle');
@@ -2189,11 +2331,6 @@ function updateInsightsToggle() {
   btn.innerHTML = showInsights ? '▾ Hide history &amp; insights' : '▸ History &amp; insights';
 }
 
-function heatCell(count, max, i) {
-  let lvl = 0;
-  if (count > 0) { const r = count / max; lvl = r <= 0.2 ? 1 : r <= 0.45 ? 2 : r <= 0.7 ? 3 : 4; }
-  return `<span class="hcell hcell-l${lvl}" data-d="${i}"></span>`;
-}
 
 // Compact "x ago" from unix seconds.
 function fmtAgo(sec) {
@@ -2217,38 +2354,29 @@ function ensureInsightsTip() {
   // scroll, and on a tap that isn't on a hoverable graph element.
   const hide = () => { if (insightsTip) insightsTip.style.display = 'none'; };
   window.addEventListener('scroll', hide, { passive: true });
-  document.addEventListener('touchstart', (e) => { if (!e.target.closest('.scatter-svg, .hgrid, .fleet-trend')) hide(); }, { passive: true });
+  document.addEventListener('touchstart', (e) => { if (!e.target.closest('.scatter-svg, .fleet-trend, .isp-bars')) hide(); }, { passive: true });
   return insightsTip;
 }
-function attachHeatHover(host) {
-  const grid = host.querySelector('.hgrid');
-  if (!grid) return;
-  const tip = ensureInsightsTip();
-  const move = (e) => {
-    const cell = e.target.closest('.hcell');
-    if (!cell) { tip.style.display = 'none'; return; }
-    const det = insightsDayDetail[+cell.dataset.d];
-    if (!det) { tip.style.display = 'none'; return; }
-    const items = det.items;
-    const shown = items.slice(0, 16).map(it =>
-      `<div class="tip-item"><span class="dot dot-${it.sev === 'down' ? 'down' : 'warn'}"></span><span>${escHtml(it.label)}${it.site ? ` <em>${escHtml(it.site)}</em>` : ''}</span></div>`).join('');
-    const more = items.length > 16 ? `<div class="tip-more">+${items.length - 16} more…</div>` : '';
-    tip.innerHTML = `<div class="tip-date">${det.date}</div>` +
-      `<div class="tip-count">${items.length ? items.length + (items.length === 1 ? ' outage' : ' outages') : 'all clear'}</div>` +
-      (items.length ? shown + more : `<div class="tip-none">✓ No outages this day</div>`);
-    tip.style.display = 'block';
-    const pad = 16, tw = tip.offsetWidth, th = tip.offsetHeight;
-    let x = e.clientX + pad, y = e.clientY + pad;
-    if (x + tw > window.innerWidth - 8) x = e.clientX - tw - pad;
-    if (y + th > window.innerHeight - 8) y = e.clientY - th - pad;
-    tip.style.left = Math.max(8, x) + 'px';
-    tip.style.top = Math.max(8, y) + 'px';
-  };
-  grid.addEventListener('mousemove', move);
-  grid.addEventListener('mouseleave', () => { tip.style.display = 'none'; });
+// Shared renderer for the per-day items in the heatmap + fleet-trend tooltips: a severity
+// dot (red = full outage, amber = degraded service), the device/site label, its site tag,
+// and how long it was down/offline that day. Capped at 16 with a "+N more" overflow.
+function tipItemsHTML(items) {
+  const shown = items.slice(0, 16).map(it =>
+    `<div class="tip-item"><span class="dot dot-${it.sev === 'down' ? 'down' : 'warn'}"></span>` +
+    `<span class="tip-item-name">${escHtml(it.label)}${it.site ? ` <em>${escHtml(it.site)}</em>` : ''}</span>` +
+    `${it.dur ? `<span class="tip-item-dur">${fmtDur(it.dur)}</span>` : ''}</div>`).join('');
+  return shown + (items.length > 16 ? `<div class="tip-more">+${items.length - 16} more…</div>` : '');
+}
+// Note for a day that predates UniFi/degraded tracking: only whole-site outages were recorded
+// then, so the absence of amber (degraded) items isn't "all clear on devices" — it's "unknown".
+function preTrackNote(dayIdx) {
+  return (insightsDegradedSinceIdx > 0 && dayIdx < insightsDegradedSinceIdx)
+    ? `<div class="tip-note">⋮ Degraded-device tracking hadn’t started yet — whole-site outages only.</div>` : '';
 }
 
-// Mouse-over for the high-level fleet-health trend line: nearest day → date + fleet up%.
+// Mouse-over for the high-level fleet-health trend line: nearest day → date + fleet up%,
+// plus — when the day dipped below 100% — exactly which sites/devices were offline that day
+// (same per-day detail the heatmap shows), so a dip in the line is explainable in place.
 function attachTrendHover(host) {
   const svg = host.querySelector('.fleet-trend svg');
   if (!svg) return;
@@ -2263,8 +2391,11 @@ function attachTrendHover(host) {
     const det = insightsDayDetail[i];
     if (v == null) { tip.style.display = 'none'; if (cursor) cursor.style.display = 'none'; return; }
     if (cursor) { const cx = (i * (300 / (HEAT_DAYS - 1))).toFixed(1); cursor.setAttribute('x1', cx); cursor.setAttribute('x2', cx); cursor.style.display = 'block'; }
+    const items = (det && det.items) || [];
     tip.innerHTML = `<div class="tip-date">${det ? det.date : ''}</div>` +
-      `<div class="tip-count"><span class="${uptimeCls(v)}">${fmtPct(v)}</span> fleet up</div>`;
+      `<div class="tip-count"><span class="${uptimeCls(v)}">${fmtPct(v)}</span> fleet up${items.length ? ` · ${items.length} ${items.length === 1 ? 'incident' : 'incidents'}` : ''}</div>` +
+      (items.length ? tipItemsHTML(items) : `<div class="tip-none">✓ All sites up this day</div>`) +
+      preTrackNote(i);
     tip.style.display = 'block';
     const pad = 16, tw = tip.offsetWidth, th = tip.offsetHeight;
     let x = e.clientX + pad, y = e.clientY + pad;
@@ -2290,7 +2421,7 @@ function attachScatterHover(host) {
       ? d.recent.map(r => `<div class="tip-item"><span class="dot dot-${r.ongoing ? 'down' : 'warn'}"></span><span>${escHtml(r.title)} <em>${r.ongoing ? 'ongoing' : fmtDur(r.dur)}</em></span></div>`).join('')
       : `<div class="tip-none">No tickets in the last 30 days</div>`;
     tip.innerHTML = `<div class="tip-date">${escHtml(code)}${d.p1 ? ' <span class="p1-badge">P1</span>' : ''}</div>` +
-      `<div class="tip-count">${up}${d.inc} outage${d.inc === 1 ? '' : 's'} · ${fmtDur(d.dt)} · 30d</div>` +
+      `<div class="tip-count">${up}${d.inc} incident${d.inc === 1 ? '' : 's'} · ${fmtDur(d.dt)} · 30d</div>` +
       rows + `<div class="tip-more">click to open tickets →</div>`;
     tip.style.display = 'block';
     const pad = 16, tw = tip.offsetWidth, th = tip.offsetHeight;
@@ -2304,16 +2435,78 @@ function attachScatterHover(host) {
   svg.addEventListener('mouseleave', () => { tip.style.display = 'none'; });
 }
 
-// Severity → bar-fill / badge class.
-function sevClass(downNow, recentSec) {
-  if (downNow) return 'down';
-  if (recentSec && (Math.floor(Date.now() / 1000) - recentSec) < 7 * 86400) return 'warn';
-  return 'ok';
+// Hover any reliability-ribbon day (Site reliability or ISP reliability) → the same rich card
+// the Timeline uses: the date, what happened, and (for sites) the list of monitors/tickets with
+// durations. Scoped per ribbon (not the whole body) so it doesn't fight the trend/scatter tips.
+function attachRibbonHover(host) {
+  const tip = ensureInsightsTip();
+  const place = (e) => {
+    const pad = 16, tw = tip.offsetWidth, th = tip.offsetHeight;
+    let x = e.clientX + pad, y = e.clientY + pad;
+    if (x + tw > window.innerWidth - 8) x = e.clientX - tw - pad;
+    if (y + th > window.innerHeight - 8) y = e.clientY - th - pad;
+    tip.style.left = Math.max(8, x) + 'px';
+    tip.style.top = Math.max(8, y) + 'px';
+  };
+  host.querySelectorAll('.isp-bars[data-rib]').forEach(ribbon => {
+    const rib = ribbon.getAttribute('data-rib');
+    ribbon.addEventListener('mousemove', (e) => {
+      const bar = e.target.closest('.ubar');
+      if (!bar) { tip.style.display = 'none'; return; }
+      const day = parseInt(bar.getAttribute('data-day'), 10);
+      const dateLbl = (!isNaN(day) && insightsDayDetail[day] && insightsDayDetail[day].date) || '';
+      const pctAttr = bar.getAttribute('data-pct');
+      let html;
+      if (pctAttr !== null) {                       // ISP ribbon — WAN uptime that day
+        const pct = pctAttr === '' ? null : parseFloat(pctAttr);
+        html = `<div class="tip-date">${dateLbl}</div><div class="tip-count">Internet (WAN)</div>` +
+          (pct == null ? `<div class="tip-none">No data this day</div>`
+            : `<div class="tip-item"><span class="dot dot-${ispDayStatus(pct)}"></span><span class="tip-item-name ${uptimeCls(pct)}">${fmtPct(pct)} WAN uptime</span></div>`);
+      } else {                                       // Site ribbon — that day's incidents
+        const code = rib.startsWith('site:') ? rib.slice(5) : '';
+        const raw = (insightsSiteDayDetail[code] && insightsSiteDayDetail[code][day]) || [];
+        const seen = new Set(), items = [];
+        raw.forEach(it => { if (!seen.has(it.label)) { seen.add(it.label); items.push(it); } });
+        const word = items.some(x => x.sev === 'down') ? 'Outage' : items.length ? 'Degraded' : 'Operational';
+        html = `<div class="tip-date">${escHtml(code)} · ${dateLbl}</div>` +
+          `<div class="tip-count">${word}${items.length ? ` · ${items.length} ${items.length === 1 ? 'incident' : 'incidents'}` : ''}</div>` +
+          (items.length ? tipItemsHTML(items) : `<div class="tip-none">✓ Operational this day</div>`) +
+          (isNaN(day) ? '' : preTrackNote(day));
+      }
+      tip.innerHTML = html;
+      tip.style.display = 'block';
+      place(e);
+    });
+    ribbon.addEventListener('mouseleave', () => { tip.style.display = 'none'; });
+  });
 }
-function statusBadge(sev) {
-  if (sev === 'down') return `<span class="abadge abadge-down"><span class="dot dot-down"></span>Down now</span>`;
-  if (sev === 'warn') return `<span class="abadge abadge-warn">⚠ Recent</span>`;
-  return `<span class="abadge abadge-ok">✓ Stable</span>`;
+
+// Severity → bar-fill / badge class.
+// ── Status vocabulary (keep in sync with the engine's ticket prefixes) ───────────────────────
+// Four live states drive the insights badges:
+//   down      red    — full outage: whole site or monitor down (engine kind site/prop/monitor)
+//   degraded  amber  — site reachable but device(s) offline (engine kind dev/netout)
+//   recovered grey   — no current issue, but went down/degraded within the last RECOVERED_DAYS days
+//   healthy   green  — no recent issues
+// The row accent + downtime bar stay a 3-bucket colour (down/warn/ok); the badge carries the
+// precise colour. stateColor() maps a state → that bucket; recentlyTroubled() picks recovered/healthy.
+const RECOVERED_DAYS = 3;   // days after its last incident a site stays "Recovered" before "Healthy"
+const stateColor = (st) => st === 'down' ? 'down' : st === 'degraded' ? 'warn' : 'ok';
+const recentlyTroubled = (sec) => !!sec && (Math.floor(Date.now() / 1000) - sec) < RECOVERED_DAYS * 86400;
+function statusBadge(state) {
+  if (state === 'down') return `<span class="abadge abadge-down"><span class="dot dot-down"></span>Down now</span>`;
+  if (state === 'degraded') return `<span class="abadge abadge-warn">▲ Degraded</span>`;
+  if (state === 'recovered') return `<span class="abadge abadge-recovered">↺ Recovered</span>`;
+  return `<span class="abadge abadge-healthy"><span class="dot dot-up"></span>Healthy</span>`;
+}
+// A site's current state from the merged dataset: down (a monitor down now OR an ongoing outage
+// ticket) > degraded (an ongoing dev/netout ticket, site reachable) > recovered (clean now, but
+// troubled within RECOVERED_DAYS) > healthy.
+function liveSiteState(s) {
+  if ((s.downNow || 0) > 0 || (s.aOpenDown || 0) > 0) return 'down';
+  if ((s.aOpenDegraded || 0) > 0) return 'degraded';
+  if (recentlyTroubled(s.lastDown)) return 'recovered';
+  return 'healthy';
 }
 
 function toggleAttn(key) {
@@ -2321,19 +2514,29 @@ function toggleAttn(key) {
   renderInsights();
 }
 function toggleShowMuted() { insightsShowMuted = !insightsShowMuted; renderInsights(); }
+function toggleReliable(best) { insightsReliableBest = best; renderInsights(); }
 function mutedFooter(kind, hidden) {
   if (!hidden && !insightsShowMuted) return '';
   const label = insightsShowMuted ? 'hide muted' : `${hidden} hidden`;
-  return `<div class="attn-foot"><button class="at-showmuted" onclick="toggleShowMuted()">${insightsShowMuted ? '▾' : '▸'} ${label}</button></div>`;
+  const prefix = kind === 'site' ? 'inssite_' : 'insmon_';
+  const mutedCount = mutedInsights().filter(x => String(x.mac || '').startsWith(prefix)).length;
+  const unhideAll = (insightsShowMuted && mutedCount)
+    ? `<button class="at-showmuted at-unhideall" onclick="unmuteAll('${kind}')">↺ unhide all (${mutedCount})</button>` : '';
+  return `<div class="attn-foot"><button class="at-showmuted" onclick="toggleShowMuted()">${insightsShowMuted ? '▾' : '▸'} ${label}</button>${unhideAll}</div>`;
 }
 
 // ── Inline-SVG graphs (no charting lib) ──────────────────────────────────────
 // 90-day fleet-health trend: daily % of monitors that were up. Area + line, with
 // faint 99%/95% reference lines. Y is clamped to [min(95,lo)…100] so small dips read.
-function fleetTrendSVG(daily) {
+// Fleet-health trend line + per-day OUTAGE MARKERS. `heat[i]` = number of distinct outages on
+// day i (same array the old heatmap used); a dot is drawn on the line for each day with > 0,
+// sized + reddened by how busy that day was. This merges the old standalone outage timeline
+// into the one trend, so a dip in the line carries its own "what/how-many" markers. Hover is
+// handled by attachTrendHover (nearest day → date + fleet up% + that day's incident list).
+function fleetTrendSVG(daily, cutoffIdx, heat, maxHeat) {
   const known = (daily || []).filter(v => v != null);
   if (!known.length) return `<div class="fleet-trend-cap"><span>90-day fleet health — no history yet</span></div>`;
-  const W = 300, H = 56, top = 4, bot = 52, span = bot - top;
+  const W = 300, H = 64, top = 4, bot = 52, span = bot - top;
   const lo = Math.min(95, Math.min(...known)), hi = 100, denom = Math.max(0.01, hi - lo);
   const X = i => i * (W / (HEAT_DAYS - 1));
   const Y = v => bot - ((Math.max(lo, Math.min(hi, v)) - lo) / denom) * span;
@@ -2344,13 +2547,29 @@ function fleetTrendSVG(daily) {
   const areas = segs.filter(s => s.length > 1).map(s => `<polygon fill="url(#ftg)" points="${s[0][0].toFixed(1)},${bot} ${pts(s)} ${s[s.length - 1][0].toFixed(1)},${bot}"/>`).join('');
   const lines = segs.map(s => `<polyline class="ft-line" points="${pts(s)}"/>`).join('');
   const refs = [99, 95].map(r => (r > lo && r < hi) ? `<line class="ft-ref" x1="0" y1="${Y(r).toFixed(1)}" x2="${W}" y2="${Y(r).toFixed(1)}"/>` : '').join('');
+  // Outage-day markers: red when the day is among the busiest, amber otherwise; radius scales
+  // with the day's outage count. Placed on the line (or at the bottom if that day had no health %).
+  const mx = Math.max(1, maxHeat || 0);
+  const dots = (heat || []).map((c, i) => {
+    if (!c) return '';
+    const r = c / mx, rad = (1.6 + r * 2.6).toFixed(1);
+    const cls = r >= 0.66 ? 'ft-dot-hi' : 'ft-dot-mid';
+    const cy = (daily[i] != null ? Y(daily[i]) : bot).toFixed(1);
+    return `<circle class="ft-dot ${cls}" cx="${X(i).toFixed(1)}" cy="${cy}" r="${rad}"/>`;
+  }).join('');
+  // Boundary where UniFi/degraded tracking begins: a dashed marker; left of it is whole-site
+  // outages only (degraded devices weren't tracked yet).
+  const cutoff = (cutoffIdx > 0) ? `<line class="ft-cutoff" x1="${X(cutoffIdx).toFixed(1)}" x2="${X(cutoffIdx).toFixed(1)}" y1="${top}" y2="${bot}"/>` : '';
+  const cap = (cutoffIdx > 0)
+    ? `<span>90-day fleet health <span class="ft-cap-note">· ● = incident day · ◁ outages only · degraded tracked ▷</span></span>`
+    : `<span>90-day fleet health <span class="ft-cap-note">· ● = incident day (bigger = more)</span></span>`;
   return `<div class="fleet-trend">
-    <svg viewBox="0 0 ${W} ${H}" preserveAspectRatio="none" role="img" aria-label="90-day fleet health trend">
+    <svg viewBox="0 0 ${W} ${H}" preserveAspectRatio="none" role="img" aria-label="90-day fleet health trend with incident markers">
       <defs><linearGradient id="ftg" x1="0" y1="0" x2="0" y2="1"><stop offset="0%" stop-color="#3fe0d8" stop-opacity="0.30"/><stop offset="100%" stop-color="#3fe0d8" stop-opacity="0"/></linearGradient></defs>
-      ${refs}${areas}${lines}
+      ${refs}${cutoff}${areas}${lines}${dots}
       <line class="ft-cursor" x1="0" x2="0" y1="${top}" y2="${bot}" style="display:none"/>
     </svg>
-    <div class="fleet-trend-cap"><span>90-day fleet health</span><span class="${uptimeCls(known[known.length - 1])}">${fmtPct(known[known.length - 1])} today</span></div>
+    <div class="fleet-trend-cap">${cap}<span class="${uptimeCls(known[known.length - 1])}">${fmtPct(known[known.length - 1])} today</span></div>
   </div>`;
 }
 
@@ -2407,36 +2626,223 @@ function focusScatterSVG(sites) {
     <line class="sc-axis" x1="${L}" y1="${B}" x2="${R}" y2="${B}"/>
     <line class="sc-axis" x1="${L}" y1="${T}" x2="${L}" y2="${B}"/>
     <text class="sc-focus" x="${R - 3}" y="${T + 10}" text-anchor="end">◤ FOCUS ZONE</text>
-    <text class="sc-axis-l" x="${R}" y="${B + 17}" text-anchor="end">more outages →</text>
+    <text class="sc-axis-l" x="${R}" y="${B + 17}" text-anchor="end">more incidents →</text>
     <text class="sc-axis-l" x="${L - 5}" y="${T - 4}" text-anchor="start">↑ more downtime</text>
     ${dots}
   </svg>`;
 }
 
-// Reliability spectrum: every site as one bar, worst (longest/red) → most reliable (teal).
-function focusSpectrumHTML(sites) {
-  if (!sites.length) return `<div class="iempty">No sites to rank. ✦</div>`;
-  const sorted = [...sites].sort((a, b) => {
-    const au = a.minU30, bu = b.minU30;
-    if (au == null && bu == null) return (b.dt || 0) - (a.dt || 0);
-    if (au == null) return -1; if (bu == null) return 1;
-    return au - bu || (b.dt || 0) - (a.dt || 0) || a.code.localeCompare(b.code);
-  }).slice(0, 14);
-  const ups = sorted.filter(s => s.minU30 != null).map(s => s.minU30);
-  const worstUp = ups.length ? Math.min(...ups) : 95;
-  const maxDt = Math.max(1, ...sorted.map(s => s.dt || 0));
-  return sorted.map(s => {
-    const up = s.minU30;
-    const fill = up == null ? 'f-down' : (up >= 99.5 ? 'f-ok' : up >= 95 ? 'f-warn' : 'f-down');
-    const w = up == null ? Math.max(4, (s.dt || 0) / maxDt * 100)
-      : Math.max(3, (100 - up) / Math.max(0.01, 100 - worstUp) * 100);
-    const stat = up != null ? `<span class="${uptimeCls(up)}">${fmtPct(up)}</span>` : `${fmtDur(s.dt || 0)} down`;
-    return `<div class="spec-row sc-dot" data-code="${escHtml(s.code)}">
-      <span class="spec-code">${escHtml(s.code)}</span>
-      <span class="at-bar-track"><i class="${fill}" style="width:${w.toFixed(0)}%"></i></span>
-      <span class="spec-stat">${stat}</span>
+// Asana incident rows (linked) — shared by the attention drill-down and the site-reliability
+// root-cause drill-down so both render tickets identically.
+function incidentRowsHTML(incidents, cap) {
+  return (incidents || []).slice(0, cap).map(inc => {
+    const stMs = Date.parse(inc.created_at || '') || 0;
+    const dur = inc.ongoing ? null : Math.max(0, Math.floor(((Date.parse(inc.completed_at || '') || Date.now()) - (stMs || Date.now())) / 1000));
+    const when = stMs ? fmtClock(Math.floor(stMs / 1000)) : '—';
+    // An ongoing OUTAGE is red; an ongoing DEGRADED (dev/netout, site reachable) is amber.
+    const degraded = isDegradedIncident(inc);
+    const dot = inc.ongoing ? (degraded ? 'warn' : 'down') : 'warn';
+    const right = inc.ongoing
+      ? `<span class="ongoing-badge${degraded ? ' ongoing-degraded' : ''}"><span class="dot dot-${dot}"></span>ongoing</span>`
+      : `<span class="adetail-dur">${fmtDur(dur)}</span>`;
+    return `<a class="adetail-row adetail-link" href="${escHtml(inc.permalink)}" target="_blank" rel="noopener" onclick="event.stopPropagation()">` +
+      `<span class="dot dot-${dot}"></span>` +
+      `<span class="adetail-title">${escHtml(inc.title)} <span class="adetail-go">↗</span></span>` +
+      `<span class="adetail-when">${when}</span>${right}</a>`;
+  }).join('');
+}
+
+// Daily ISP uptime % → bar status. Bands mirror uptimeCls (99.5 / 95) but collapse to the
+// 3 bar colours (up/warn/down); keep these in step with uptimeCls if its thresholds change.
+function ispDayStatus(pct) { return pct == null ? 'unknown' : pct >= 99.5 ? 'up' : pct >= 95 ? 'warn' : 'down'; }
+// Compact uptime ribbon for a provider/site — reuses the .ubar colours, no footer.
+function ispBars(daily) {
+  const arr = Array.isArray(daily) ? daily : [];
+  if (!arr.length) return `<span class="isp-bars"></span>`;
+  const n = arr.length;
+  const bars = arr.map((pct, i) => {
+    // Absolute day index (into insightsDayDetail for the date label); arr ends at today.
+    const day = HEAT_DAYS - n + i;
+    // No native title — attachRibbonHover renders the rich card; data-pct carries the WAN uptime.
+    return `<span class="ubar ubar-${ispDayStatus(pct)}" data-day="${day}" data-pct="${pct == null ? '' : pct}"></span>`;
+  }).join('');
+  return `<span class="isp-bars" data-rib="isp"><span class="ubar-track">${bars}</span></span>`;
+}
+
+// Compact 30-day ribbon for a SITE, reusing the .isp-bars / .ubar-* styling. Merges BOTH
+// signal sources so colour + hover match the Timeline and the incidents list: red if the site
+// had an UptimeRobot outage that day, amber if it had an Asana device-offline (degraded)
+// ticket, green if up, grey if no data. Hover names what happened (monitor/ticket + duration),
+// from the per-site daysDetail built in renderInsights.
+function siteBars(s, nowSec) {
+  const days = Array.isArray(s && s.days) ? s.days : [];
+  if (!days.length) return `<span class="isp-bars"></span>`;
+  const arr = days.slice(-30);
+  const det = (Array.isArray(s.daysDetail) ? s.daysDetail : []).slice(-30);
+  const start = days.length - arr.length;   // absolute day index of arr[0], into insightsDayDetail
+  const bars = arr.map((st, i) => {
+    const items = det[i] || [];
+    const cls = (items.some(x => x.sev === 'down') || st === 'down') ? 'down'
+      : (items.some(x => x.sev === 'warn') || st === 'warn') ? 'warn'
+      : (st === 'up' ? 'up' : 'unknown');
+    // No native title — attachRibbonHover renders the rich card from insightsSiteDayDetail.
+    return `<span class="ubar ubar-${cls}" data-day="${start + i}"></span>`;
+  }).join('');
+  return `<span class="isp-bars" data-rib="site:${escHtml(s.code)}"><span class="ubar-track">${bars}</span></span>`;
+}
+
+// ISP reliability widget: WAN performance from UniFi isp-metrics, grouped by provider, each row
+// showing a 30-day uptime ribbon + uptime% + latency. A provider row expands (key 'isp:<name>')
+// to its sites. Sorted worst-uptime first.
+function ispReliabilityCard() {
+  // Resolve each UniFi entry to the SAME property code the other widgets use: map the
+  // alias-applied unifiKey back to a monitor's propCode (so e.g. host BY76A shows as BY12A,
+  // matching UNIFI_ALIAS). Fall back to the host-name code for UniFi-only hosts.
+  const ukToCode = {};
+  monitors.forEach(m => { const uk = unifiKey(m.friendly_name), c = propCode(m.friendly_name); if (uk && c && !(uk in ukToCode)) ukToCode[uk] = c; });
+  const entries = Object.entries(unifiMap)
+    .filter(([, v]) => v && v.isp)
+    .map(([k, v]) => ({ code: ukToCode[k] || propCode(v.siteName) || k.toUpperCase(), isp: v.isp }));
+  if (!entries.length) {
+    return `<div class="icard"><div class="icard-title">ISP reliability <span class="icard-sub">internet (WAN) by provider</span></div>` +
+      `<div class="iempty">No ISP data from UniFi yet — needs UniFi isp-metrics. ✦</div></div>`;
+  }
+  const mean = arr => arr.length ? arr.reduce((a, b) => a + b, 0) / arr.length : null;
+  const byProv = new Map();
+  entries.forEach(e => { const n = e.isp.ispName || 'Unknown'; if (!byProv.has(n)) byProv.set(n, []); byProv.get(n).push(e); });
+  const provs = [...byProv.entries()].map(([name, list]) => {
+    const ups = list.map(s => s.isp.uptimePct).filter(v => v != null);
+    const lats = list.map(s => s.isp.avgLatencyMs).filter(v => v != null);
+    // Provider history = element-wise mean of its sites' daily arrays (non-null days only).
+    const len = Math.max(0, ...list.map(s => Array.isArray(s.isp.daily) ? s.isp.daily.length : 0));
+    const daily = Array.from({ length: len }, (_, i) => {
+      const vals = list.map(s => Array.isArray(s.isp.daily) ? s.isp.daily[i] : null).filter(v => v != null);
+      return vals.length ? Math.round(mean(vals)) : null;
+    });
+    return {
+      name, siteCount: list.length, daily,
+      uptimePct: ups.length ? mean(ups) : null,
+      avgLatencyMs: lats.length ? Math.round(mean(lats)) : null,
+      sites: list.slice().sort((a, b) => ((a.isp.uptimePct == null ? 101 : a.isp.uptimePct) - (b.isp.uptimePct == null ? 101 : b.isp.uptimePct)) || a.code.localeCompare(b.code)),
+    };
+  }).sort((a, b) => ((a.uptimePct == null ? 101 : a.uptimePct) - (b.uptimePct == null ? 101 : b.uptimePct)) || a.name.localeCompare(b.name));
+
+  const rows = provs.map(p => {
+    const key = 'isp:' + p.name, open = insightsExpanded.has(key);
+    const lat = p.avgLatencyMs != null ? `${p.avgLatencyMs} ms` : '—';
+    const siteRows = p.sites.map(s => {
+      const u = s.isp.uptimePct;
+      const lm = s.isp.latencyMs != null ? `${s.isp.latencyMs} ms` : (s.isp.avgLatencyMs != null ? `${s.isp.avgLatencyMs} ms` : '—');
+      return `<div class="isp-site"><span class="isp-site-code">${escHtml(s.code)}</span>` +
+        ispBars(s.isp.daily) +
+        `<span class="rel-up ${u != null ? uptimeCls(u) : 'text-paused'}">${u != null ? fmtPct(u) : '—'}</span>` +
+        `<span class="isp-site-meta">${lm}</span></div>`;
+    }).join('');
+    return `<div class="isp-prov${open ? ' open' : ''}">
+      <div class="isp-prov-row" onclick="toggleAttn('${escHtml(jsStr(key))}')">
+        <span class="isp-prov-name">${escHtml(p.name)}<span class="isp-prov-count">${p.siteCount} site${p.siteCount === 1 ? '' : 's'}</span></span>
+        ${ispBars(p.daily)}
+        <span class="rel-up ${p.uptimePct != null ? uptimeCls(p.uptimePct) : 'text-paused'}">${p.uptimePct != null ? fmtPct(p.uptimePct) : '—'}</span>
+        <span class="isp-prov-meta">${lat}</span>
+        <span class="at-caret">${open ? '▾' : '▸'}</span>
+      </div>
+      ${open ? `<div class="isp-sites">${siteRows}</div>` : ''}
     </div>`;
   }).join('');
+  return `<div class="icard"><div class="icard-title">ISP reliability <span class="icard-sub">internet (WAN) by provider · 30-day uptime · worst first · click to expand sites</span></div>${rows}</div>`;
+}
+
+// Site reliability widget: every site ranked by 30-day uptime, with a least/most toggle. Each
+// row expands (key 'rel:<code>') to its root-cause drill-down. Rows keep data-code (no sc-dot)
+// so a scatter-dot click can still scroll here, without double-firing attachFocusClicks.
+// Blended 30-day reliability: UptimeRobot uptime (minU30) minus device-offline time weighted
+// by the share of the fleet offline (devOffSec already weights netout by device count; here we
+// divide by the site's deviceCount). No UniFi data or no device incidents → just the UR uptime.
+function blendedReliability(s) {
+  if (s.minU30 == null) return null;
+  if (!s.devOffSec) return s.minU30;
+  const ud = unifiMap[unifiKey(s.code)];
+  const dc = (ud && ud.deviceCount) || 0;
+  if (!dc) return s.minU30;
+  const penalty = 100 * (s.devOffSec / dc) / (30 * 86400);
+  return Math.max(0, s.minU30 - penalty);
+}
+
+function siteReliabilityCard(visible, aSites, nowSec) {
+  const ranked = visible.filter(s => s.minU30 != null).map(s => ({ ...s, rel: blendedReliability(s) }));
+  const sorted = insightsReliableBest
+    ? ranked.slice().sort((a, b) => (isP1(b.code) - isP1(a.code)) || (b.rel - a.rel) || ((a.inc || 0) - (b.inc || 0)) || a.code.localeCompare(b.code))
+    : ranked.slice().sort((a, b) => (a.rel - b.rel) || ((b.dt || 0) - (a.dt || 0)) || a.code.localeCompare(b.code));
+  const rows = sorted.slice(0, 16).map(s => {
+    const key = 'rel:' + s.code, open = insightsExpanded.has(key), p1 = isP1(s.code);
+    const clean = s.lastDown ? `${Math.max(0, Math.floor((nowSec - s.lastDown) / 86400))}d clean` : '✓ 90d clean';
+    return `<div class="rel-item${open ? ' open' : ''}">
+      <div class="rel-row${p1 ? ' rel-p1' : ''}" data-code="${escHtml(s.code)}" onclick="toggleAttn('${jsStr(key)}')">
+        <span class="rel-code">${escHtml(s.code)}${p1 ? '<span class="p1-badge">P1</span>' : ''}</span>
+        ${siteBars(s, nowSec)}
+        <span class="rel-up ${uptimeCls(s.rel)}">${fmtPct(s.rel)}</span>
+        <span class="rel-meta">${clean}</span>
+        <span class="at-caret">${open ? '▾' : '▸'}</span>
+      </div>
+      ${open ? `<div class="adetail">${siteRootCauseHTML(s.code, aSites, nowSec, s.days)}</div>` : ''}
+    </div>`;
+  }).join('') || `<div class="iempty">No site uptime data yet.</div>`;
+  const toggle = `<span class="rel-toggle">` +
+    `<button class="rel-seg${!insightsReliableBest ? ' on' : ''}" onclick="toggleReliable(false)">Least reliable</button>` +
+    `<button class="rel-seg${insightsReliableBest ? ' on' : ''}" onclick="toggleReliable(true)">Most reliable</button></span>`;
+  const sub = insightsReliableBest ? 'healthiest sites · 30-day reliability · uptime + device health · click for root causes' : 'least reliable sites · 30-day reliability · uptime + device health · click for root causes';
+  return `<div class="icard"><div class="icard-title">Site reliability ${toggle}<span class="icard-sub">${sub}</span></div>${rows}</div>`;
+}
+
+// Root-cause drill-down for a site: 90-day Asana incidents bucketed by kind (Internet / Devices
+// / Whole-site down) with counts + downtime bars, current live signals (offline devices, WAN
+// loss/latency), and the ticket list. Power is intentionally omitted (no historical signal yet).
+function siteRootCauseHTML(code, aSites, nowSec, days) {
+  const a = aSites[code];
+  const incidents = (a && a.incidents) || [];
+  const buckets = {
+    devices: { label: 'Devices offline', n: 0, dt: 0 },
+    site:    { label: 'Whole-site down', n: 0, dt: 0 },
+  };
+  incidents.forEach(inc => {
+    // One taxonomy, shared with the badges via isDegradedIncident: degraded (dev/netout — devices
+    // offline, site reachable) vs whole-site down (monitor/prop/site). Live internet/WAN health is
+    // shown separately below ("Right now") and in the ISP-reliability widget.
+    const b = isDegradedIncident(inc) ? buckets.devices : buckets.site;
+    const stMs = Date.parse(inc.created_at || '') || 0;
+    const dur = inc.ongoing ? Math.max(0, nowSec - Math.floor(stMs / 1000))
+      : Math.max(0, Math.floor(((Date.parse(inc.completed_at || '') || stMs) - stMs) / 1000));
+    b.n++; b.dt += dur;
+  });
+  const cats = [buckets.devices, buckets.site].filter(b => b.n > 0);
+  const maxDt = Math.max(1, ...cats.map(b => b.dt));
+  let parts = '';
+  if (cats.length) {
+    parts += `<div class="adetail-h">What’s driving it · 90d <span class="adetail-sub">Asana tickets</span></div>`;
+    parts += cats.map(b => `<div class="rc-row"><span class="rc-label">${b.label}</span>` +
+      `<span class="at-bar-track rc-bar"><i class="f-warn" style="width:${Math.max(4, Math.round(b.dt / maxDt * 100))}%"></i></span>` +
+      `<span class="rc-stat"><b>${b.n}</b> · ${fmtDur(b.dt)}</span></div>`).join('');
+  } else {
+    const urDown = Array.isArray(days) && days.some(d => d === 'down' || d === 'warn');
+    parts += `<div class="adetail-note">${asanaHistoryLoading ? 'Loading incident history…'
+      : urDown ? 'No Asana tickets filed for this site in 90 days — the bar above is from UptimeRobot monitoring; the engine didn’t open a ticket.'
+      : 'No incidents in the last 90 days — clean. ✦'}</div>`;
+  }
+  // Live "right now" signals (best-effort join by code).
+  const ud = unifiMap[unifiKey(code)];
+  const live = [];
+  if (ud && ud.offlineDeviceCount > 0) {
+    const names = (ud.offlineDevices || []).map(d => escHtml(d.name)).slice(0, 4).join(', ');
+    live.push(`<span class="dot dot-warn"></span>${ud.offlineDeviceCount} device${ud.offlineDeviceCount === 1 ? '' : 's'} offline now${names ? ` — ${names}` : ''}`);
+  }
+  if (ud && ud.isp && (ud.isp.packetLoss || (ud.isp.latencyMs != null && ud.isp.latencyMs >= 80))) {
+    const bits = [ud.isp.latencyMs != null ? `${ud.isp.latencyMs} ms` : null, ud.isp.packetLoss ? `${ud.isp.packetLoss}% loss` : null].filter(Boolean).join(' · ');
+    live.push(`<span class="dot dot-warn"></span>WAN now: ${bits}`);
+  }
+  if (live.length) parts += `<div class="adetail-h">Right now</div>` + live.map(l => `<div class="rc-live">${l}</div>`).join('');
+  // Tickets.
+  if (incidents.length) parts += `<div class="adetail-h">Tickets <span class="adetail-sub">${(a && a.count) || incidents.length} in 90d</span></div>${incidentRowsHTML(incidents, 8)}`;
+  return `<div class="adetail-inner">${parts}</div>`;
 }
 
 // Clicking a scatter dot / spectrum row expands the matching attention row (if any) and
@@ -2461,7 +2867,7 @@ function attachFocusClicks(host) {
 // Expandable detail for a site/device row: its Asana tickets (links) + recent down events.
 function attnDetailHTML(kind, id) {
   const code = (kind === 'site') ? id : propCode(id);
-  const site = (asanaHistory && asanaHistory.sites && asanaHistory.sites[code]) || null;
+  const site = lookupAsanaSite(code);
   let parts = '';
 
   if (kind === 'mon') {
@@ -2476,16 +2882,7 @@ function attnDetailHTML(kind, id) {
   }
 
   if (site && (site.incidents || []).length) {
-    const rows = site.incidents.slice(0, 14).map(inc => {
-      const stMs = Date.parse(inc.created_at || '') || 0;
-      const dur = inc.ongoing ? null : Math.max(0, Math.floor(((Date.parse(inc.completed_at || '') || Date.now()) - (stMs || Date.now())) / 1000));
-      const when = stMs ? fmtClock(Math.floor(stMs / 1000)) : '—';
-      const right = inc.ongoing ? `<span class="ongoing-badge"><span class="dot dot-down"></span>ongoing</span>` : `<span class="adetail-dur">${fmtDur(dur)}</span>`;
-      return `<a class="adetail-row adetail-link" href="${escHtml(inc.permalink)}" target="_blank" rel="noopener" onclick="event.stopPropagation()">` +
-        `<span class="dot dot-${inc.ongoing ? 'down' : 'warn'}"></span>` +
-        `<span class="adetail-title">${escHtml(inc.title)} <span class="adetail-go">↗</span></span>` +
-        `<span class="adetail-when">${when}</span>${right}</a>`;
-    }).join('');
+    const rows = incidentRowsHTML(site.incidents, 14);
     parts += `<div class="adetail-h">Asana tickets · site ${escHtml(code)} <span class="adetail-sub">${site.count} in 90d</span></div>${rows}`;
   } else if (!parts) {
     parts = `<div class="adetail-note">${asanaHistoryLoading ? 'Loading tickets…' : 'No Asana tickets found for this ' + (kind === 'site' ? 'site' : 'device’s site') + ' in the last 90 days.'}</div>`;
@@ -2495,24 +2892,124 @@ function attnDetailHTML(kind, id) {
   return `<div class="adetail-inner">${parts}</div>`;
 }
 
-// One attention row (shared by sites + devices). data: { key, kind, id, rankLabel, title, sub,
-// sev, barPct, barLabel, sparkDays, sparkPct, badge, when, muteLabel }.
+// One attention row (shared by sites + devices). data: { key, kind, id, title, sub,
+// sev, barLabel, badge, when, muteLabel, muted }. The `sev` only tints the left border now —
+// the proportion bar was removed (not useful); `barLabel` is kept as a plain stat line.
 function attnRow(d, n) {
   const open = insightsExpanded.has(d.key);
-  const spark = d.sparkDays ? `<div class="at-spark"><div class="at-spark-cap">90-day history</div>${renderUptimeBars(d.sparkDays, d.sparkPct)}</div>` : `<div class="at-spark"></div>`;
   const actBtn = d.muted
     ? `<button class="at-mute at-unmute" title="Show in attention again" onclick="event.stopPropagation();unmuteInsight('${d.kind}','${jsStr(d.id)}')">↺ unhide</button>`
     : `<button class="at-mute" title="Hide this from the attention list" onclick="event.stopPropagation();muteInsight('${d.kind}','${jsStr(d.id)}','${jsStr(d.muteLabel)}')">⊘ hide</button>`;
   return `<div class="aitem ${open ? 'open' : ''}${d.muted ? ' muted' : ''}" data-key="${escHtml(d.key)}">
     <div class="arow sev-${d.sev}" onclick="toggleAttn('${jsStr(d.key)}')">
-      <div class="at-id"><div class="at-head"><span class="at-rank">#${n + 1}</span>${d.title}</div><div class="at-sub">${d.sub}</div></div>
-      <div class="at-bar"><div class="at-bar-track"><i class="f-${d.sev}" style="width:${d.barPct}%"></i></div><div class="at-bar-label">${d.barLabel}</div></div>
-      ${spark}
+      <div class="at-id"><div class="at-head"><span class="at-rank">#${n + 1}</span>${d.title}</div>${d.sub ? `<div class="at-sub">${d.sub}</div>` : ''}</div>
+      <div class="at-bar"><div class="at-bar-label">${d.barLabel}</div></div>
       <div class="at-stat">${d.badge}<div class="at-when">last ${d.when}</div></div>
       <div class="at-act">${actBtn}<span class="at-caret">${open ? '▾' : '▸'}</span></div>
     </div>
     ${open ? `<div class="adetail">${attnDetailHTML(d.kind, d.id)}</div>` : ''}
   </div>`;
+}
+
+// ── Configurable insights widgets — drag-reorder, collapse (roll up), hide; per-browser
+// layout in localStorage. Kiosk always shows the default board (no editing). ──────────────
+const LS_INSIGHTS_LAYOUT = 'beacon_insights_layout';
+const INSIGHTS_WIDGET_IDS = ['timeline', 'focus', 'isp', 'siteRel', 'devices'];
+let insightsEditMode = false;
+// Read the saved layout, validated against the known widget ids. New widgets (added in a later
+// release) are appended in their default position so they appear for existing users.
+function insightsLayout() {
+  if (kiosk) return { order: INSIGHTS_WIDGET_IDS.slice(), collapsed: new Set(), hidden: new Set() };
+  let saved = {};
+  try { saved = JSON.parse(localStorage.getItem(LS_INSIGHTS_LAYOUT) || '{}') || {}; } catch (e) {}
+  const known = new Set(INSIGHTS_WIDGET_IDS);
+  const order = (Array.isArray(saved.order) ? saved.order : []).filter(id => known.has(id));
+  INSIGHTS_WIDGET_IDS.forEach(id => { if (!order.includes(id)) order.push(id); });
+  return {
+    order,
+    collapsed: new Set((Array.isArray(saved.collapsed) ? saved.collapsed : []).filter(id => known.has(id))),
+    hidden: new Set((Array.isArray(saved.hidden) ? saved.hidden : []).filter(id => known.has(id))),
+  };
+}
+function saveInsightsLayout(l) {
+  try { localStorage.setItem(LS_INSIGHTS_LAYOUT, JSON.stringify({ order: l.order, collapsed: [...l.collapsed], hidden: [...l.hidden] })); } catch (e) {}
+}
+function toggleInsightsEdit() { insightsEditMode = !insightsEditMode; renderInsights(); }
+// Entered from the menu: open the insights panel if it's closed, then turn on edit mode so the
+// on-page instructions/controls appear. (Kiosk hides the menu, so this is operator-only.)
+function editInsightsLayout() {
+  if (kiosk) return;
+  if (!showInsights) {
+    showInsights = true;
+    document.getElementById('insights-body').style.display = 'block';
+    updateInsightsToggle();
+    fetchAsanaHistory();
+    fetchUnifiIsp();
+  }
+  insightsEditMode = true;
+  renderInsights();
+  const body = document.getElementById('insights-body');
+  if (body) body.scrollIntoView({ behavior: 'smooth', block: 'start' });
+}
+function resetInsightsLayout() { try { localStorage.removeItem(LS_INSIGHTS_LAYOUT); } catch (e) {} insightsEditMode = false; renderInsights(); }
+function toggleWidgetCollapse(id) { const l = insightsLayout(); l.collapsed.has(id) ? l.collapsed.delete(id) : l.collapsed.add(id); saveInsightsLayout(l); renderInsights(); }
+function hideWidget(id) { const l = insightsLayout(); l.hidden.add(id); saveInsightsLayout(l); renderInsights(); }
+function showWidget(id) { const l = insightsLayout(); l.hidden.delete(id); saveInsightsLayout(l); renderInsights(); }
+function moveWidget(dragId, targetId, after) {
+  if (dragId === targetId) return;
+  const l = insightsLayout();
+  const from = l.order.indexOf(dragId); if (from < 0) return;
+  l.order.splice(from, 1);
+  let to = l.order.indexOf(targetId); if (to < 0) to = l.order.length;
+  l.order.splice(after ? to + 1 : to, 0, dragId);
+  saveInsightsLayout(l); renderInsights();
+}
+// Wrap one card: inject the drag/collapse/hide controls into its .icard-title (left side, so
+// they never collide with a title's right-aligned controls like the reliability toggle).
+function widgetShell(def, editing, collapsed) {
+  const ctl = `<span class="wctl">`
+    + (editing ? `<span class="wdrag" title="Drag to reorder">⠿</span>` : '')
+    + `<button class="wbtn wcollapse" title="${collapsed ? 'Expand' : 'Collapse'}" onclick="event.stopPropagation();toggleWidgetCollapse('${def.id}')">${collapsed ? '▸' : '▾'}</button>`
+    + (editing ? `<button class="wbtn whide" title="Hide widget" onclick="event.stopPropagation();hideWidget('${def.id}')">✕</button>` : '')
+    + `</span>`;
+  const body = def.html.replace('<div class="icard-title">', '<div class="icard-title">' + ctl);
+  return `<section class="widget${collapsed ? ' collapsed' : ''}${editing ? ' editing' : ''}" data-wid="${def.id}"${editing ? ' draggable="true"' : ''}>${body}</section>`;
+}
+function insightsToolbar(editing, hiddenIds, defById) {
+  if (!editing) return '';   // entry point is the menu's "Edit layout"; nothing on-page until then
+  const chips = hiddenIds.length
+    ? hiddenIds.map(id => `<button class="whidden-chip" onclick="showWidget('${id}')">+ ${escHtml(defById[id].name)}</button>`).join('')
+    : `<span class="whidden-none">nothing hidden</span>`;
+  return `<div class="insights-toolbar editing">
+    <div class="wedit-head">
+      <span class="wedit-title">✎ Editing layout</span>
+      <span class="wedit-hint">Drag <b>⠿</b> to reorder · <b>▾</b> roll up · <b>✕</b> hide · changes save to this screen only</span>
+      <button class="wedit on" onclick="toggleInsightsEdit()">✓ Done</button>
+    </div>
+    <div class="wedit-hidden"><span class="whidden-label">Hidden:</span>${chips}<button class="wreset" onclick="resetInsightsLayout()">↺ Reset all</button></div>
+  </div>`;
+}
+function attachWidgetDnD(host) {
+  const stack = host.querySelector('.insights-stack'); if (!stack) return;
+  let dragId = null;
+  const clearMarks = () => stack.querySelectorAll('.widget').forEach(w => w.classList.remove('drop-before', 'drop-after', 'dragging'));
+  stack.querySelectorAll('.widget').forEach(el => {
+    el.addEventListener('dragstart', e => { dragId = el.getAttribute('data-wid'); if (e.dataTransfer) e.dataTransfer.effectAllowed = 'move'; el.classList.add('dragging'); });
+    el.addEventListener('dragend', clearMarks);
+    el.addEventListener('dragover', e => {
+      e.preventDefault();
+      if (!dragId || el.getAttribute('data-wid') === dragId) return;
+      const r = el.getBoundingClientRect(), after = (e.clientY - r.top) > r.height / 2;
+      el.classList.toggle('drop-after', after); el.classList.toggle('drop-before', !after);
+    });
+    el.addEventListener('dragleave', () => el.classList.remove('drop-before', 'drop-after'));
+    el.addEventListener('drop', e => {
+      e.preventDefault();
+      const tgt = el.getAttribute('data-wid');
+      if (dragId && tgt && tgt !== dragId) { const r = el.getBoundingClientRect(); moveWidget(dragId, tgt, (e.clientY - r.top) > r.height / 2); }
+      dragId = null;
+    });
+  });
 }
 
 function renderInsights() {
@@ -2524,80 +3021,141 @@ function renderInsights() {
   const agg = aggregateHistory(monitors);
   const fs = agg.fleetStats;
   insightsFleetDaily = agg.fleetHealthDaily;   // for the trend-line hover
-  const aSites = (asanaHistory && asanaHistory.sites) || {};
+  const aSites = asanaSitesCanonical();   // canonical-keyed + merged, so aliased hosts (BY76A→BY12A) join
   const aVals = Object.values(aSites);
   const nowSec = Math.floor(Date.now() / 1000);
 
-  // ── Fleet headline ──
-  const statBlock = (label, v) => `<div class="istat"><div class="istat-val ${uptimeCls(v)}">${fmtPct(v)}</div><div class="istat-label">${label}</div></div>`;
-  const trendChip = (fs.meanU7 === null || fs.meanU90 === null) ? '' :
-    `<div class="itrend itrend-${fs.trend}">${fs.trend === 'up' ? '▲ improving' : fs.trend === 'down' ? '▼ declining' : '▬ steady'}</div>`;
-  const fleet = `<div class="icard">
-    <div class="icard-title">Fleet uptime <span class="icard-sub">averaged across ${agg.perMonitor.length} monitors</span></div>
-    <div class="istats">
-      ${statBlock('7-day', fs.meanU7)}${statBlock('30-day', fs.meanU30)}${statBlock('90-day', fs.meanU90)}
-      <div class="istat"><div class="istat-val text-warn">${fs.totalIncidents30}</div><div class="istat-label">outages · 30d</div></div>
-      <div class="istat"><div class="istat-val text-up">${fmtDur(fs.totalDowntime30)}</div><div class="istat-label">total outage · 30d</div></div>
-      ${trendChip}
-    </div>
-    ${fleetTrendSVG(agg.fleetHealthDaily)}</div>`;
+  // Day index where UniFi/degraded (Asana) tracking begins — the earliest incident we have.
+  // Before it we only have UptimeRobot whole-site outages, so the timeline marks the boundary
+  // and pre-cutoff tooltips note that degraded devices weren't tracked yet. -1 = nothing to
+  // mark (no Asana data, or it already covers the whole 90-day window).
+  let degradedSinceSec = Infinity;
+  aVals.forEach(a => (a.incidents || []).forEach(inc => {
+    if (!isDegradedIncident(inc)) return;  // boundary = when DEVICE tracking began, not any ticket
+    const t = Math.floor((Date.parse(inc.created_at || '') || 0) / 1000);
+    if (t && t < degradedSinceSec) degradedSinceSec = t;
+  }));
+  insightsDegradedSinceIdx = (degradedSinceSec === Infinity) ? -1
+    : Math.max(0, Math.min(HEAT_DAYS - 1, HEAT_DAYS - 1 - Math.round((nowSec - degradedSinceSec) / 86400)));
+  const cutoffIdx = insightsDegradedSinceIdx > 0 ? insightsDegradedSinceIdx : -1;
 
-  // ── Outage timeline: 90 days of history. UptimeRobot per-monitor day-status covers the
-  // full 90 days; Asana incident tickets (only as far back as the engine has run) overlay
-  // named, cross-service detail on the recent days. Heat = distinct outages per day. ──
-  const noun = 'outage';
+  // ── Per-day outage detail: drives the Timeline markers, the line-hover tooltips, and the
+  // 7-day strip. UptimeRobot per-monitor day-status covers the full 90 days; Asana incident
+  // tickets (only as far back as the engine has run) overlay named detail on recent days.
+  // Heat = distinct outages per day. ──
   const detail = Array.from({ length: HEAT_DAYS }, () => []);
+  // Same items, but split per SITE code — feeds the Site-reliability ribbon's per-day colour
+  // and hover so it shows the same outages/degradations as the Timeline and the incidents list.
+  const siteDayDetail = {};
+  const pushSiteDay = (code, i, item) => {
+    if (!code) return;
+    const rows = siteDayDetail[code] || (siteDayDetail[code] = Array.from({ length: HEAT_DAYS }, () => []));
+    rows[i].push(item);
+  };
   agg.perMonitor.forEach(p => {
-    for (let i = 0; i < HEAT_DAYS; i++) { const s = p.days[i]; if (s === 'down' || s === 'warn') detail[i].push({ label: p.name, sev: s, site: propCode(p.name) }); }
+    const code = propCode(p.name);
+    const site = siteTag(p.name, code);
+    const ds = p.days._downSecs;   // per-day downtime seconds (stashed by computeDailyStatuses)
+    // A monitor being down = the whole site was offline = a full outage → ALWAYS red, however
+    // brief. Severity is about WHAT failed (whole site), not how long; the duration is shown
+    // separately. Amber (degraded) comes only from UniFi device-offline tickets below.
+    for (let i = 0; i < HEAT_DAYS; i++) { const s = p.days[i]; if (s === 'down' || s === 'warn') { const item = { label: p.name, sev: 'down', site, dur: (ds && ds[i]) || 0 }; detail[i].push(item); pushSiteDay(code, i, item); } }
   });
   aVals.forEach(a => {
     (a.incidents || []).forEach(inc => {
       const st = Math.floor((Date.parse(inc.created_at || '') || 0) / 1000);
       if (!st) return;
       const en = inc.ongoing ? nowSec : Math.floor((Date.parse(inc.completed_at || '') || nowSec) / 1000);
+      const site = siteTag(inc.title, a.code);   // hoisted: same for every day this incident spans
+      const degraded = isDegradedIncident(inc);
       for (let i = 0; i < HEAT_DAYS; i++) {
         const ds = nowSec - (HEAT_DAYS - i) * INCIDENT_DAY, de = ds + INCIDENT_DAY;
-        if (st < de && en > ds) detail[i].push({ label: inc.title, sev: inc.ongoing ? 'down' : 'warn', site: a.code });
+        if (!(st < de && en > ds)) continue;
+        const dur = Math.min(en, de) - Math.max(st, ds);
+        if (degraded) {
+          // Degraded (dev/netout, site reachable) → amber. Drives the fleet Timeline AND the
+          // per-site ribbon.
+          const item = { label: inc.title, sev: 'warn', site, dur };
+          detail[i].push(item); pushSiteDay(a.code, i, item);
+        } else {
+          // Outage (monitor/prop/site) → red on the SITE ribbon only, and only where UptimeRobot
+          // didn't already log a down that day (e.g. UniFi-detected whole-site outages UR's web
+          // check missed). The fleet Timeline keeps using UptimeRobot for outages (no double-list).
+          const rows = siteDayDetail[a.code];
+          if (!(rows && rows[i] && rows[i].some(x => x.sev === 'down')))
+            pushSiteDay(a.code, i, { label: inc.title, sev: 'down', site, dur });
+        }
       }
     });
   });
+  insightsSiteDayDetail = siteDayDetail;   // for the per-site ribbon hover (attachRibbonHover)
   insightsDayDetail = detail.map((items, i) => {
     const seen = new Set(), uniq = [];
     items.forEach(it => { if (!seen.has(it.label)) { seen.add(it.label); uniq.push(it); } });
-    const d = new Date(Date.now() - (HEAT_DAYS - i) * INCIDENT_DAY * 1000);
-    return { date: d.toLocaleDateString([], { weekday: 'short', month: 'short', day: 'numeric' }), items: uniq, noun };
+    // Bucket i ends at now-(HEAT_DAYS-1-i) days; label it by that day to match ubarDateStrings
+    // (so the rightmost bar reads "today", not yesterday). Was (HEAT_DAYS-i) → off by one.
+    const d = new Date(Date.now() - (HEAT_DAYS - 1 - i) * INCIDENT_DAY * 1000);
+    return { date: d.toLocaleDateString([], { weekday: 'short', month: 'short', day: 'numeric' }), items: uniq };
   });
   const heat = insightsDayDetail.map(d => d.items.length);
   const maxHeat = Math.max(1, ...heat);
-  const cells = heat.map((c, i) => heatCell(c, maxHeat, i)).join('');
-  // 7-day summary strip (replaces the old standalone "recent outages" card) — from the
-  // already-built insightsDayDetail, newest first, deduped by name.
+  // 7-day summary strip — from the already-built insightsDayDetail, newest first, deduped by name.
   const last7 = insightsDayDetail.slice(-7);
   const seen7 = new Set(), names7 = [];
   for (let i = last7.length - 1; i >= 0; i--) for (const it of last7[i].items) if (!seen7.has(it.label)) { seen7.add(it.label); names7.push(it); }
   const n7 = seen7.size;
   const chips7 = names7.slice(0, 5).map(it => `<span class="tl-chip">${escHtml(it.label)}${it.site ? ` <em>${escHtml(it.site)}</em>` : ''}</span>`).join('');
   const strip7 = n7
-    ? `<div class="tl-summary"><span class="tl-head">Last 7 days · <b>${n7}</b> outage${n7 === 1 ? '' : 's'}</span>${chips7}${names7.length > 5 ? `<span class="tl-more">+${names7.length - 5} more</span>` : ''}</div>`
+    ? `<div class="tl-summary"><span class="tl-head">Last 7 days · <b>${n7}</b> incident${n7 === 1 ? '' : 's'}</span>${chips7}${names7.length > 5 ? `<span class="tl-more">+${names7.length - 5} more</span>` : ''}</div>`
     : `<div class="tl-summary"><span class="tl-head">Last 7 days · all clear ✦</span></div>`;
-  const heatmap = `<div class="icard">
-    <div class="icard-title">Outage timeline <span class="icard-sub">90 days · hover any day to see what went down · darker = more outages</span></div>
-    <div class="hgrid">${cells}</div>
-    <div class="ubar-footer"><span>90 days ago</span><span class="ubar-pct">busiest day: ${maxHeat} outage${maxHeat === 1 ? '' : 's'}</span><span>Today</span></div>
-    ${strip7}
-  </div>`;
+
+  // ── Timeline: fleet-health trend with per-day outage markers + headline stats. Merges the
+  // old "Fleet uptime" line and "Outage timeline" heatmap (two views of the same 90 days). ──
+  const statBlock = (label, v) => `<div class="istat"><div class="istat-val ${uptimeCls(v)}">${fmtPct(v)}</div><div class="istat-label">${label}</div></div>`;
+  const trendChip = (fs.meanU7 === null || fs.meanU90 === null) ? '' :
+    `<div class="itrend itrend-${fs.trend}">${fs.trend === 'up' ? '▲ improving' : fs.trend === 'down' ? '▼ declining' : '▬ steady'}</div>`;
+  const timeline = `<div class="icard">
+    <div class="icard-title">Timeline <span class="icard-sub">fleet uptime across ${agg.perMonitor.length} monitors · hover the line for any day’s incidents${cutoffIdx > 0 ? ' · ⋮ marks where degraded-device tracking begins' : ''}</span></div>
+    <div class="istats">
+      ${statBlock('7-day', fs.meanU7)}${statBlock('30-day', fs.meanU30)}${statBlock('90-day', fs.meanU90)}
+      <div class="istat"><div class="istat-val text-warn">${fs.totalIncidents30}</div><div class="istat-label">incidents · 30d</div></div>
+      <div class="istat"><div class="istat-val text-up">${fmtDur(fs.totalDowntime30)}</div><div class="istat-label">total offline · 30d</div></div>
+      ${trendChip}
+    </div>
+    ${fleetTrendSVG(agg.fleetHealthDaily, cutoffIdx, heat, maxHeat)}
+    ${strip7}</div>`;
 
   // ── Merged per-site dataset (used by focus graphs + both board columns) ──
   const byCode = new Map();
   agg.perSite.forEach(s => byCode.set(s.code, {
-    code: s.code, days: s.days, worst: s.worst, monitorCount: s.monitorCount,
+    code: s.code, days: s.days, daysDetail: siteDayDetail[s.code] || null, monitorCount: s.monitorCount,
     minU30: s.minU30, lastDown: s.lastDown, downNow: s.downNow, inc: s.inc30, dt: s.dt30,
   }));
   aVals.forEach(a => {
-    const e = byCode.get(a.code) || { code: a.code, days: null, worst: null, monitorCount: 0, minU30: null, lastDown: 0, downNow: 0 };
+    const e = byCode.get(a.code) || { code: a.code, days: null, monitorCount: 0, minU30: null, lastDown: 0, downNow: 0 };
     e.inc = a.count; e.dt = a.totalDowntimeSec; e.aOpen = a.openCount;
+    // Split ongoing tickets by severity so a degraded-only site isn't shown as "Down now":
+    // outage kinds (site/prop/monitor) → aOpenDown; degraded kinds (dev/netout) → aOpenDegraded.
+    let openDown = 0, openDeg = 0;
+    (a.incidents || []).forEach(inc => { if (!inc.ongoing) return; isDegradedIncident(inc) ? openDeg++ : openDown++; });
+    e.aOpenDown = openDown; e.aOpenDegraded = openDeg;
     const last = a.incidents && a.incidents[0] && Math.floor((Date.parse(a.incidents[0].created_at || '') || 0) / 1000);
     if (last && last > e.lastDown) e.lastDown = last;
+    // Device-offline seconds in the last 30d, weighted by how much of the fleet was down: a
+    // single device ('dev') = 1; a 'netout' uses the N parsed from "N infra devices". Feeds the
+    // blended reliability % (divided by deviceCount in blendedReliability).
+    const win30 = nowSec - 30 * INCIDENT_DAY;
+    let devOff = 0;
+    (a.incidents || []).forEach(inc => {
+      if (!isDegradedIncident(inc)) return;
+      const st = Math.floor((Date.parse(inc.created_at || '') || 0) / 1000); if (!st) return;
+      const en = inc.ongoing ? nowSec : Math.floor((Date.parse(inc.completed_at || '') || nowSec) / 1000);
+      const s0 = Math.max(st, win30), e0 = Math.min(en, nowSec);
+      if (e0 <= s0) return;
+      const nm = inc.kind === 'netout' ? (parseInt((String(inc.title).match(/(\d+)\s+infra/) || [])[1], 10) || 1) : 1;
+      devOff += (e0 - s0) * nm;
+    });
+    e.devOffSec = devOff;
     byCode.set(a.code, e);
   });
   const merged = [...byCode.values()].map(s => ({ ...s, openNow: (s.aOpen || s.downNow) ? 1 : 0 }));
@@ -2617,68 +3175,51 @@ function renderInsights() {
         const dur = inc.ongoing ? null : Math.max(0, Math.floor(((Date.parse(inc.completed_at || '') || Date.now()) - (st * 1000 || Date.now())) / 1000));
         return { title: inc.title, when: st ? fmtClock(st) : '', dur, ongoing: inc.ongoing };
       }) : [];
-    insightsSites[s.code] = { code: s.code, up: s.minU30, inc: s.inc || 0, dt: s.dt || 0, sev: sevClass(s.openNow, s.lastDown), p1: isP1(s.code), monitorCount: s.monitorCount, recent };
+    insightsSites[s.code] = { code: s.code, up: s.minU30, inc: s.inc || 0, dt: s.dt || 0, p1: isP1(s.code), monitorCount: s.monitorCount, recent };
   });
 
-  // ── "Where to focus" — impact × frequency scatter + reliability spectrum ──
-  const focusSub = aVals.length ? 'outage impact × frequency · click a site to jump to it · 90d' : (asanaHistoryLoading ? 'loading Asana incidents…' : 'outage impact × frequency · click a site to jump to it · 30d');
-  const focus = `<div class="icard"><div class="icard-title">Where to focus <span class="icard-sub">${focusSub}</span></div>
-    <div class="focus-grid">
-      <div class="scatter">${focusScatterSVG(visible)}</div>
-      <div class="spectrum"><div class="board-h">Reliability — worst to best</div>${focusSpectrumHTML(visible)}</div>
-    </div></div>`;
-
-  // ── Sites board: needs-attention (left) | most reliable (right) ──
+  // ── Sites needing attention (shown beside the scatter inside "Where to focus") ──
   const attnAll = merged.filter(needsAttn);
   const hiddenSites = attnAll.filter(s => isMuted('site', s.code)).length;
   const sites = (insightsShowMuted ? attnAll : attnAll.filter(s => !isMuted('site', s.code)))
     .sort((a, b) => (b.openNow - a.openNow) || ((b.dt || 0) - (a.dt || 0)) || ((b.inc || 0) - (a.inc || 0)))
     .slice(0, 8);
-  const maxSiteDt = Math.max(1, ...sites.map(s => s.dt || 0));
   const siteRows = sites.length ? sites.map((s, n) => {
-    const sev = sevClass(s.openNow, s.lastDown);
+    const state = liveSiteState(s);
     const up = s.minU30 != null ? ` · <span class="${uptimeCls(s.minU30)}">${fmtPct(s.minU30)} up</span>` : '';
     return attnRow({
       key: 'site:' + s.code, kind: 'site', id: s.code, muteLabel: 'Site ' + s.code, muted: isMuted('site', s.code),
       title: `<span class="at-code">${escHtml(s.code)}</span>${isP1(s.code) ? '<span class="p1-badge">P1</span>' : ''}`,
-      sub: s.monitorCount ? `${s.monitorCount} monitor${s.monitorCount === 1 ? '' : 's'}${s.worst ? ' · worst: ' + escHtml(s.worst.name) : ''}` : 'tracked via Asana tickets',
-      sev, barPct: Math.max(3, Math.round((s.dt || 0) / maxSiteDt * 100)),
-      barLabel: `<b>${s.inc || 0}</b> outage${(s.inc || 0) === 1 ? '' : 's'} · <b>${fmtDur(s.dt || 0)}</b> down${up}`,
-      sparkDays: s.days, sparkPct: s.minU30, badge: statusBadge(sev), when: fmtAgo(s.lastDown),
+      sub: s.monitorCount ? '' : (hasPausedMonitor(s.code) ? 'monitor paused' : ''),
+      sev: stateColor(state),
+      barLabel: `<b>${s.inc || 0}</b> incident${(s.inc || 0) === 1 ? '' : 's'} · <b>${fmtDur(s.dt || 0)}</b> offline${up}`,
+      badge: statusBadge(state), when: fmtAgo(s.lastDown),
     }, n);
-  }).join('') : `<div class="iempty">No site outages in the window — everything's been stable. ✦</div>`;
+  }).join('') : `<div class="iempty">No site incidents in the window — everything's been stable. ✦</div>`;
 
-  // Most reliable: the healthiest sites by uptime — everything not in the worst-8 attention
-  // list and not down right now (a long-ago resolved blip shouldn't bar a site from here).
-  // P1 flagship sites pinned to the top. Generous cap so plenty of reliable sites show.
-  const attnCodes = new Set(sites.map(s => s.code));
-  const reliable = visible.filter(s => s.minU30 != null && !attnCodes.has(s.code) && !s.openNow)
-    .sort((a, b) => (isP1(b.code) - isP1(a.code)) || (b.minU30 - a.minU30) || ((a.inc || 0) - (b.inc || 0)) || a.code.localeCompare(b.code))
-    .slice(0, 16);
-  const relRows = reliable.length ? reliable.map(s => {
-    const p1 = isP1(s.code);
-    const clean = s.lastDown ? `${Math.max(0, Math.floor((nowSec - s.lastDown) / 86400))}d clean` : '✓ 90d clean';
-    return `<div class="rel-row sc-dot${p1 ? ' rel-p1' : ''}" data-code="${escHtml(s.code)}">
-      <span class="rel-code">${escHtml(s.code)}${p1 ? '<span class="p1-badge">P1</span>' : ''}</span>
-      <span class="rel-up ${uptimeCls(s.minU30)}">${fmtPct(s.minU30)}</span>
-      <span class="rel-meta">${s.monitorCount} monitor${s.monitorCount === 1 ? '' : 's'} · ${clean}</span>
-    </div>`;
-  }).join('') : `<div class="iempty">All tracked sites currently need attention.</div>`;
-
-  const sitesBoard = `<div class="icard"><div class="icard-title">Sites <span class="icard-sub">${aVals.length ? 'ranked by outages + downtime · 90d' : 'ranked by downtime · 30d'} · click a row for tickets</span></div>
-    <div class="sites-board">
-      <div class="board-col"><div class="board-h board-h-bad">⚠ Needs attention</div>${siteRows}${mutedFooter('site', hiddenSites)}</div>
-      <div class="board-col"><div class="board-h board-h-good">✓ Most reliable</div>${relRows}</div>
+  // ── "Where to focus" — impact × frequency scatter beside the needs-attention list ──
+  const focusSub = aVals.length ? 'incident impact × frequency · click a site to jump to it · 90d' : (asanaHistoryLoading ? 'loading Asana incidents…' : 'incident impact × frequency · click a site to jump to it · 30d');
+  const focus = `<div class="icard"><div class="icard-title">Where to focus <span class="icard-sub">${focusSub}</span></div>
+    <div class="focus-attn">
+      <div class="scatter">${focusScatterSVG(visible)}</div>
+      <div class="attn-col"><div class="board-h board-h-bad">⚠ Needs attention</div>${siteRows}${mutedFooter('site', hiddenSites)}</div>
     </div></div>`;
+
+  // ── ISP reliability — WAN performance grouped by provider (UniFi isp-metrics); expand → sites ──
+  const ispCard = ispReliabilityCard();
+
+  // ── Site reliability — every site ranked, least/most toggle, expand → root causes ──
+  const siteRelCard = siteReliabilityCard(visible, aSites, nowSec);
 
   // ── Devices needing attention ──
   const allDevs = agg.perMonitor.filter(p => p.score > 0 || p.eff === 'down' || p.eff === 'warn')
     .sort((a, b) => ((b.eff === 'down') - (a.eff === 'down')) || (b.dt30 - a.dt30) || (b.inc30 - a.inc30));
   const hiddenDevs = allDevs.filter(p => isMuted('mon', p.name)).length;
   const devs = allDevs.filter(p => insightsShowMuted || !isMuted('mon', p.name)).slice(0, 10);
-  const maxDevDt = Math.max(1, ...devs.map(p => p.dt30));
   const devRows = devs.length ? devs.map((p, n) => {
-    const sev = sevClass(p.eff === 'down', p.lastDown);
+    // p.eff is the device's live state (down / warn=degraded / up). Map to the badge vocabulary;
+    // if it's fine now but went down within RECOVERED_DAYS, it's "Recovered", else "Healthy".
+    const state = p.eff === 'down' ? 'down' : p.eff === 'warn' ? 'degraded' : (recentlyTroubled(p.lastDown) ? 'recovered' : 'healthy');
     const code = propCode(p.name);
     // Don't echo "site HY35" under a device literally named "HY35"; show 90-day uptime instead.
     const sub = (code && !normCode(p.name).includes(code))
@@ -2688,18 +3229,34 @@ function renderInsights() {
       key: 'mon:' + p.name, kind: 'mon', id: p.name, muteLabel: p.name, muted: isMuted('mon', p.name),
       title: `<span class="at-name" title="${escHtml(p.name)}">${escHtml(p.name)}</span>`,
       sub,
-      sev, barPct: Math.max(3, Math.round(p.dt30 / maxDevDt * 100)),
-      barLabel: `<b>${p.inc30}</b> outage${p.inc30 === 1 ? '' : 's'} · <b>${fmtDur(p.dt30)}</b> down · <span class="${uptimeCls(p.u30)}">${fmtPct(p.u30)} up</span>`,
-      sparkDays: p.days, sparkPct: p.u90, badge: statusBadge(sev), when: fmtAgo(p.lastDown),
+      sev: stateColor(state),
+      barLabel: `<b>${p.inc30}</b> incident${p.inc30 === 1 ? '' : 's'} · <b>${fmtDur(p.dt30)}</b> offline · <span class="${uptimeCls(p.u30)}">${fmtPct(p.u30)} up</span>`,
+      badge: statusBadge(state), when: fmtAgo(p.lastDown),
     }, n);
-  }).join('') : `<div class="iempty">All devices healthy — no outages in 30 days. ✦</div>`;
+  }).join('') : `<div class="iempty">All devices healthy — no incidents in 30 days. ✦</div>`;
   const devCard = `<div class="icard"><div class="icard-title">Devices needing attention <span class="icard-sub">ranked by downtime · click a row for down events &amp; tickets · 30d</span></div>${devRows}${mutedFooter('mon', hiddenDevs)}</div>`;
 
-  host.innerHTML = `<div class="insights-stack">${fleet}${focus}${heatmap}${sitesBoard}${devCard}</div>`;
-  attachHeatHover(host);
+  // Assemble as configurable widgets: render in the user's saved order, skipping hidden ones,
+  // each wrapped with drag/collapse/hide chrome. Kiosk gets the fixed default board.
+  const defById = {
+    timeline: { id: 'timeline', name: 'Timeline', html: timeline },
+    focus:    { id: 'focus',    name: 'Where to focus', html: focus },
+    isp:      { id: 'isp',      name: 'ISP reliability', html: ispCard },
+    siteRel:  { id: 'siteRel',  name: 'Site reliability', html: siteRelCard },
+    devices:  { id: 'devices',  name: 'Devices needing attention', html: devCard },
+  };
+  const lay = insightsLayout();
+  const editing = insightsEditMode && !kiosk;
+  const cards = lay.order.filter(id => defById[id] && !lay.hidden.has(id))
+    .map(id => widgetShell(defById[id], editing, lay.collapsed.has(id))).join('');
+  const hiddenIds = lay.order.filter(id => defById[id] && lay.hidden.has(id));
+  const toolbar = kiosk ? '' : insightsToolbar(editing, hiddenIds, defById);
+  host.innerHTML = `${toolbar}<div class="insights-stack${editing ? ' editing' : ''}">${cards}</div>`;
   attachTrendHover(host);
   attachFocusClicks(host);
   attachScatterHover(host);
+  attachRibbonHover(host);
+  if (editing) attachWidgetDnD(host);
 }
 
 function toggleAlertDetail(el) { el.classList.toggle('open'); }
@@ -2727,15 +3284,111 @@ function ticketsSectionHTML(name) {
   return `<div class="dtl-section ticket-section"><div class="dtl-section-title">Asana ticket</div>${inner}</div>`;
 }
 
-// Recent down events from the monitor's own UptimeRobot logs (no extra fetch). Empty if none.
+// Past (resolved) Asana tickets for this property's site, from the 90-day asanaHistory scan
+// (loaded for alerts in refreshAll). Ongoing tickets are omitted — they're the open ticket
+// shown above. Returns '' if history isn't loaded or there's nothing resolved. Kiosk-hidden
+// via .ticket-section (links aren't clickable on signage).
+function ticketHistoryHTML(name) {
+  const code = propCode(name);
+  const site = lookupAsanaSite(code);
+  const past = site ? (site.incidents || []).filter(inc => !inc.ongoing) : [];
+  if (!past.length) return '';
+  const CAP = 6;
+  const rows = past.slice(0, CAP).map(inc => {
+    const stMs = Date.parse(inc.created_at || '') || 0;
+    const dur  = Math.max(0, Math.floor(((Date.parse(inc.completed_at || '') || stMs) - stMs) / 1000));
+    const when = stMs ? fmtClock(Math.floor(stMs / 1000)) : '—';
+    return `<a class="ticket-hist" href="${escHtml(inc.permalink)}" target="_blank" rel="noopener" onclick="event.stopPropagation()">` +
+      `<span class="ticket-hist-title">${escHtml(inc.title)}</span>` +
+      `<span class="ticket-hist-meta">${when} · ${fmtDur(dur)}</span></a>`;
+  }).join('');
+  const more = past.length > CAP ? `<div class="ticket-hist-more">+${past.length - CAP} more — open in Asana</div>` : '';
+  return `<div class="dtl-section ticket-section"><div class="dtl-section-title">Past tickets · ${past.length} in 90d</div>${rows}${more}</div>`;
+}
+
+// Recent incidents from the monitor's own UptimeRobot logs (no extra fetch). These are
+// monitor-offline events (a device/endpoint went unreachable) — not necessarily a whole-site
+// outage — so the label stays neutral. Empty if none.
 function incidentHistoryHTML(m) {
   const downs = (m.logs || []).filter(l => l.type === 1).slice(0, 5);
   if (!downs.length) return '';
   const rows = downs.map(l => {
     const when = new Date((l.datetime || 0) * 1000).toLocaleString([], { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit', hour12: false });
-    return `<div class="dtl-row"><span class="dtl-label">${when}</span><span class="text-paused">down ${fmtDur(l.duration)}</span></div>`;
+    return `<div class="dtl-row"><span class="dtl-label">${when}</span><span class="text-paused">offline ${fmtDur(l.duration)}</span></div>`;
   }).join('');
-  return `<div class="dtl-section"><div class="dtl-section-title">Recent down events</div>${rows}</div>`;
+  return `<div class="dtl-section"><div class="dtl-section-title">Recent incidents</div>${rows}</div>`;
+}
+
+// Live root-cause inference for an active alert. Beacon already collects every signal
+// needed to GUESS why a property is alerting, so we surface a confidence-tagged "likely
+// cause" on the card rather than make the operator cross-read the summary, offline chips,
+// and WAN/UPS detail. Pure — reads the same live maps alertCardHTML does. Returns
+// { cause, confidence:'likely'|'possible', icon, why } (why/cause are plain text — escape
+// at render). Thresholds (latency >= 80ms, any packet loss) match the "Right now"
+// drill-down (siteRootCauseHTML) so the chip and that view agree.
+function classifyRootCause(m, eff) {
+  const name = m.friendly_name;
+  // The Test-alert card is synthetic — say so rather than infer a bogus cause.
+  if (name === TEST_MON.friendly_name)
+    return { cause: 'Simulated — no real signal', confidence: 'possible', icon: '🧪',
+      why: 'This is the Test-alert card; it has no underlying signals to analyse.' };
+
+  const apcDevs   = apcMap[name] || null;
+  const unifiData = unifiMap[unifiKey(name)] || null;
+  const offDevs   = effectiveOffline(unifiData);               // UniFi, with device names
+  const ovrcOff   = (ovrcMap[name] && ovrcMap[name].offlineDeviceCount) || 0;  // OvrC, count only
+  const monDown   = (STATUS_INFO[m.status] || STATUS_INFO[1]).cls === 'down';
+
+  // 1) Power — a UPS on battery means the site lost mains power (strongest local signal).
+  if (apcDevs && apcDevs.length) {
+    const onBattery = apcDevs.find(d => d.upsOperatingMode === 'on_battery' || d.upsOperatingMode === 'low_battery');
+    if (onBattery) {
+      const low = onBattery.upsOperatingMode === 'low_battery';
+      return { cause: 'Power', confidence: 'likely', icon: '🔌',
+        why: `UPS “${onBattery.name}” is on${low ? ' low' : ''} battery — the site has lost mains power.` };
+    }
+    if (apcDevs.every(d => d.pluginStatus === 'comm_lost'))
+      return { cause: 'Power / UPS', confidence: 'possible', icon: '🔌',
+        why: 'The UPS is unreachable — could be a power loss, the UPS itself, or its network link.' };
+  }
+
+  // 2) ISP / Internet — live WAN packet loss or a latency spike points at the provider.
+  const isp = unifiData && unifiData.isp;
+  if (isp && (isp.packetLoss || (isp.latencyMs != null && isp.latencyMs >= 80))) {
+    const bits = [isp.latencyMs != null ? `${isp.latencyMs} ms` : null,
+                  isp.packetLoss ? `${isp.packetLoss}% loss` : null,
+                  isp.uptimePct != null ? `${fmtPct(isp.uptimePct)} WAN uptime` : null].filter(Boolean).join(' · ');
+    return { cause: isp.ispName ? `${isp.ispName} (ISP)` : 'ISP / Internet',
+      confidence: isp.packetLoss ? 'likely' : 'possible', icon: '🌐',
+      why: `WAN is degraded right now — ${bits}.` };
+  }
+
+  // 3) Device(s) offline — site still reachable. An offline managed device is always one of
+  // {device failure, cabling, power}, but the cloud /v1/devices endpoint gives only
+  // status/mac/name — no PoE/port/uplink (that's on the local controllers we don't touch),
+  // so we can't prove which. The count of devices that dropped TOGETHER is the honest tell:
+  // one = isolated fault on that device; several at once = a shared upstream cause (a
+  // switch/uplink or power to a rack) is far likelier than N independent failures. UniFi gives
+  // names; OvrC gives only a count — fold both in so an OvrC-only degradation classifies too.
+  if (eff === 'warn' && (offDevs.length || ovrcOff)) {
+    const totalOff = offDevs.length + ovrcOff;
+    const names = offDevs.map(d => d.name).slice(0, 3).join(', ');
+    if (totalOff === 1)
+      return { cause: 'Device, cabling, or power', confidence: 'possible', icon: '🔧',
+        why: `${names ? `Only “${names}” is` : 'A single device is'} offline while the site stays reachable — an isolated fault: the device itself, its drop cable, or its PoE/power. Cloud data can’t say which.` };
+    return { cause: 'Cabling or power (shared)', confidence: 'possible', icon: '🔧',
+      why: `${totalOff} devices dropped offline together${names ? ` (${names})` : ''} while the site stays reachable — that points to a shared upstream cause (a switch/uplink, or power to a rack/area) rather than ${totalOff} independent device failures.` };
+  }
+
+  // 4) Whole-site unreachable with no local telemetry — internet/upstream is the likely
+  // culprit (UniFi/UPS may be dark precisely because the WAN is down).
+  if (monDown || eff === 'down')
+    return { cause: 'ISP / upstream connectivity', confidence: 'possible', icon: '🌐',
+      why: 'The site is unreachable with no local telemetry — the internet or an upstream link is the likely culprit (UniFi/UPS may be dark because the WAN is down).' };
+
+  // 5) Nothing distinguishing.
+  return { cause: 'Cause unclear', confidence: 'possible', icon: '❔',
+    why: 'No distinguishing signal yet — open the details to investigate.' };
 }
 
 function alertCardHTML(m, eff, acked) {
@@ -2746,6 +3399,7 @@ function alertCardHTML(m, eff, acked) {
   const unifiData = unifiMap[unifiKey(name)] || null;
   const unifi = getUnifiCellStatus(unifiData);
   const offDevs = effectiveOffline(unifiData);
+  const rc   = classifyRootCause(m, eff);
   const u90  = parseUptime(m.custom_uptime_ratio)[2];
   const level = acked ? 'ack' : eff;
   const levelLabel = acked ? '◑ Acknowledged' : (eff === 'down' ? '● Alert · Down' : '▲ Degraded');
@@ -2770,23 +3424,38 @@ function alertCardHTML(m, eff, acked) {
   const bars = renderUptimeBars(computeDailyStatuses(m.logs, 90, m.create_datetime), u90);
   // Expander = jump to the Asana ticket(s), recent down history, and the 90-day uptime. The
   // per-service counts that used to live here just duplicated the summary line above, so they're gone.
+  // Internet (WAN) provider + live latency/loss, from UniFi isp-metrics — handy for triage
+  // (is the site's internet itself the problem?). Omitted when no ISP data for this property.
+  const isp = unifiData && unifiData.isp;
+  const ispHtml = isp ? `<div class="dtl-section">
+      <div class="dtl-section-title">Internet (WAN)</div>
+      <div class="isp-line">${escHtml(isp.ispName)}${isp.latencyMs != null ? ` · ${isp.latencyMs} ms` : ''}${isp.packetLoss ? ` · ${isp.packetLoss}% loss` : ''}${isp.uptimePct != null ? ` · <span class="${uptimeCls(isp.uptimePct)}">${fmtPct(isp.uptimePct)} WAN uptime</span>` : ''}</div>
+    </div>` : '';
+  const rcLabel = rc.confidence === 'likely' ? 'Likely' : 'Possible';
+  const causeHtml = `<div class="dtl-section">
+      <div class="dtl-section-title">Likely cause</div>
+      <div class="isp-line">${rc.icon} ${rcLabel}: ${escHtml(rc.cause)} — ${escHtml(rc.why)}</div>
+    </div>`;
   const detail = `
+    ${causeHtml}
     ${ticketsSectionHTML(name)}
+    ${ticketHistoryHTML(name)}
     ${incidentHistoryHTML(m)}
+    ${ispHtml}
     <div class="dtl-section">
       <div class="dtl-section-title">90-day uptime</div>
-      ${m.url ? `<div class="dtl-row"><span class="dtl-label">Target</span><span class="text-paused">${escHtml(m.url)}</span></div>` : ''}
-      <div style="margin-top:8px">${bars}</div>
+      <div>${bars}</div>
     </div>`;
 
   return `<div class="alert-card alert-${level}" onclick="toggleAlertDetail(this)">
     <div class="alert-card-head">
-      <span class="alert-card-name">${name}</span>
+      <span class="alert-card-name">${escHtml(name)}</span>
       <span class="alert-card-level">${levelLabel}</span>
       <span class="alert-card-spacer"></span>
       ${ackControlHTML(name, eff)}
     </div>
     <div class="alert-card-summary">${summary}</div>
+    <div class="alert-card-cause cause-${rc.confidence}">${rc.icon} ${rcLabel} cause: ${escHtml(rc.cause)}</div>
     ${offlineListHtml}
     <div class="alert-card-hint">▾ Click for details</div>
     <div class="alert-detail">${detail}</div>
@@ -2885,7 +3554,7 @@ function renderTiles() {
     const ackHtml = ackControlHTML(name, eff);
 
     return `<div class="tile ${tileCls}">
-      <div class="tile-name">${name}</div>
+      <div class="tile-name">${escHtml(name)}</div>
       <div class="tile-status"><span class="dot ${dotCls}"></span><span class="text-${textCls}">${label}</span></div>
       ${svcHtml ? `<div class="tile-services">${svcHtml}</div>` : ''}
       <div class="tile-uptime">${uptimeText}</div>
@@ -3008,7 +3677,7 @@ function renderTable() {
 
     return `<tr class="${eff === 'paused' ? 'paused-row' : ''}">
       <td><div class="status-cell"><span class="dot ${dotCls}"></span><span class="text-${textCls}">${label}</span></div></td>
-      <td><strong>${name}</strong>${ackHtml ? `<div class="row-ack">${ackHtml}</div>` : ''}</td>
+      <td><strong>${escHtml(name)}</strong>${ackHtml ? `<div class="row-ack">${ackHtml}</div>` : ''}</td>
       <td class="uptime-bars-cell col-90d">${renderUptimeBars(computeDailyStatuses(m.logs, 90, m.create_datetime), u90)}</td>
       <td class="service-cell">${serviceCellHTML(ovrcStatus)}</td>
       <td class="service-cell">${serviceCellHTML(apcStatus)}</td>
@@ -3018,18 +3687,21 @@ function renderTable() {
 }
 
 function updateSummaryCards() {
-  const up     = monitors.filter(m => m.status === 2).length;
   const down   = monitors.filter(m => m.status === 8 || m.status === 9).length;
   const paused = monitors.filter(m => m.status === 0 || m.status === 1).length;
-  document.getElementById('cnt-up').textContent    = up;
-  document.getElementById('cnt-down').textContent  = down;
-  document.getElementById('cnt-total').textContent = `${monitors.length} total`;
-  document.getElementById('cnt-paused').textContent = `${paused} paused`;
-  // Ratio bar reflects the up/down split (paused monitors are excluded).
-  const denom = up + down;
-  const upPct = denom ? (100 * up / denom) : 100;
-  document.getElementById('bar-up').style.width   = upPct + '%';
-  document.getElementById('bar-down').style.width = (100 - upPct) + '%';
+  const total  = monitors.length;
+  // Same grammar as the UniFi card: problem-framed ratios, color only when something's
+  // wrong. "down" is a real outage → red; "paused" is informational → neutral.
+  const downCls = down === 0 ? 'text-up' : 'text-down';
+  const el = document.getElementById('monitors-card');
+  if (el) {
+    el.innerHTML = `
+    <div class="card-dual">
+      <div class="card-stat"><div class="card-value ${downCls}">${down}/${total}</div><div class="card-sub">monitors down</div></div>
+      <div class="card-stat"><div class="card-value text-paused">${paused}</div><div class="card-sub">paused</div></div>
+    </div>`;
+    endCardSync(el);
+  }
   updateStatusBanner();
 }
 
@@ -3064,6 +3736,18 @@ function saveAcks() { try { localStorage.setItem(LS_ACK, JSON.stringify(ackMap))
 // carries a live ack — propCode bridges friendly_name → that code.
 const PROPERTY_OVERRIDES = {};
 const normCode = (s) => String(s || '').toUpperCase().replace(/[^A-Z0-9]/g, '');
+// Site code for a per-day outage item's amber tag — blanked when the label already contains
+// the code, so the tooltip doesn't echo it twice (e.g. "HL32B HL32B" / "Monitor Down: OL15 OL15").
+const siteTag = (label, code) => (code && !normCode(label).includes(normCode(code))) ? code : '';
+// Fallback only: infer "single device offline (degraded)" from an Asana ticket title, used when
+// an older asana-history payload lacks the explicit entity `kind` ('dev'). Prefer inc.kind.
+const isDeviceOffline = (title) => { const t = String(title || ''); return /offline/i.test(t) && !/monitor.*down|\bis down\b|whole[ -]?site/i.test(t); };
+// A degraded incident (amber) = the SITE IS STILL REACHABLE but something's offline: a single
+// device ('dev') or an infra cascade ('netout' — several gateways/switches down, but the engine
+// only files netout when the site is NOT wholly dark). True outages — whole site/monitor down,
+// kinds 'site'/'prop'/'monitor' — are NOT degraded (red, shown via UptimeRobot). The title
+// heuristic is only a fallback for older payloads without an explicit `kind`.
+const isDegradedIncident = (inc) => inc && (inc.kind ? (inc.kind === 'dev' || inc.kind === 'netout') : isDeviceOffline(inc.title));
 function propCode(name) {
   let s = String(name || '').toUpperCase().replace(/^\s*ESTATE\s*-\s*/, '');
   if (/\bU?NVR\b/.test(s) || /\bTEST\b/.test(s)) s = s.replace(/\bU?NVR\b|\bTEST\b/g, ' ');
@@ -3074,6 +3758,33 @@ function propCode(name) {
   if (ov) code = normCode(ov);
   return code;
 }
+// Canonical property code — applies the SAME alias UniFi uses (UNIFI_ALIAS, e.g. by76a→by12a).
+// The engine files Asana tickets under a host's raw Property Code (BY76A), but the dashboard
+// keys sites by the monitor code (BY12A); without this the two never join and an aliased site's
+// tickets vanish from its row. (UNIFI_ALIAS keys/values are normalized lowercase.)
+function canonCode(code) { const k = normCode(code).toLowerCase(); return (UNIFI_ALIAS[k] || k).toUpperCase(); }
+// True if a site has an UptimeRobot monitor but it's PAUSED (status 0/1) — insights skip paused
+// monitors, so such a site shows up via Asana data only; we flag it rather than imply no monitor.
+function hasPausedMonitor(code) { return monitors.some(m => (m.status === 0 || m.status === 1) && canonCode(propCode(m.friendly_name)) === code); }
+// asanaHistory.sites keyed by the engine's raw code → a canonical-keyed, MERGED view (built
+// once per fetch). Every Asana-site consumer goes through this so the join matches UniFi.
+let _asanaCanon = null, _asanaCanonTs = -1;
+function asanaSitesCanonical() {
+  const sites = asanaHistory && asanaHistory.sites;
+  if (!sites) return {};
+  if (_asanaCanon && _asanaCanonTs === asanaHistoryTs) return _asanaCanon;
+  const out = {};
+  Object.entries(sites).forEach(([raw, v]) => {
+    const cc = canonCode(raw);
+    const e = out[cc] || (out[cc] = { code: cc, count: 0, openCount: 0, totalDowntimeSec: 0, incidents: [] });
+    e.count += v.count || 0; e.openCount += v.openCount || 0; e.totalDowntimeSec += v.totalDowntimeSec || 0;
+    if (Array.isArray(v.incidents)) e.incidents.push(...v.incidents);
+  });
+  Object.values(out).forEach(e => e.incidents.sort((a, b) => (Date.parse(b.created_at || '') || 0) - (Date.parse(a.created_at || '') || 0)));
+  _asanaCanon = out; _asanaCanonTs = asanaHistoryTs;
+  return out;
+}
+function lookupAsanaSite(code) { return asanaSitesCanonical()[canonCode(code)] || null; }
 const liveAck = (k) => { const a = ackMap[k]; return (a && !a.deleted && a.until > Date.now()) ? a : null; };
 // The effective live ack for a property: an operator ack (keyed by friendly_name) wins; otherwise
 // an Asana-origin ack (keyed by Property Code). null if neither is live.
@@ -3236,6 +3947,19 @@ async function unmuteInsight(kind, id) {
   showToast('Shown in attention again');
   renderInsights();
 }
+// Un-hide every muted item of one kind ('site' or 'mon') in one click.
+async function unmuteAll(kind) {
+  const prefix = kind === 'site' ? 'inssite_' : 'insmon_';
+  const keys = mutedInsights().filter(x => String(x.mac || '').startsWith(prefix)).map(x => x.mac);
+  if (!keys.length) return;
+  for (const key of keys) {
+    const { ok, data } = await callFn(FN_IGNORES, { action: 'unignore', mac: key });
+    if (ok && data && data.ignores) applyServerIgnores(data.ignores);
+    else { ignoreMap[key] = { deleted: true, at: Date.now(), mac: key }; saveIgnores(); }
+  }
+  showToast(`Shown ${keys.length} again`);
+  renderInsights();
+}
 
 // Same monotonic, tombstone-aware merge as acks (see applyServerAcks): a missing mac means
 // "no news, keep local"; an entry only moves forward when the server's `at` is newer. This
@@ -3314,7 +4038,7 @@ function ackControlHTML(name, eff) {
     // show it without a clear button; operator acks keep the ✕.
     const viaAsana = a.src === 'asana' || a.by === 'via Asana';
     const clearBtn = viaAsana ? '' : `<button class="ack-x" title="Clear acknowledgement" onclick="event.stopPropagation();unackProperty('${js}')">✕</button>`;
-    return `<span class="ack-badge">ACK${by ? ' · ' + by : ''} <span class="ack-timer" data-name="${name}">${fmtAckRemaining(name)}</span>${clearBtn}</span>`;
+    return `<span class="ack-badge">ACK${by ? ' · ' + by : ''} <span class="ack-timer" data-name="${escHtml(name)}">${fmtAckRemaining(name)}</span>${clearBtn}</span>`;
   }
   return `<button class="ack-btn" onclick="event.stopPropagation();ackProperty('${js}')">⤓ ACK</button>`;
 }
@@ -3500,8 +4224,11 @@ async function refreshAll() {
   apcFromSlack  = false;
   apcSlackError = '';
   document.getElementById('apc-stale-note').style.display = 'none';
-  showOvrcCard('loading');
-  showUnifiCard('loading');
+  // Flag the summary cards as refreshing without blanking them — last values stay on
+  // screen and are swapped only when fresh data lands (skeleton shows on first load only).
+  startCardSync(document.getElementById('monitors-card'), 'monitors down', 'paused');
+  startCardSync(document.getElementById('ovrc-card'), 'offline devices', 'degraded sites');
+  startCardSync(document.getElementById('unifi-card'), 'offline devices', 'degraded sites');
   document.getElementById('apc-card').innerHTML =
     `<span class="dot dot-checking"></span><span class="text-checking">Checking…</span>`;
 
@@ -3527,6 +4254,7 @@ async function refreshAll() {
     if (kiosk && monitorsResult.reason?.status === 401) kioskDenied = true;
     document.getElementById('loading').innerHTML =
       `<p style="color:#fc8181;font-size:0.9rem">Failed to load monitors: ${monitorsResult.reason?.message}</p>`;
+    endCardSync(document.getElementById('monitors-card'));
   }
 
   // OvrC
@@ -3545,6 +4273,7 @@ async function refreshAll() {
     showUnifiCard('ok');
   } else {
     unifiMap = {};
+    unifiIspTs = 0;   // a UniFi failure wiped ISP too — let the background re-fetch run next cycle, not in 10 min
     if (unifiResult.reason?.soft) showUnifiCard('no-token');
     else showUnifiCard('error', 'Failed to load');
   }
@@ -3560,6 +4289,17 @@ async function refreshAll() {
   // Resolve ticket links for any active alerts (operator-only, non-blocking — links populate the
   // expander a moment after the board draws).
   fetchTickets();
+
+  // Past-ticket history for the alert-card dropdowns, from the 90-day Asana scan. Operator-only
+  // (kiosk hides ticket sections) and only when something's alerting — same gate as the links.
+  // TTL-throttled inside fetchAsanaHistory; re-renders the alert panel when it lands.
+  if (!kiosk && alertingMonitors().some(m => { const e = effectiveStatus(m); return e === 'down' || e === 'warn'; })) {
+    fetchAsanaHistory();
+  }
+
+  // ISP/WAN metrics — background, TTL-throttled, never blocks the board (feeds the ISP widget
+  // + the alert-card "Internet (WAN)" line). Skips kiosk internally.
+  fetchUnifiIsp();
 
   lr.textContent = '↻ ' + new Date().toLocaleTimeString([], { hour:'2-digit', minute:'2-digit', second:'2-digit', hour12:false });
   refreshing = false;
@@ -3695,8 +4435,65 @@ async function getJWT() {
 // ─────────────────────────────────────────────────────────────────────────────
 // Bump BUILD on every deploy so the header always reflects what is live.
 // User-facing changelog, newest first; the entry matching BUILD is marked "Now".
-const BUILD = 'v3.3';
+const BUILD = 'v3.16';
 const RELEASE_NOTES = [
+  { v: 'v3.16', d: '2026-06-17 21:42', items: [
+    'Added an **“unhide all”** button when you expand the hidden items in the Needs-attention lists — restore everything you’ve hidden in one click instead of one at a time.',
+    'Fixed the hover date on the history bars (and the Timeline) being one day behind the bar it described.',
+  ]},
+  { v: 'v3.15', d: '2026-06-17 21:27', items: [
+    '**Site reliability** now blends UptimeRobot uptime with **UniFi device health** — a site that’s reachable but has devices dropping offline no longer reads a perfect 100%. The Least/Most-reliable ranking reflects this too.',
+    'The Site-reliability history bar now also shows **whole-site outages that UptimeRobot didn’t catch** (UniFi-detected). Fixes cases where a bar looked clean for weeks but the row said e.g. “2d clean.”',
+    'Site-reliability rows now use the same tighter layout as ISP reliability (longer bar, less wasted space).',
+    'Fixed a property-code mismatch so **UN16**’s tickets (filed by the engine as “UN1617”) now attach to it. Cleaned up the attention list: removed the meaningless “tracked via Asana tickets” note and now show “monitor paused” where that’s the actual reason.',
+  ]},
+  { v: 'v3.14', d: '2026-06-17 20:32', items: [
+    'The uptime history bars in **Site reliability** and **ISP reliability** now have the same **rich hover card** as the Timeline: hover any day to see the date and exactly what happened — for a site, the monitors/tickets that were down or degraded and for how long; for ISP, that day’s WAN uptime. Replaces the small one-line tooltip.',
+  ]},
+  { v: 'v3.13', d: '2026-06-17 20:22', items: [
+    'The **Site reliability** widget now shows a **30-day uptime history ribbon** on each site row — the same at-a-glance bar as ISP reliability — next to its uptime %. The ribbon merges both signals: red days = an UptimeRobot outage, amber days = a device-offline (degraded) ticket. **Hover any day** to see what happened (the monitor/ticket and how long).',
+    'Fixed a mismatch where a site whose tickets are filed under a different internal code (e.g. BY76A vs BY12A) showed “no incidents — clean” even though its history bar had outages. Incidents now attach to the right site, so the bar, the hover, and the incident list agree.',
+    'When a site truly has no Asana ticket but UptimeRobot recorded downtime, the drill-down now says so (instead of “clean”), and labels the incident breakdown as coming from Asana tickets.',
+  ]},
+  { v: 'v3.12', d: '2026-06-17 19:04', items: [
+    'Alert cards now show a **likely cause** — Power, ISP/Internet (named provider, e.g. Comcast), a device/cabling/power fault, or upstream connectivity — inferred live from the UPS, WAN and offline-device signals Beacon already tracks. When several devices drop together it reads as a shared **cabling or power** cause rather than independent failures. It’s labelled **Likely** or **Possible** so a weak guess never reads as fact, and the full reasoning shows under “Likely cause” when you open the card.',
+  ]},
+  { v: 'v3.11', d: '2026-06-17 18:17', items: [
+    'ISP reliability now shows a **30-day uptime history bar** next to each provider and (on expand) each site — keeping uptime % and latency. Packet loss was dropped from this view (it wasn’t useful here).',
+    'Cleaned up the Needs-attention rows: removed the proportion bars and the redundant “worst: …” line under each site.',
+    'Consistent wording: **outage / down** is reserved for a site or monitor actually being down. Device-level events now read as **incidents** and **offline** time across the insights widgets.',
+  ]},
+  { v: 'v3.10', d: '2026-06-17 13:00', items: [
+    'A site now returns to **Healthy** (green) 3 days after its last issue, instead of 7 — so the grey **Recovered** state clears sooner.',
+  ]},
+  { v: 'v3.9', d: '2026-06-17 12:23', items: [
+    'Down vs Degraded wording is now consistent. A site that\'s only **degraded** — devices offline but the site still reachable — shows amber **Degraded** instead of the red **Down now** it sometimes showed before. Recently-recovered sites read **Recovered** (grey) and trouble-free ones read **Healthy** (green). Ongoing degraded incidents now show amber, not red.',
+    'Engine ticket titles match: a degraded case is tagged **[DEGRADED]** (e.g. "3 infra devices offline") and a true outage **[OUTAGE]** ("Whole site down" / "Monitor down"), so the wording lines up with the dashboard.',
+  ]},
+  { v: 'v3.8', d: '2026-06-17 08:08', items: [
+    'History & insights rebuilt into focused widgets. “Timeline” now shows the fleet-uptime trend with a dot on each day that had outages (bigger/redder = more) — hover any point for that day’s details — replacing the separate uptime graph and outage heatmap. “Where to focus” puts the impact chart beside the “Needs attention” list.',
+    'New “ISP reliability” widget: each site’s internet (WAN) performance from UniFi, grouped by provider (worst first) — expand a provider to see its sites with uptime, latency and packet loss.',
+    'New “Site reliability” widget with a Least-/Most-reliable toggle. Open any site to see what’s driving it — internet (ISP), devices dropping offline, or whole-site outages — over the last 90 days, with the tickets behind each.',
+    'Build your own layout: click “Edit layout” to drag the insights widgets into any order, roll them up, or hide ones you don’t need — your arrangement is remembered on this screen (wall displays keep the default).',
+    'Alert details now show the site’s internet provider (ISP), latency and WAN uptime, pulled from UniFi.',
+    'ISP/WAN data now loads in the background, so it no longer slows down the rest of the dashboard.',
+    'Tidied the attention rows: the hard-to-read 90-day mini-bars and the unhelpful “1 monitor” line are gone.',
+  ]},
+  { v: 'v3.7', d: '2026-06-16 23:34', items: [
+    'The status cards at the top now read consistently — each shows two at-a-glance numbers (monitors down, offline devices, degraded sites) and only lights amber/red when something needs attention. The old monitors bar is gone, and the cards no longer blank out while refreshing: the last numbers stay on screen with a small “loading” tag.',
+    'Alert cards are more compact, so more affected properties fit on screen at once (the wall display also drops the “click for details” hint it can’t use).',
+    'Expanded alert details now list the site’s past Asana tickets, the 90-day uptime bars show the date and downtime on hover, and the always-blank “Target” line was removed. “Recent down events” is now “Recent incidents.”',
+    'History & insights: hovering the fleet-uptime graph or the outage timeline on a troubled day now lists exactly which sites and devices were affected and for how long — red = a site fully down (monitor down), amber = a degraded site (a device offline). The timeline marks where degraded-device tracking began, so older “outages only” days are clear.',
+  ]},
+  { v: 'v3.6', d: '2026-06-16 20:21', items: [
+    'More security hardening (backend only, no visible change): the Slack feed now returns just the UPS status fields the board needs instead of the whole channel, upstream error messages are no longer echoed to the browser, the background Asana-sync job rejects direct web hits, and the ticketing-engine service key is compared in constant time.',
+  ]},
+  { v: 'v3.5', d: '2026-06-16 20:11', items: [
+    'Security hardening: property names are now escaped before display (a monitor named with HTML/script can no longer affect the board), the kiosk network check no longer trusts a spoofable forwarded-IP header, the lab display can no longer trigger Asana ticket changes, and the Asana webhook secret can no longer be overwritten by an unsolicited request.',
+  ]},
+  { v: 'v3.4', d: '2026-06-16 19:49', items: [
+    'Property WR16 has been renamed to WR10 across UniFi and UptimeRobot to match Asana — the dashboard now matches its UniFi devices and monitor to the property automatically (removed the old WR16 name-bridge).',
+  ]},
   { v: 'v3.3', d: '2026-06-16 16:33', items: [
     'Fixed a mobile glitch where tapping a dot on the “Where to focus” chart jumped to the site but left its info popup stuck on screen — popups now dismiss on tap and scroll.',
   ]},
