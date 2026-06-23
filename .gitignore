@@ -1,0 +1,10 @@
+# Local scratch / working files (mockups, previews, exports)
+_*
+
+# macOS
+.DS_Store
+**/.DS_Store
+
+# Local Claude Code config & project notes — not for the public repo
+.claude/
+CLAUDE.md
