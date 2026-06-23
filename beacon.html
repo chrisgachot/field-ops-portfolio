@@ -3,52 +3,71 @@
 <head>
 
 <script>
-/* DEMO DATA LAYER (no live systems). Feeds the real Beacon UI incl. History & insights, ISP
-   reliability, air quality, root-cause; one property degraded; acks + ignores are STATEFUL so
-   ack/hide stick. */
+/* DEMO DATA LAYER (no live systems). Feeds the real Beacon UI: a healthy estate of 12 sites with
+   one ACTIVE device alert and one ACKNOWLEDGED incident, clean 30-day reliability, ISP + Starlink
+   logos, and air quality. Acks + ignores are STATEFUL so ack/hide stick. */
 (function(){
   var now=Math.floor(Date.now()/1000), DAY=86400;
-  function dailyIsp(seed,dips){ var a=[]; for(var i=0;i<30;i++){ var v=100; if(((i*7+seed)%30)<dips) v=100-([6,14,3,22,9][(i+seed)%5]); a.push(v); } return a; }
+  /* ISP daily reliability: mostly 100 with the occasional tiny dip — ribbons stay green. */
+  function dailyIsp(seed,dips){ var a=[]; for(var i=0;i<30;i++){ var v=100; if(((i*7+seed)%30)<dips) v=100-([2,3,1,4,2][(i+seed)%5]); a.push(v); } return a; }
   var PROPS=[
-    {name:'Cedar Ridge (CR12)', code:'CR12', dev:24, u:[99.21,98.64,98.12], isp:{ispName:'Comcast Business', uptimePct:97.8, avgLatencyMs:21, latencyMs:24, daily:dailyIsp(1,5)}},
-    {name:'Harbor Point (HP08)', code:'HP08', dev:18, u:[99.98,99.71,99.42], isp:{ispName:'Comcast Business', uptimePct:99.6, avgLatencyMs:18, latencyMs:17, daily:dailyIsp(2,2)}},
-    {name:'Aspen Hollow (AH21)', code:'AH21', dev:31, u:[100,99.99,99.95], isp:{ispName:'Starlink', uptimePct:99.9, avgLatencyMs:44, latencyMs:41, daily:dailyIsp(3,1)}},
-    {name:'Lakeside (LK33)', code:'LK33', dev:22, u:[99.95,99.41,98.92], isp:{ispName:'Verizon Fios', uptimePct:99.2, avgLatencyMs:9, latencyMs:8, daily:dailyIsp(4,3)}},
-    {name:'Summit View (SV45)', code:'SV45', dev:16, u:[99.99,99.97,99.96], isp:{ispName:'Verizon Fios', uptimePct:99.95, avgLatencyMs:8, latencyMs:9, daily:dailyIsp(5,0)}},
-    {name:'Orchard Lane (OL52)', code:'OL52', dev:27, u:[99.97,99.90,99.83], isp:{ispName:'Comcast Business', uptimePct:99.7, avgLatencyMs:19, latencyMs:20, daily:dailyIsp(6,1)}},
-    {name:'Birch Hollow (BH14)', code:'BH14', dev:14, u:[99.90,99.78,99.66], isp:{ispName:'Starlink', uptimePct:99.4, avgLatencyMs:47, latencyMs:52, daily:dailyIsp(7,2)}},
-    {name:'Marsh Landing (ML19)', code:'ML19', dev:19, u:[99.96,99.90,99.85], isp:{ispName:'Verizon Business', uptimePct:99.9, avgLatencyMs:8, latencyMs:8, daily:dailyIsp(8,0)}}
+    {name:'Harbor Point (HP08)',  code:'HP08', dev:18, u:[99.99,99.98,99.96], isp:{ispName:'Verizon Fios',     uptimePct:99.97, avgLatencyMs:8,  latencyMs:8,  daily:dailyIsp(2,0)}},
+    {name:'Aspen Hollow (AH21)',  code:'AH21', dev:31, u:[100,99.99,99.97],   isp:{ispName:'Starlink',         uptimePct:99.9,  avgLatencyMs:38, latencyMs:36, daily:dailyIsp(3,1)}},
+    {name:'Summit View (SV45)',   code:'SV45', dev:16, u:[99.99,99.97,99.96], isp:{ispName:'Verizon Fios',     uptimePct:99.95, avgLatencyMs:8,  latencyMs:9,  daily:dailyIsp(5,0)}},
+    {name:'Orchard Lane (OL52)',  code:'OL52', dev:27, u:[99.98,99.95,99.92], isp:{ispName:'Comcast Business', uptimePct:99.8,  avgLatencyMs:18, latencyMs:19, daily:dailyIsp(6,1)}},
+    {name:'Cedar Ridge (CR12)',   code:'CR12', dev:24, u:[99.97,99.93,99.90], isp:{ispName:'Comcast Business', uptimePct:99.7,  avgLatencyMs:20, latencyMs:21, daily:dailyIsp(1,1)}},
+    {name:'Lakeside (LK33)',      code:'LK33', dev:22, u:[99.98,99.96,99.93], isp:{ispName:'Verizon Fios',     uptimePct:99.9,  avgLatencyMs:9,  latencyMs:8,  daily:dailyIsp(4,0)}},
+    {name:'Birch Hollow (BH14)',  code:'BH14', dev:14, u:[99.97,99.95,99.92], isp:{ispName:'Starlink',         uptimePct:99.6,  avgLatencyMs:42, latencyMs:44, daily:dailyIsp(7,1)}},
+    {name:'Marsh Landing (ML19)', code:'ML19', dev:19, u:[99.99,99.97,99.95], isp:{ispName:'Verizon Business', uptimePct:99.95, avgLatencyMs:10, latencyMs:9,  daily:dailyIsp(8,0)}},
+    {name:'Stone Meadow (SM27)',  code:'SM27', dev:21, u:[99.98,99.96,99.94], isp:{ispName:'Spectrum',         uptimePct:99.85, avgLatencyMs:14, latencyMs:15, daily:dailyIsp(9,1)}},
+    {name:'Willow Bend (WB33)',   code:'WB33', dev:17, u:[99.99,99.98,99.95], isp:{ispName:'Comcast Business', uptimePct:99.9,  avgLatencyMs:17, latencyMs:16, daily:dailyIsp(10,0)}},
+    {name:'Pine Crest (PC41)',    code:'PC41', dev:20, u:[100,99.99,99.98],   isp:{ispName:'Starlink',         uptimePct:99.9,  avgLatencyMs:39, latencyMs:37, daily:dailyIsp(11,0)}},
+    {name:'Fox Run (FR16)',       code:'FR16', dev:15, u:[99.98,99.96,99.93], isp:{ispName:'Fidium',           uptimePct:99.88, avgLatencyMs:11, latencyMs:12, daily:dailyIsp(12,1)}}
   ];
-  var degraded=PROPS[0];
-  function logsFor(seed,n){ var a=[]; for(var i=0;i<n;i++){ var daysAgo=((i*13+seed*7)%85)+2; var dt=now-daysAgo*DAY-seed*3600; var dur=[1320,2640,5400,900,4200][(i+seed)%5]; a.push({type:1,datetime:dt,duration:dur}); } return a; }
-  var monitors=PROPS.map(function(p,i){ var n=(i===0?4:(i%3===0?3:(i%2===0?2:1)));
-    return {id:1000+i, friendly_name:p.name, url:'https://example.com', type:1, status:2, custom_uptime_ratio:p.u.join('-'), create_datetime:now-200*DAY, logs:logsFor(i,n)}; });
-  var ovrc={items:[{displayAs:'Estate Portfolio', locations:PROPS.map(function(p){ return {name:p.name, deviceCount:p.dev, offlineDeviceCount:(p===degraded?1:0)}; })}]};
-  var unifi={hosts:PROPS.map(function(p){ return (p===degraded)
-      ? {name:p.name, deviceCount:p.dev, offlineDeviceCount:1, offlineDevices:[{mac:'a1:b2:c3:d4:e5:f6', name:'Boathouse Camera'}], isp:p.isp}
+  var activeSite=PROPS[4], ackedSite=PROPS[6];          // CR12 active (unacked), BH14 acknowledged
+  function isIncident(p){ return p===activeSite || p===ackedSite; }
+  var offlineDev={};
+  offlineDev[activeSite.code]={mac:'a1:b2:c3:d4:e5:f6', name:'Dock Camera (PoE)'};
+  offlineDev[ackedSite.code] ={mac:'b2:c3:d4:e5:f6:a1', name:'Guest Wing AP'};
+
+  /* UptimeRobot logs: at most one short (<5 min) blip on every third site — never enough to color
+     a ribbon day amber/red, so the 30-day history reads clean. */
+  function logsFor(seed){ if(seed%3!==0) return []; var daysAgo=((seed*11)%55)+9; return [{type:1, datetime:now-daysAgo*DAY-seed*900, duration:90}]; }
+  var monitors=PROPS.map(function(p,i){
+    return {id:1000+i, friendly_name:p.name, url:'https://example.com', type:1, status:2, custom_uptime_ratio:p.u.join('-'), create_datetime:now-220*DAY, logs:logsFor(i)}; });
+
+  var ovrc={items:[{displayAs:'Estate Portfolio', locations:PROPS.map(function(p){ return {name:p.name, deviceCount:p.dev, offlineDeviceCount:(isIncident(p)?1:0)}; })}]};
+  var unifi={hosts:PROPS.map(function(p){ return isIncident(p)
+      ? {name:p.name, deviceCount:p.dev, offlineDeviceCount:1, offlineDevices:[offlineDev[p.code]], isp:p.isp}
       : {name:p.name, deviceCount:p.dev, offlineDeviceCount:0, offlineDevices:[], isp:p.isp}; })};
   var slack={ok:true, messages:PROPS.map(function(p){ return {type:'message', text:'UPS: '+p.name+' | online'}; })};
-  /* Air quality (Airthings) — display-only per-site readings on the detail page. Keyed by property
-     code. Cedar Ridge runs elevated (CO2/radon) for visual interest; radon in pCi/L, temp in F. */
+
+  /* Air quality on a handful of sites — all good readings (gentle CO2 variation for modal interest). */
   var airthings={ok:true, devices:[
-    {code:'CR12', label:'Cedar Ridge', serial:'2960010001', time:(now-180)*1000, units:{co2:'ppm', radon:'pCi/L', voc:'ppb', temp:'°F', humidity:'%'}, samples:{co2:1180, radon:3.8, voc:340, temp:71.4, humidity:48, pressure:1009, battery:84}},
-    {code:'HP08', label:'Harbor Point', serial:'2960010002', time:(now-120)*1000, units:{co2:'ppm', radon:'pCi/L', voc:'ppb', temp:'°F', humidity:'%'}, samples:{co2:640, radon:1.1, voc:120, temp:69.8, humidity:42, pressure:1014, battery:91}},
-    {code:'LK33', label:'Lakeside', serial:'2960010003', time:(now-240)*1000, units:{co2:'ppm', radon:'pCi/L', voc:'ppb', temp:'°F', humidity:'%'}, samples:{co2:820, radon:2.0, voc:185, temp:70.6, humidity:45, pressure:1011, battery:88}},
-    {code:'SV45', label:'Summit View', serial:'2960010004', time:(now-200)*1000, units:{co2:'ppm', radon:'pCi/L', voc:'ppb', temp:'°F', humidity:'%'}, samples:{co2:560, radon:0.7, voc:95, temp:68.9, humidity:40, pressure:1016, battery:96}}
+    {code:'HP08', label:'Harbor Point', serial:'2960010001', time:(now-150)*1000, units:{co2:'ppm', radon:'pCi/L', voc:'ppb', temp:'°F', humidity:'%'}, samples:{co2:560, radon:0.8, voc:95,  temp:70.2, humidity:43, pressure:1014, battery:93}},
+    {code:'AH21', label:'Aspen Hollow', serial:'2960010002', time:(now-120)*1000, units:{co2:'ppm', radon:'pCi/L', voc:'ppb', temp:'°F', humidity:'%'}, samples:{co2:610, radon:1.0, voc:120, temp:69.4, humidity:41, pressure:1016, battery:90}},
+    {code:'SV45', label:'Summit View',  serial:'2960010003', time:(now-200)*1000, units:{co2:'ppm', radon:'pCi/L', voc:'ppb', temp:'°F', humidity:'%'}, samples:{co2:720, radon:1.4, voc:160, temp:71.1, humidity:45, pressure:1012, battery:88}},
+    {code:'LK33', label:'Lakeside',     serial:'2960010004', time:(now-180)*1000, units:{co2:'ppm', radon:'pCi/L', voc:'ppb', temp:'°F', humidity:'%'}, samples:{co2:540, radon:0.7, voc:88,  temp:69.9, humidity:42, pressure:1015, battery:95}}
   ]};
-  var tickets={}; tickets[degraded.name]=[{gid:'1208887766', title:degraded.name+' network device offline (Boathouse Camera)', statusName:'Alert!', kind:'unifi', permalink:'#'}];
+
+  var tickets={};
+  tickets[activeSite.name]=[{gid:'1208887766', title:activeSite.name+' network device offline (Dock Camera)', statusName:'Alert!', kind:'unifi', permalink:'#'}];
+  tickets[ackedSite.name] =[{gid:'1208887790', title:ackedSite.name+' network device offline (Guest Wing AP)', statusName:'Acknowledged', kind:'unifi', permalink:'#'}];
+
   function iso(sec){ return new Date(sec*1000).toISOString(); }
-  function mkInc(seed,n,openFirst,label){ var arr=[]; for(var i=0;i<n;i++){ var daysAgo=((i*16+seed*5)%84)+2; var st=now-daysAgo*DAY; var dur=[1800,3600,7200,5400,2400][(i+seed)%5]; var ongoing=(openFirst&&i===0);
-      arr.push({title:(ongoing?'[OUTAGE] ':'')+'Whole site outage: '+label, permalink:'#', created_at:iso(st), completed_at: ongoing?null:iso(st+dur), ongoing:ongoing}); }
-    arr.sort(function(a,b){ return Date.parse(b.created_at)-Date.parse(a.created_at); }); return arr; }
-  var hist={}; [['CR12',5,true,'Cedar Ridge'],['HP08',3,false,'Harbor Point'],['LK33',2,false,'Lakeside'],['BH14',2,false,'Birch Hollow']].forEach(function(s){
-    var incs=mkInc(s[0].charCodeAt(0)+s[0].charCodeAt(1), s[1], s[2], s[3]);
-    var dt=incs.reduce(function(t,inc){ return t+(inc.ongoing?0:Math.max(0,(Date.parse(inc.completed_at)-Date.parse(inc.created_at))/1000)); },0);
-    hist[s[0]]={code:s[0], count:s[1], openCount:(s[2]?1:0), totalDowntimeSec:Math.floor(dt), incidents:incs}; });
+  /* asana-history: the two incident sites each have ONE ongoing device incident dated today
+     (kind:'dev' -> amber on today only). One healthy site shows a single short resolved blip a
+     few days ago, so the ribbons look real without anything reading all-red. */
+  function devInc(label, ongoing, daysAgo, durSec){ var st=now-(daysAgo*DAY); return {title:(ongoing?'[DEGRADED] ':'')+'Device offline: '+label, permalink:'#', created_at:iso(st), completed_at: ongoing?null:iso(st+durSec), ongoing:ongoing, kind:'dev'}; }
+  var hist={};
+  hist[activeSite.code]={code:activeSite.code, count:1, openCount:1, totalDowntimeSec:0,   incidents:[devInc('Cedar Ridge', true, 0, 0)]};
+  hist[ackedSite.code] ={code:ackedSite.code,  count:1, openCount:1, totalDowntimeSec:0,   incidents:[devInc('Birch Hollow', true, 0, 0)]};
+  hist['OL52']         ={code:'OL52', count:1, openCount:0, totalDowntimeSec:900, incidents:[devInc('Orchard Lane', false, 9, 900)]};
   var history={ok:true, sites:hist, generatedAt:iso(now)};
 
-  /* stateful acks + ignores so Acknowledge and Hide persist (server echoes the updated map) */
+  /* stateful acks + ignores so Acknowledge and Hide persist; SEED the acknowledged site. */
   var ackState={}, ignState={};
+  ackState[ackedSite.name]={until:Date.now()+3600000, by:'A. Rivera', at:Date.now()-600000};
   function J(o){ return new Response(JSON.stringify(o), {status:200, headers:{'Content-Type':'application/json'}}); }
   function parseBody(opts){ try{ return JSON.parse(opts&&opts.body||'{}'); }catch(e){ return {}; } }
   var realFetch=window.fetch?window.fetch.bind(window):null;
@@ -2280,7 +2299,7 @@ const unifiLogoHTML = () => markLogo('unifi', 'UniFi', SERVICE_URLS.unifi);
 // ISP brand marks keyed by a slug matched from the UniFi ISP name. Shown next to the Internet
 // (WAN) provider — the WAN data is UniFi's, but the *provider* is the ISP. Logos link to each
 // provider's status/outage page (best-effort; edit this map as URLs change).
-const ISP_LOGO_SLUGS = ['comcast', 'verizon', 'spectrum', 'fidium', 'digicel', 'stowe'];
+const ISP_LOGO_SLUGS = ['comcast', 'verizon', 'spectrum', 'fidium', 'digicel', 'stowe', 'starlink'];
 const ISP_STATUS_URLS = {
   comcast:          'https://www.xfinity.com/support/statusmap',
   verizon:          'https://www.verizon.com/support/check-network-status/',
@@ -2289,6 +2308,7 @@ const ISP_STATUS_URLS = {
   fidium:           'https://www.fidiumfiber.com/support',
   digicel:          'https://www.digicelgroup.com/bm/en.html',
   stowe:            'https://www.stowecable.com/',
+  starlink:         'https://www.starlink.com/',
 };
 function ispSlug(ispName) {
   const s = String(ispName || '').toLowerCase();
