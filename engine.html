@@ -188,7 +188,7 @@ main{max-width:1100px; margin:0 auto; padding:22px 24px 70px; display:flex; flex
 <main>
 
   <div class="pipe">
-    <div class="stage" id="st1"><div class="n">1 · Poll</div><div class="d">Fetch every device &amp; monitor across all consoles, every 2 min.</div></div>
+    <div class="stage" id="st1"><div class="n">1 · Poll</div><div class="d">Fetch every device &amp; monitor across all consoles, every 5 min.</div></div>
     <div class="stage" id="st2"><div class="n">2 · Confirm</div><div class="d">Flap protection. Must stay down 2 cycles before filing.</div></div>
     <div class="stage" id="st3"><div class="n">3 · File</div><div class="d">One incident, one ticket, with an SOP anyone can act on.</div></div>
     <div class="stage" id="st4"><div class="n">4 · Resolve</div><div class="d">Auto-recovers, or a human marks it fixed. Comments track it all.</div></div>
@@ -214,6 +214,12 @@ main{max-width:1100px; margin:0 auto; padding:22px 24px 70px; display:flex; flex
     Faithful demo of Engine. The real service files this exact ticket body (a triage SOP, the device list, a lifecycle
     explainer, and a hidden <code>beacon-entity</code> tag for idempotent auto-close) and posts the comments below as the
     incident moves. Acknowledge it, mark it fixed by hand, or click <b>Bring it back</b> to watch it auto-recover.
+  </p>
+  <p class="note">
+    Engine titles every ticket by severity: <b>[OUTAGE]</b> when a whole site or its outside-in monitor is down (the
+    scenario above), <b>[DEGRADED]</b> when individual devices drop but the site itself stays reachable. A device that
+    keeps flapping gets a single sticky <b>[CHRONIC]</b> ticket instead of repeat noise, and new tickets are held during
+    scheduled <b>maintenance windows</b> (overnight console auto-updates) so routine reboots never page anyone.
   </p>
 
 </main>
@@ -276,7 +282,7 @@ function sopHTML(){return `
     <li><a href="https://help.ui.com" target="_blank" rel="noopener">Ubiquiti: Troubleshooting Offline UniFi Devices</a></li>
   </ul>
   <h2>🤖 How this alert works</h2>
-  <p>Opened automatically by the monitoring engine after the site was fully offline across 2 consecutive checks (about 4 minutes). It is on the <b>ALERT</b> task type and its status tracks the lifecycle:</p>
+  <p>Opened automatically by the monitoring engine after the site was fully offline across 2 consecutive checks (about 10 minutes). It is on the <b>ALERT</b> task type and its status tracks the lifecycle:</p>
   <ul>
     <li><b>Alert!</b>: active, the site is still down.</li>
     <li><b>Acknowledged</b>: an operator has seen this and silenced the wall alarm on the <a href="beacon.html">Beacon dashboard</a> for a set window (a timestamped note is added here when they do). The ticket stays open and reverts to Alert! automatically when the window lapses if the site is still down.</li>
@@ -304,7 +310,7 @@ function renderTicket(){
         <span class="tk-app">via <b>asana</b> · auto-filed by Engine</span>
         <span class="tk-type">Task type: ALERT</span>
       </div>
-      <div class="tk-name">[OFFLINE] Whole site outage: ${PROP}</div>
+      <div class="tk-name">[OUTAGE] Whole site outage: ${PROP}</div>
       <div class="tk-row">
         <span class="chip ${scls}"><span class="d"></span>${slabel}</span>
         ${completed?'<span class="tk-type">✓ Completed</span>':''}
@@ -347,7 +353,7 @@ function knockOut(){
 }
 function fileTicket(){
   phase='alert'; tab='activity';
-  addComment('bot','Engine','Created this task and placed it on the ALERT task type at status <b>Alert!</b>. Confirmed offline across 2 consecutive checks (about 4 minutes).');
+  addComment('bot','Engine','Created this task and placed it on the ALERT task type at status <b>Alert!</b>. Confirmed offline across 2 consecutive checks (about 10 minutes).');
   addComment('bot','Engine','📡 Outside-in confirmation: the UptimeRobot monitor <b>CR</b> also reports this property unreachable, consistent with a site-wide internet or power loss.');
   log('confirmed down → filing ONE property-outage ticket (prop:CR) with SOP', 'info');
   log('task created · ALERT type · status Alert! · synced to Beacon', 'acc');
@@ -413,7 +419,7 @@ function runLoop(){
   }, 2000);
 }
 renderDevices(); renderTicket();
-log('engine started · polling UniFi + UptimeRobot every 2 min · 6 entities watched', 'acc');
+log('engine started · polling UniFi + UptimeRobot every 5 min · 6 entities watched', 'acc');
 </script>
 </body>
 </html>
