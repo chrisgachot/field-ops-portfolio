@@ -3,9 +3,15 @@
 <head>
 
 <script>
-/* DEMO DATA LAYER (no live systems). Feeds the real Beacon UI: a healthy estate of 12 sites with
-   one ACTIVE device alert and one ACKNOWLEDGED incident, clean 30-day reliability, ISP + Starlink
-   logos, and air quality. Acks + ignores are STATEFUL so ack/hide stick. */
+/* DEMO DATA LAYER (no live systems). Feeds the real Beacon v3.31 UI: a healthy estate of 12 sites
+   that exercises the current alert model —
+     • CR12 Cedar Ridge goes FULLY dark (gateway + 8 devices offline) and collapses to ONE
+       "whole-site outage" card (v3.30), not one card per device.
+     • OL52 Orchard Lane has TWO independent device-offline incidents → two per-incident cards
+       (v3.29), one ACTIVE and one ACKNOWLEDGED (per-incident ack on its MAC).
+     • BH14 Birch Hollow has ONE device offline, ACKNOWLEDGED via a whole-site ack (legacy bridge).
+   Starlink rides as a primary ISP on several sites (v3.27). Clean 30-day reliability everywhere
+   except the intended incidents. Acks + ignores are STATEFUL so ack/hide persist. */
 (function(){
   var now=Math.floor(Date.now()/1000), DAY=86400;
   /* ISP daily reliability: mostly 100 with the occasional tiny dip — ribbons stay green. */
@@ -24,22 +30,47 @@
     {name:'Pine Crest (PC41)',    code:'PC41', dev:20, u:[100,99.99,99.98],   isp:{ispName:'Starlink',         uptimePct:99.9,  avgLatencyMs:39, latencyMs:37, daily:dailyIsp(11,0)}},
     {name:'Fox Run (FR16)',       code:'FR16', dev:15, u:[99.98,99.96,99.93], isp:{ispName:'Fidium',           uptimePct:99.88, avgLatencyMs:11, latencyMs:12, daily:dailyIsp(12,1)}}
   ];
-  var activeSite=PROPS[4], ackedSite=PROPS[6];          // CR12 active (unacked), BH14 acknowledged
-  function isIncident(p){ return p===activeSite || p===ackedSite; }
+  var byCode={}; PROPS.forEach(function(p){ byCode[p.code]=p; });
+  var outageSite=byCode.CR12;          // whole-site outage  → ONE "Site offline" card (v3.30)
+  var devSite   =byCode.OL52;          // two device incidents → two per-incident cards (v3.29)
+  var ackSite   =byCode.BH14;          // one device, acknowledged via whole-site ack
+
+  /* Per-site offline device lists (each carries a UniFi class — gateway/switch/ap/camera). The
+     whole-site outage lists a GATEWAY + downstream devices, which is what makes the UI fold them
+     into a single card instead of spraying one per device. */
+  function clone(d){ return {mac:d.mac, name:d.name, cls:d.cls}; }
+  var CR12_DOWN=[
+    {mac:'10:00:00:00:00:01', name:'UDM Pro (Gateway)',   cls:'gateway'},
+    {mac:'10:00:00:00:00:02', name:'Core Switch (PoE)',   cls:'switch'},
+    {mac:'10:00:00:00:00:03', name:'Great Room AP',       cls:'ap'},
+    {mac:'10:00:00:00:00:04', name:'Guest Wing AP',       cls:'ap'},
+    {mac:'10:00:00:00:00:05', name:'Boathouse AP',        cls:'ap'},
+    {mac:'10:00:00:00:00:06', name:'Gate Camera',         cls:'camera'},
+    {mac:'10:00:00:00:00:07', name:'Dock Camera',         cls:'camera'},
+    {mac:'10:00:00:00:00:08', name:'Driveway Camera',     cls:'camera'},
+    {mac:'10:00:00:00:00:09', name:'Garage AP',           cls:'ap'}
+  ];
+  var OL52_DEV_ACTIVE={mac:'aa:11:bb:22:cc:33', name:'Dock Camera (PoE)', cls:'camera'};   // unacked
+  var OL52_DEV_ACKED ={mac:'dd:44:ee:55:ff:66', name:'Pool House AP',     cls:'ap'};        // acked (per-incident)
+  var BH14_DEV       ={mac:'b2:c3:d4:e5:f6:a1', name:'Guest Wing AP',     cls:'ap'};        // acked (whole-site)
   var offlineDev={};
-  offlineDev[activeSite.code]={mac:'a1:b2:c3:d4:e5:f6', name:'Dock Camera (PoE)'};
-  offlineDev[ackedSite.code] ={mac:'b2:c3:d4:e5:f6:a1', name:'Guest Wing AP'};
+  offlineDev.CR12=CR12_DOWN;
+  offlineDev.OL52=[OL52_DEV_ACTIVE, OL52_DEV_ACKED];
+  offlineDev.BH14=[BH14_DEV];
+  var normMac=function(s){ return String(s||'').toLowerCase().replace(/[^a-f0-9]/g,''); };
 
   /* UptimeRobot logs: at most one short (<5 min) blip on every third site — never enough to color
-     a ribbon day amber/red, so the 30-day history reads clean. */
+     a ribbon day amber/red, so the 30-day history reads clean. Every monitor stays UP (status 2):
+     the whole-site outage surfaces as an amber UniFi blackout card (no klaxon), per v3.30. */
   function logsFor(seed){ if(seed%3!==0) return []; var daysAgo=((seed*11)%55)+9; return [{type:1, datetime:now-daysAgo*DAY-seed*900, duration:90}]; }
   var monitors=PROPS.map(function(p,i){
     return {id:1000+i, friendly_name:p.name, url:'https://example.com', type:1, status:2, custom_uptime_ratio:p.u.join('-'), create_datetime:now-220*DAY, logs:logsFor(i)}; });
 
-  var ovrc={items:[{displayAs:'Estate Portfolio', locations:PROPS.map(function(p){ return {name:p.name, deviceCount:p.dev, offlineDeviceCount:(isIncident(p)?1:0)}; })}]};
-  var unifi={hosts:PROPS.map(function(p){ return isIncident(p)
-      ? {name:p.name, deviceCount:p.dev, offlineDeviceCount:1, offlineDevices:[offlineDev[p.code]], isp:p.isp}
-      : {name:p.name, deviceCount:p.dev, offlineDeviceCount:0, offlineDevices:[], isp:p.isp}; })};
+  /* OvrC stays clean across the board so the alert panel is driven purely by UniFi (keeps the
+     whole-site outage a SINGLE card and the device incidents one-per-device). */
+  var ovrc={items:[{displayAs:'Estate Portfolio', locations:PROPS.map(function(p){ return {name:p.name, deviceCount:p.dev, offlineDeviceCount:0}; })}]};
+  var unifi={hosts:PROPS.map(function(p){ var off=offlineDev[p.code]||[];
+    return {name:p.name, deviceCount:p.dev, offlineDeviceCount:off.length, offlineDevices:off.map(clone), backups:[], uplinks:[], isp:p.isp}; })};
   var slack={ok:true, messages:PROPS.map(function(p){ return {type:'message', text:'UPS: '+p.name+' | online'}; })};
 
   /* Air quality on a handful of sites — all good readings (gentle CO2 variation for modal interest). */
@@ -50,24 +81,35 @@
     {code:'LK33', label:'Lakeside',     serial:'2960010004', time:(now-180)*1000, units:{co2:'ppm', radon:'pCi/L', voc:'ppb', temp:'°F', humidity:'%'}, samples:{co2:540, radon:0.7, voc:88,  temp:69.9, humidity:42, pressure:1015, battery:95}}
   ]};
 
+  /* Open Asana tickets (asana-tickets, action:'read') for the sites with live incidents. The
+     'known' scope returns nothing — this demo has no chronic/known-issue sites. */
   var tickets={};
-  tickets[activeSite.name]=[{gid:'1208887766', title:activeSite.name+' network device offline (Dock Camera)', statusName:'Alert!', kind:'unifi', permalink:'#'}];
-  tickets[ackedSite.name] =[{gid:'1208887790', title:ackedSite.name+' network device offline (Guest Wing AP)', statusName:'Acknowledged', kind:'unifi', permalink:'#'}];
+  tickets[outageSite.name]=[{gid:'1208887700', title:outageSite.name+' — whole site offline (gateway unreachable)', statusName:'Alert!', kind:'unifi', permalink:'#'}];
+  tickets[devSite.name]   =[{gid:'1208887766', title:devSite.name+' network device offline (Dock Camera)', statusName:'Alert!', kind:'unifi', permalink:'#'},
+                            {gid:'1208887767', title:devSite.name+' network device offline (Pool House AP)', statusName:'Acknowledged', kind:'unifi', permalink:'#'}];
+  tickets[ackSite.name]   =[{gid:'1208887790', title:ackSite.name+' network device offline (Guest Wing AP)', statusName:'Acknowledged', kind:'unifi', permalink:'#'}];
 
   function iso(sec){ return new Date(sec*1000).toISOString(); }
-  /* asana-history: the two incident sites each have ONE ongoing device incident dated today
-     (kind:'dev' -> amber on today only). One healthy site shows a single short resolved blip a
-     few days ago, so the ribbons look real without anything reading all-red. */
-  function devInc(label, ongoing, daysAgo, durSec){ var st=now-(daysAgo*DAY); return {title:(ongoing?'[DEGRADED] ':'')+'Device offline: '+label, permalink:'#', created_at:iso(st), completed_at: ongoing?null:iso(st+durSec), ongoing:ongoing, kind:'dev'}; }
+  /* asana-history: each incident site has ONE ongoing incident dated today (degraded → amber on
+     today only). The whole-site outage is kind:'netout' (still degraded/amber — the monitor is
+     up). One healthy site shows a single short resolved blip a few days ago so the ribbons look
+     real without anything reading all-red. */
+  function inc(label, kind, ongoing, daysAgo, durSec){ var st=now-(daysAgo*DAY);
+    return {title:(ongoing?'[DEGRADED] ':'')+(kind==='netout'?'Whole site offline: ':'Device offline: ')+label, permalink:'#', created_at:iso(st), completed_at: ongoing?null:iso(st+durSec), ongoing:ongoing, kind:kind}; }
   var hist={};
-  hist[activeSite.code]={code:activeSite.code, count:1, openCount:1, totalDowntimeSec:0,   incidents:[devInc('Cedar Ridge', true, 0, 0)]};
-  hist[ackedSite.code] ={code:ackedSite.code,  count:1, openCount:1, totalDowntimeSec:0,   incidents:[devInc('Birch Hollow', true, 0, 0)]};
-  hist['OL52']         ={code:'OL52', count:1, openCount:0, totalDowntimeSec:900, incidents:[devInc('Orchard Lane', false, 9, 900)]};
+  hist[outageSite.code]={code:outageSite.code, count:1, openCount:1, totalDowntimeSec:0,   incidents:[inc('Cedar Ridge', 'netout', true, 0, 0)]};
+  hist[devSite.code]   ={code:devSite.code,    count:2, openCount:2, totalDowntimeSec:0,   incidents:[inc('Dock Camera (PoE)', 'dev', true, 0, 0), inc('Pool House AP', 'dev', true, 0, 0)]};
+  hist[ackSite.code]   ={code:ackSite.code,    count:1, openCount:1, totalDowntimeSec:0,   incidents:[inc('Guest Wing AP', 'dev', true, 0, 0)]};
+  hist.SV45            ={code:'SV45', count:1, openCount:0, totalDowntimeSec:900, incidents:[inc('Summit View', 'dev', false, 9, 900)]};
   var history={ok:true, sites:hist, generatedAt:iso(now)};
 
-  /* stateful acks + ignores so Acknowledge and Hide persist; SEED the acknowledged site. */
+  /* Stateful acks + ignores so Acknowledge and Hide persist. Seed two acknowledgements:
+       • a PER-INCIDENT ack keyed by the OL52 device's incident id ('dev:<mac>') — v3.29: one of
+         OL52's two device cards reads Acknowledged while the other stays an active alert.
+       • a WHOLE-SITE ack keyed by BH14's friendly name (legacy bridge) — covers its device card. */
   var ackState={}, ignState={};
-  ackState[ackedSite.name]={until:Date.now()+3600000, by:'A. Rivera', at:Date.now()-600000};
+  ackState['dev:'+normMac(OL52_DEV_ACKED.mac)]={until:Date.now()+3600000, by:'A. Rivera', at:Date.now()-600000, sev:'warn'};
+  ackState[ackSite.name]={until:Date.now()+3600000, by:'A. Rivera', at:Date.now()-600000};
   function J(o){ return new Response(JSON.stringify(o), {status:200, headers:{'Content-Type':'application/json'}}); }
   function parseBody(opts){ try{ return JSON.parse(opts&&opts.body||'{}'); }catch(e){ return {}; } }
   var realFetch=window.fetch?window.fetch.bind(window):null;
@@ -80,9 +122,11 @@
         if(u.indexOf('slack')!==-1) return Promise.resolve(J(slack));
         if(u.indexOf('airthings')!==-1) return Promise.resolve(J(airthings));
         if(u.indexOf('asana-history')!==-1) return Promise.resolve(J(history));
-        if(u.indexOf('asana-tickets')!==-1) return Promise.resolve(J({ok:true, tickets:tickets}));
+        if(u.indexOf('asana-tickets')!==-1){ var tb=parseBody(opts);
+          if(tb.scope==='known') return Promise.resolve(J({ok:true, tickets:{}}));   // no chronic/known-issue sites in this demo
+          return Promise.resolve(J({ok:true, tickets:tickets})); }
         if(u.indexOf('acks')!==-1){ var b=parseBody(opts);
-          if(b.action==='set'){ ackState[b.name]={until:Date.now()+(b.durationMs||3600000), by:'A. Rivera', at:Date.now()}; }
+          if(b.action==='set'){ ackState[b.name]={until:Date.now()+(b.durationMs||3600000), by:'A. Rivera', at:Date.now(), sev:b.sev}; }
           else if(b.action==='clear'){ ackState[b.name]={deleted:true, at:Date.now()}; }
           return Promise.resolve(J({ok:true, acks:ackState})); }
         if(u.indexOf('ignores')!==-1){ var ib=parseBody(opts);
@@ -1122,11 +1166,27 @@
     .tile.tile-ack{border-left:3px solid var(--amber);opacity:0.78;}
 
     /* ── Alert panel (state-driven, glanceable from across the room) ── */
-    #alert-panel{display:flex;flex-direction:column;gap:10px;margin-bottom:16px;}
+    #alert-panel{display:flex;flex-direction:column;gap:10px;margin-bottom:16px;position:relative;}
+    /* Incremental-render motion (prototype): new incident cards slide/fade in, recovered ones fade
+       out, and cards that change rank glide to their new spot (FLIP). All disabled under reduced motion. */
+    @media (prefers-reduced-motion: no-preference){
+      .alert-card.card-enter{opacity:0;transform:translateY(-10px) scale(0.97);}
+      .alert-card.card-leave{opacity:0;transform:scale(0.96);pointer-events:none;z-index:1;}
+    }
+    /* A property's incidents are grouped and shown SIDE BY SIDE (wrap when many); cards grow to fill
+       the row, with a min width so each stays readable. One card → full width; two → halves; etc. */
+    .alert-group{display:flex;flex-wrap:wrap;gap:10px;}
+    .alert-group>.alert-card{flex:1 1 340px;min-width:0;}
+    /* One card per incident: a small kind tag next to the site name, and an incident-count chip on tiles. */
+    .alert-card-kind{font-family:'Share Tech Mono',monospace;font-size:0.72rem;letter-spacing:0.1em;text-transform:uppercase;color:var(--teal-dim);border:1px solid rgba(120,200,200,0.3);border-radius:5px;padding:1px 8px;}
+    .tile-count{font-family:'Share Tech Mono',monospace;font-size:0.66rem;margin-left:6px;padding:0 6px;border-radius:8px;background:rgba(120,200,200,0.15);color:var(--teal-dim);}
     .alert-card{
       position:relative;border:2px solid var(--red);border-radius:10px;cursor:pointer;padding:11px 20px;
       background:linear-gradient(180deg,rgba(255,40,28,0.12),rgba(255,40,28,0.03));
       animation:alertCardPulse 1.6s ease-in-out infinite;transition:background .15s;
+    }
+    @media (prefers-reduced-motion: no-preference){
+      .alert-card{transition:background .15s,transform .32s cubic-bezier(.22,.61,.36,1),opacity .28s ease;}
     }
     .alert-card:hover{background:linear-gradient(180deg,rgba(255,40,28,0.2),rgba(255,40,28,0.06));}
     .alert-card.alert-warn{border-color:var(--amber);background:linear-gradient(180deg,rgba(255,184,77,0.12),rgba(255,184,77,0.03));box-shadow:0 0 18px rgba(255,184,77,0.22);animation:none;}
@@ -1891,7 +1951,25 @@ async function fetchMonitors() {
   const { ok, status, data } = await callFn(FN_UPTIMEROBOT);
   if (!ok) { const e = new Error(data.error || `HTTP ${status}`); e.status = status; throw e; }
   if (data.stat !== 'ok') throw new Error(data.error?.message || 'API error');
-  return data.monitors;
+  return applyDevSimDown(data.monitors);
+}
+
+// Dev-only outage simulator — INERT IN PRODUCTION. On file:// or localhost only (the same gate as
+// the auth bypass in initAuth), `?simdown=OL15,BR77` forces matching monitors DOWN on every poll, so
+// you can exercise the real alert / known-issue / ack pipeline without waiting for a real outage.
+// Matches by Property Code, so a simulated down joins with the LIVE Asana known-issue and ack feeds.
+function devSimDownCodes() {
+  const host = location.hostname;
+  if (!(location.protocol === 'file:' || host === 'localhost' || host === '127.0.0.1')) return null;
+  const v = new URLSearchParams(location.search).get('simdown');
+  if (!v) return null;
+  const codes = new Set(v.split(',').map(s => normCode(s.trim())).filter(Boolean));
+  return codes.size ? codes : null;
+}
+function applyDevSimDown(mons) {
+  const codes = devSimDownCodes();
+  if (!codes) return mons;
+  return (mons || []).map(m => codes.has(propCode(m.friendly_name)) ? { ...m, status: 9, _simDown: true } : m);
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -1993,7 +2071,7 @@ function unifiKeyRaw(s) {
 const UNIFI_ALIAS = {
   by76a: 'by12a',   // UniFi BY76A → monitor BY12A
   by76b: 'by12b',   // UniFi BY76B → monitor BY12B
-  lighthill131commave: 'cm31', // UniFi "Estate - 131 Comm Ave" (+UNVR) → monitor CM31
+  estate131commave: 'cm31', // UniFi "Estate - 131 Comm Ave" (+UNVR) → monitor CM31
   bf88test: 'bf88test2', // UniFi "BF88 Test" → monitor "BF88 Test2"
   un1617: 'un16',   // engine files Asana tickets under UN1617; monitor/UniFi use UN16 (canonCode join)
 };
@@ -2014,11 +2092,14 @@ async function fetchUnifiData() {
   (data.hosts || []).forEach(h => {
     const k = unifiKey(h.name);
     if (!k) return;
-    if (!map[k]) map[k] = { deviceCount: 0, offlineDeviceCount: 0, offlineDevices: [], backups: [], siteName: h.name, isp: null, seenAt: now, stale: false };
+    if (!map[k]) map[k] = { deviceCount: 0, offlineDeviceCount: 0, offlineDevices: [], backups: [], uplinks: [], siteName: h.name, isp: null, seenAt: now, stale: false };
     map[k].deviceCount        += h.deviceCount || 0;
     map[k].offlineDeviceCount += h.offlineDeviceCount || 0;
     map[k].offlineDevices      = map[k].offlineDevices.concat(h.offlineDevices || []);
     map[k].backups             = [...new Set([...map[k].backups, ...(h.backups || [])])];  // union across rolled-up hosts
+    // Backup uplinks WITH live status (names which backup is actually carrying a failed-over site).
+    // Merge by type across rolled-up hosts; a type is online if it's online on ANY host.
+    (h.uplinks || []).forEach(u => { const e = map[k].uplinks.find(x => x.type === u.type); if (e) e.online = e.online || u.online; else map[k].uplinks.push({ ...u }); });
     // Several hosts can roll into one property (e.g. "CN96" + "CN96 NVR"); the WAN/ISP
     // metrics live on the gateway host, so keep the first non-null we see.
     if (h.isp && !map[k].isp) map[k].isp = h.isp;
@@ -2331,6 +2412,16 @@ function siteBackups(name) {
   if (WAN_BACKUP_OVERRIDES[code]) return WAN_BACKUP_OVERRIDES[code];
   return (unifiMap[unifiKey(name)] || {}).backups || [];
 }
+// The backup uplink currently CARRYING a failed-over site, if we can name it. Prefer an ONLINE
+// UniFi uplink (lte/5g — the proxy reports per-uplink status); else fall back to the site's first
+// known backup (covers Starlink, which is overridden in and has no UniFi status). Returns a type
+// ('lte'|'5g'|'starlink') or null. Used only when WAN1 is down but the console is still reachable.
+function activeBackupType(name) {
+  const online = ((unifiMap[unifiKey(name)] || {}).uplinks || []).find(u => u.online);
+  if (online) return online.type;
+  const bk = siteBackups(name);
+  return bk.length ? bk[0] : null;
+}
 // A backup uplink as a small MARK (compact spots, e.g. the ISP-reliability rows).
 function backupLogoHTML(kind) {
   if (kind === 'starlink') return markLogo('starlink', 'Starlink', SERVICE_URLS.starlink);
@@ -2515,13 +2606,14 @@ function siteDetailHTML(m, up) {
   const name = m.friendly_name;
   const si   = STATUS_INFO[m.status] || STATUS_INFO[1];
   const eff  = effectiveStatus(m);
-  const acked = isAcked(name) && (eff === 'down' || eff === 'warn');
-  const known = hasKnownIssue(name);
+  const cls  = classifyMonitor(m);   // reducer over the site's incidents (live/known/acked)
+  const acked = cls.acked;
+  const known = cls.known;
   let dotCls, textCls, label;
-  if (acked)                 { dotCls = 'dot-warn';   textCls = 'warn';   label = 'Acknowledged'; }
+  if (cls.live === 'down')   { dotCls = 'dot-down';   textCls = 'down';   label = si.cls === 'down' ? si.label : 'Service Down'; }
+  else if (cls.live === 'warn'){ dotCls = 'dot-warn';  textCls = 'warn';   label = 'Degraded'; }
+  else if (acked)            { dotCls = 'dot-warn';   textCls = 'warn';   label = 'Acknowledged'; }
   else if (known)            { dotCls = 'dot-known';  textCls = 'known';  label = 'Known issue'; }
-  else if (eff === 'down')   { dotCls = 'dot-down';   textCls = 'down';   label = si.cls === 'down' ? si.label : 'Service Down'; }
-  else if (eff === 'warn')   { dotCls = 'dot-warn';   textCls = 'warn';   label = 'Degraded'; }
   else if (eff === 'paused') { dotCls = 'dot-paused'; textCls = 'paused'; label = si.label; }
   else                       { dotCls = 'dot-up';     textCls = 'up';     label = si.label; }
 
@@ -3066,6 +3158,8 @@ function attachUptimeHover(host) {
   if (!host) return;
   const tip = ensureInsightsTip();
   host.querySelectorAll('.uptime-bars[data-rib^="uptime:"]').forEach(ribbon => {
+    if (ribbon.dataset.hoverBound) return;   // incremental render reuses ribbons — bind listeners once
+    ribbon.dataset.hoverBound = '1';
     const code = ribbon.getAttribute('data-rib').slice('uptime:'.length);
     const rec = uptimeDayDetail[code];
     if (!rec || !Array.isArray(rec.daysDetail)) return;
@@ -3939,7 +4033,7 @@ function ticketHistoryHTML(name) {
 // Live root-cause inference for an active alert. Beacon already collects every signal
 // needed to GUESS why a property is alerting, so we surface a confidence-tagged "likely
 // cause" on the card rather than make the operator cross-read the summary, offline chips,
-// and WAN/UPS detail. Pure — reads the same live maps alertCardHTML does. Returns
+// and WAN/UPS detail. Pure — reads the same live maps incidentCardHTML does. Returns
 // { cause, confidence:'likely'|'possible', icon, why, alternatives:[{cause,confidence,why}] }
 // (cause/why are plain text — escape at render). `cause`/`confidence`/`why` describe the
 // PRIMARY (top-ranked) cause; `alternatives` is the ranked differential below it, each
@@ -3980,6 +4074,19 @@ function classifyRootCause(m, eff) {
           { cause: 'UPS itself', confidence: 'possible', why: 'The UPS unit may have failed.' },
           { cause: 'UPS network link', confidence: 'possible', why: 'Its management network link could be down while power is fine.' },
         ] };
+  }
+
+  // 1.5) Failover — WAN1's monitor is down, but the console is still reachable (gateway up) and a
+  // backup uplink is online → the site isn't unreachable, it's running on backup. Name the carrying
+  // uplink. Takes precedence over the generic ISP/telemetry branches (and kills the false "no local
+  // telemetry" cause), but not over a definitive UPS-on-battery power signal above.
+  const liveConsole = monDown && unifiData && !unifiData.stale && !offDevs.some(d => d.cls === 'gateway');
+  const activeBk = liveConsole ? activeBackupType(name) : null;
+  if (activeBk) {
+    const bkLabel = BACKUP_LABEL[activeBk] || activeBk;
+    const primary = (unifiData.isp && unifiData.isp.ispName) ? `${unifiData.isp.ispName} (WAN1)` : 'The primary internet link (WAN1)';
+    return { cause: `Primary ISP down — on ${bkLabel} backup`, confidence: 'likely', icon: '🔄',
+      why: `${primary} is down; the site failed over and is running on its ${bkLabel} backup. Local telemetry confirms the site is still up — restore the primary link to clear this.` };
   }
 
   // 2) ISP / Internet — live WAN packet loss or a latency spike points at the provider.
@@ -4063,94 +4170,115 @@ function classifyRootCause(m, eff) {
     why: 'No distinguishing signal yet — open the details to investigate.' };
 }
 
-function alertCardHTML(m, eff, acked) {
-  const name = m.friendly_name;
-  const si   = STATUS_INFO[m.status] || STATUS_INFO[1];
-  const ovrc = getOvrcCellStatus(ovrcMap[name] || null);
-  const apc  = getApcCellStatus(apcMap[name]   || null);
+// One incident → one card (see siteIncidents). Reuses the existing .alert-{down,warn,ack,known} CSS.
+function incidentCardHTML(inc) {
+  const m = inc.m, name = inc.monName;
+  const si = STATUS_INFO[m.status] || STATUS_INFO[1];
   const unifiData = unifiMap[unifiKey(name)] || null;
-  const unifi = getUnifiCellStatus(unifiData);
-  const offDevs = effectiveOffline(unifiData);
-  const rc   = classifyRootCause(m, eff);
-  const isKnown = eff === 'known';
-  const level = acked ? 'ack' : eff;
+  const acked = inc.acked, known = inc.known;
+  const level = acked ? 'ack' : known ? 'known' : inc.sev;
+  const kindLabel = inc.onBackup ? 'On backup'
+                  : ({ outage: 'Outage', dev: 'Device offline', netout: 'Site offline', flap: 'Recurring',
+                       known: 'Recurring', ovrc: 'OvrC', apc: 'APC' }[inc.kind] || 'Incident');
   const levelLabel = acked ? '◑ Acknowledged'
-                   : isKnown ? '⟳ Recurring · Known issue'
-                   : (eff === 'down' ? '● Alert · Down' : '▲ Degraded');
+                   : known ? '⟳ Recurring · Known issue'
+                   : inc.onBackup ? '● Alert · On backup'
+                   : (inc.sev === 'down' ? '● Alert · Down' : '▲ Degraded');
 
-  const parts = [];
-  if (si.cls === 'down') parts.push('Monitor ' + si.label);
-  if (ovrc && ovrc.dot !== 'dot-up') parts.push('OvrC ' + ovrc.text + ' devices');
-  if (apc && apc.dot !== 'dot-up') parts.push('APC ' + apc.text + ' UPS');
-  if (unifi && unifi.dot !== 'dot-up') parts.push('UniFi ' + unifi.text + ' devices');
-  const realEff = effectiveStatus(m);   // eff is forced to 'known' for managed cards; this is the live status
-  const summary = isKnown
-    ? ((realEff === 'down' || realEff === 'warn')
-        ? 'Recurring offline — tracked as a known issue. Currently offline; flaps intermittently.'
-        : 'Recurring offline — tracked as a known issue. Currently reachable; flaps intermittently.')
-    : (parts.join('   ·   ') || (eff === 'warn' ? 'Service degraded' : 'Needs attention'));
+  // Per-incident summary.
+  let summary;
+  if (known) summary = acked
+      ? 'Recurring offline — known issue (acknowledged).'
+      : 'Recurring offline — tracked as a known issue; flaps intermittently.';
+  else if (inc.onBackup) summary = 'Primary ISP (WAN1) down — running on ' + (BACKUP_LABEL[inc.activeBackup] || inc.activeBackup)
+      + ' backup. The site is reachable via the backup uplink; restore the primary link.';
+  else if (inc.kind === 'outage') summary = 'Monitor ' + si.label + ' — the site is unreachable.';
+  else if (inc.kind === 'dev') summary = 'Device offline: ' + ((inc.device && inc.device.name) || inc.title)
+      + (inc.device && inc.device.cls ? ' (' + inc.device.cls + ')' : '');
+  else summary = inc.title;
 
-  // Offline UniFi devices shown right on the bar (no need to expand details), each with an
-  // operator-only "ignore" for devices that are offline on purpose. Hidden on kiosk via CSS.
-  const offlineListHtml = offDevs.length
-    ? `<div class="offline-list">${offDevs.map(dv =>
-        `<span class="offline-chip"><span class="dot dot-warn"></span>` +
-        `<span class="offline-name">${escHtml(dv.name)}</span>` +
-        `<button class="ignore-btn" title="Ignore — this device is offline on purpose"` +
-        ` onclick="event.stopPropagation();ignoreDevice('${jsStr(dv.mac)}','${jsStr(dv.name)}','${jsStr(name)}')">ignore</button>` +
-        `</span>`).join('')}</div>`
-    : '';
-  // Same blended, Down-vs-Degraded ribbon (+ rich hover) as the site modal / insights timelines.
+  // Root cause only for the whole-site outage (the only signal-rich case); device/OvrC/APC name themselves.
+  let causeHtml = '', causeBar = '';
+  if (inc.kind === 'outage') {
+    const rc = classifyRootCause(m, 'down');
+    const rcLabel = rc.confidence === 'likely' ? 'Likely' : 'Possible';
+    const rcAlts = rc.alternatives || [];
+    const altLine = (conf, lead) => {
+      const items = rcAlts.filter(a => a.confidence === conf);
+      if (!items.length) return '';
+      const txt = items.map(a => `${escHtml(a.cause)}${a.why ? ` — ${escHtml(a.why)}` : ''}`).join('; ');
+      return `<div class="dtl-cause-alt"><span class="dtl-cause-lead">${lead}</span> ${txt}</div>`;
+    };
+    causeHtml = `<div class="dtl-section"><div class="dtl-section-title">${rcLabel} cause</div>
+        <div class="isp-line">${rc.icon} ${escHtml(rc.cause)} — ${escHtml(rc.why)}</div>
+        ${altLine('possible', 'Also possible:')}${altLine('unlikely', 'Unlikely:')}</div>`;
+    causeBar = `<div class="alert-card-cause cause-${rc.confidence}">${rc.icon} ${rcLabel} cause: ${escHtml(rc.cause)}</div>`;
+  }
+
+  // A device incident shows only ITS OWN chip (+ operator ignore); other kinds show none.
+  const offlineListHtml = inc.device
+    ? `<div class="offline-list"><span class="offline-chip"><span class="dot dot-warn"></span>` +
+      `<span class="offline-name">${escHtml(inc.device.name || 'device')}</span>` +
+      `<button class="ignore-btn" title="Ignore — this device is offline on purpose"` +
+      ` onclick="event.stopPropagation();ignoreDevice('${jsStr(inc.device.mac)}','${jsStr(inc.device.name)}','${jsStr(name)}')">ignore</button>` +
+      `</span></div>` : '';
+
+  // Same blended Down-vs-Degraded ribbon + tickets/ISP detail as before, keyed by the site.
   const up = siteUptime90(m);
   const bars = renderUptimeBars(up.days, up.pct, { rich: true, code: propCode(name) });
-  // Expander = jump to the Asana ticket(s), recent down history, and the 90-day uptime. The
-  // per-service counts that used to live here just duplicated the summary line above, so they're gone.
-  // Internet (WAN) provider + live latency/loss, from UniFi isp-metrics — handy for triage
-  // (is the site's internet itself the problem?). Omitted when no ISP data for this property.
   const isp = unifiData && unifiData.isp;
-  const ispHtml = isp ? `<div class="dtl-section">
-      <div class="dtl-section-title">Internet</div>
-      <div class="isp-line">${ispEmblemHTML(isp.ispName)}${isp.latencyMs != null ? `${isp.latencyMs} ms` : ''}${isp.packetLoss ? ` · ${isp.packetLoss}% loss` : ''}${isp.uptimePct != null ? ` · <span class="${uptimeCls(isp.uptimePct)}">${fmtPct(isp.uptimePct)} WAN uptime</span>` : ''}</div>
-    </div>` : '';
-  const rcLabel = rc.confidence === 'likely' ? 'Likely' : 'Possible';
-  // Ranked differential below the primary: "also possible" then weaker "unlikely".
-  const rcAlts = rc.alternatives || [];
-  const altLine = (conf, lead) => {
-    const items = rcAlts.filter(a => a.confidence === conf);
-    if (!items.length) return '';
-    const txt = items.map(a => `${escHtml(a.cause)}${a.why ? ` — ${escHtml(a.why)}` : ''}`).join('; ');
-    return `<div class="dtl-cause-alt"><span class="dtl-cause-lead">${lead}</span> ${txt}</div>`;
-  };
-  const causeHtml = `<div class="dtl-section">
-      <div class="dtl-section-title">${rcLabel} cause</div>
-      <div class="isp-line">${rc.icon} ${escHtml(rc.cause)} — ${escHtml(rc.why)}</div>
-      ${altLine('possible', 'Also possible:')}${altLine('unlikely', 'Unlikely:')}
-    </div>`;
-  const detail = `
-    ${causeHtml}
-    ${ticketsSectionHTML(name)}
-    ${ticketHistoryHTML(name)}
-    ${ispHtml}
-    <div class="dtl-section">
-      <div class="dtl-section-title">Site timeline</div>
-      <div class="dtl-srcrow dtl-srcrow-top">${emblemLogo('uptimerobot', 'UptimeRobot', STATUS_PAGE_URL)}<div class="dtl-srcbody">${bars}</div></div>
-    </div>`;
+  const ispHtml = isp ? `<div class="dtl-section"><div class="dtl-section-title">Internet</div>
+      <div class="isp-line">${ispEmblemHTML(isp.ispName)}${isp.latencyMs != null ? `${isp.latencyMs} ms` : ''}${isp.packetLoss ? ` · ${isp.packetLoss}% loss` : ''}${isp.uptimePct != null ? ` · <span class="${uptimeCls(isp.uptimePct)}">${fmtPct(isp.uptimePct)} WAN uptime</span>` : ''}</div></div>` : '';
+  const detail = `${causeHtml}${ticketsSectionHTML(name)}${ticketHistoryHTML(name)}${ispHtml}
+    <div class="dtl-section"><div class="dtl-section-title">Site timeline</div>
+      <div class="dtl-srcrow dtl-srcrow-top">${emblemLogo('uptimerobot', 'UptimeRobot', STATUS_PAGE_URL)}<div class="dtl-srcbody">${bars}</div></div></div>`;
 
-  return `<div class="alert-card alert-${level}${expandedAlerts.has(name) ? ' open' : ''}" data-alert="${escHtml(name)}" onclick="toggleAlertDetail(this)">
+  // Known issues get the known clear/mark control; everything else gets its own ACK control. The
+  // outage + device cards also offer "Mark known issue" (property-level — see plan boundary).
+  const controls = known
+    ? incidentKnownControlHTML(inc)
+    : incidentAckControlHTML(inc) + ((inc.kind === 'outage' || inc.kind === 'dev') ? incidentKnownControlHTML(inc) : '');
+
+  return `<div class="alert-card alert-${level}${expandedAlerts.has(inc.id) ? ' open' : ''}" data-alert="${escHtml(inc.id)}" onclick="toggleAlertDetail(this)">
     <div class="alert-card-head">
       <span class="alert-card-name">${escHtml(name)}</span>
+      <span class="alert-card-kind">${escHtml(kindLabel)}</span>
       ${isp ? `<span class="alert-card-isp">${ispEmblemHTML(isp.ispName)}</span>` : ''}
       <span class="alert-card-level">${levelLabel}</span>
       <span class="alert-card-spacer"></span>
-      <span class="alert-card-controls">${ackControlHTML(name, eff)}${knownControlHTML(name, eff)}</span>
+      <span class="alert-card-controls">${controls}</span>
     </div>
-    <div class="alert-card-summary">${summary}</div>
+    <div class="alert-card-summary">${escHtml(summary)}</div>
     ${unifiData && unifiData.stale ? `<div class="alert-card-stale">⏱ UniFi data delayed — showing last known${unifiData.seenAt ? ` (last seen ${fmtAgo(Math.floor(unifiData.seenAt / 1000))})` : ''}</div>` : ''}
-    <div class="alert-card-cause cause-${rc.confidence}">${rc.icon} ${rcLabel} cause: ${escHtml(rc.cause)}</div>
+    ${causeBar}
     ${offlineListHtml}
     <div class="alert-card-hint">▾ Click for details</div>
     <div class="alert-detail">${detail}</div>
   </div>`;
+}
+
+// Per-incident ACK control. Acks are keyed by the incident id; mirroring still resolves by site.
+function incidentAckControlHTML(inc) {
+  const js = jsStr(inc.id), jsm = jsStr(inc.monName);
+  const a = inc.ack;
+  if (a) {
+    const by = a.by ? (OPERATORS[a.by] ? OPERATORS[a.by].name : a.by) : '';
+    const viaAsana = a.src === 'asana' || a.by === 'via Asana';
+    const clearBtn = viaAsana ? '' : `<button class="ack-x" title="Clear acknowledgement" onclick="event.stopPropagation();unackProperty('${js}','${jsm}')">✕</button>`;
+    const tkey = inc.ackKey || inc.id;   // read the countdown under the key the ack actually lives at
+    return `<span class="ack-badge">ACK${by ? ' · ' + by : ''} <span class="ack-timer" data-name="${escHtml(tkey)}">${fmtAckRemaining(tkey)}</span>${clearBtn}</span>`;
+  }
+  return `<button class="ack-btn" onclick="event.stopPropagation();ackProperty('${js}','${jsm}','${inc.sev}')">⤓ ACK</button>`;
+}
+// Per-incident known-issue control. Marking/clearing is still property-level (see plan boundary).
+function incidentKnownControlHTML(inc) {
+  if (kiosk) return '';
+  const jsm = jsStr(inc.monName);
+  if (inc.known) {
+    const by = knownBy(inc.monName);
+    return `<span class="ki-badge">⟳ Known issue${by ? ' · ' + escHtml(by) : ''} <button class="ki-x" title="Clear known-issue mark" onclick="event.stopPropagation();clearKnownIssue('${jsm}')">✕</button></span>`;
+  }
+  return `<button class="ki-btn" title="Mark as a known recurring issue" onclick="event.stopPropagation();markKnownIssue('${jsm}')">⟳ Known issue</button>`;
 }
 
 // A synthetic down property so "Test alert" exercises the real alert + ack flow
@@ -4171,30 +4299,111 @@ function renderAlertPanel() {
     return;
   }
 
-  const active = [], acked = [], known = [];
-  alertingMonitors().forEach(m => {
-    const name = m.friendly_name;
-    const eff = effectiveStatus(m);
-    const alerting = eff === 'down' || eff === 'warn';
-    // A known issue is a MANAGED state (like ack): the whole card goes violet and sinks to the bottom
-    // of the list, and it stops sounding the alarm — even when the device is currently offline. An
-    // explicit ack still wins (a deliberate, timed silence). Up-but-known properties land here too, so
-    // the recurring fault stays visible between flaps.
-    if (hasKnownIssue(name) && !isAcked(name)) known.push({ m, eff: 'known' });
-    else if (alerting) (isAcked(name) ? acked : active).push({ m, eff });
+  // One card per INCIDENT (see siteIncidents): the monitor-down, each offline device, and each
+  // chronic ticket are separate, independently-acknowledgeable cards — but a property's incidents are
+  // GROUPED and shown side by side (an `.alert-group` flex row), so e.g. an outage sits next to that
+  // site's chronic known issue. Groups are ordered by their worst incident (unacked outage → degraded
+  // → known → acked); within a group, cards are worst-first.
+  const incidents = alertingMonitors().flatMap(siteIncidents);
+  const rankOf = (inc) => inc.acked ? 3 : inc.known ? 2 : (inc.sev === 'down' ? 0 : 1);
+  const groups = new Map();   // monName → incident[]
+  for (const inc of incidents) { const g = groups.get(inc.monName); if (g) g.push(inc); else groups.set(inc.monName, [inc]); }
+  const groupArr = [...groups.entries()].map(([monName, incs]) => {
+    incs.sort((a, b) => rankOf(a) - rankOf(b) || a.id.localeCompare(b.id));
+    return { monName, incs, rank: Math.min(...incs.map(rankOf)) };
   });
-  active.sort((a, b) => (a.eff === 'down' ? 0 : 1) - (b.eff === 'down' ? 0 : 1));
+  groupArr.sort((a, b) => a.rank - b.rank || a.monName.localeCompare(b.monName));
 
   // Drop expand-state for cards no longer shown, so the Set can't grow unbounded on a long-running wall.
-  const rendered = new Set([...active, ...acked, ...known].map(x => x.m.friendly_name));
+  const rendered = new Set(incidents.map(i => i.id));
   for (const n of expandedAlerts) if (!rendered.has(n)) expandedAlerts.delete(n);
 
-  if (!active.length && !acked.length && !known.length) { panel.style.display = 'none'; panel.innerHTML = ''; return; }
+  if (!incidents.length) {
+    panel.querySelectorAll('.alert-card[data-alert], .alert-group').forEach(el => el.remove());
+    panel.style.display = 'none';
+    return;
+  }
   panel.style.display = 'block';
-  panel.innerHTML = active.map(x => alertCardHTML(x.m, x.eff, false)).join('')
-                  + acked.map(x => alertCardHTML(x.m, x.eff, true)).join('')
-                  + known.map(x => alertCardHTML(x.m, 'known', false)).join('');
+  reconcileAlertPanel(panel, groupArr);   // incremental DOM update (keyed by incident id) + transitions
   attachUptimeHover(panel);   // rich day-by-day hover on each alert card's Site-timeline ribbon
+}
+
+function htmlToEl(html) { const t = document.createElement('div'); t.innerHTML = html; return t.firstElementChild; }
+
+// Incremental render of the alert panel: reuse existing card nodes by incident id (so the wall
+// doesn't rebuild every card each poll), then play subtle transitions — new incidents fade/slide in,
+// recovered ones fade out, and cards that change rank glide to their new spot (FLIP). All motion is
+// disabled under prefers-reduced-motion (and the reconcile still produces the correct final DOM).
+function reconcileAlertPanel(panel, groupArr) {
+  const reduce = !!(window.matchMedia && matchMedia('(prefers-reduced-motion: reduce)').matches);
+
+  // FIRST: snapshot current card positions for the FLIP move.
+  const firstRects = reduce ? null : new Map();
+  if (!reduce) panel.querySelectorAll('.alert-card[data-alert]').forEach(el => firstRects.set(el.dataset.alert, el.getBoundingClientRect()));
+
+  // Index existing nodes (skip cards already animating out).
+  const oldCards = new Map(), oldGroups = new Map();
+  panel.querySelectorAll('.alert-card[data-alert]').forEach(el => { if (!el.classList.contains('card-leave')) oldCards.set(el.dataset.alert, el); });
+  panel.querySelectorAll('.alert-group[data-group]').forEach(el => oldGroups.set(el.dataset.group, el));
+
+  // Build/refresh groups + cards in desired order, reusing nodes by id (re-appending reorders them).
+  const seen = new Set();
+  groupArr.forEach(g => {
+    let groupEl = oldGroups.get(g.monName);
+    if (!groupEl) { groupEl = document.createElement('div'); groupEl.className = 'alert-group'; groupEl.dataset.group = g.monName; }
+    g.incs.forEach(inc => {
+      seen.add(inc.id);
+      const html = incidentCardHTML(inc);
+      let card = oldCards.get(inc.id);
+      if (card) {
+        if (card._html !== html) { const fresh = htmlToEl(html); card.className = fresh.className; card.innerHTML = fresh.innerHTML; card._html = html; }
+      } else {
+        card = htmlToEl(html); card._html = html;
+        if (!reduce) card.classList.add('card-enter');
+      }
+      groupEl.appendChild(card);
+    });
+    panel.appendChild(groupEl);
+  });
+
+  // Remove cards that are gone (fade out), then drop any now-empty group.
+  oldCards.forEach((el, id) => { if (!seen.has(id)) removeCard(el, panel, reduce); });
+  panel.querySelectorAll('.alert-group[data-group]').forEach(gEl => {
+    if (!groupArr.some(g => g.monName === gEl.dataset.group) && !gEl.querySelector('.alert-card')) gEl.remove();
+  });
+
+  if (reduce) { panel.querySelectorAll('.alert-card.card-enter').forEach(el => el.classList.remove('card-enter')); return; }
+
+  // INVERT: cards whose position changed get a transform back to where they were (no transition yet).
+  const moved = [];
+  panel.querySelectorAll('.alert-card[data-alert]').forEach(el => {
+    if (el.classList.contains('card-enter')) return;
+    const first = firstRects.get(el.dataset.alert);
+    if (!first) return;
+    const last = el.getBoundingClientRect();
+    const dx = first.left - last.left, dy = first.top - last.top;
+    if (Math.abs(dx) > 1 || Math.abs(dy) > 1) { el.style.transition = 'none'; el.style.transform = `translate(${dx}px, ${dy}px)`; moved.push(el); }
+  });
+  void panel.offsetWidth;   // commit the inverted state before playing
+  // PLAY: release the FLIP transforms and the entrance offsets on the next frame.
+  requestAnimationFrame(() => {
+    moved.forEach(el => { el.style.transition = ''; el.style.transform = ''; });
+    panel.querySelectorAll('.alert-card.card-enter').forEach(el => el.classList.remove('card-enter'));
+  });
+}
+
+// Animate a recovered incident's card out: lift it out of flow (so its siblings reflow/FLIP into the
+// gap) at its current spot, fade it, then remove. Instant under reduced motion.
+function removeCard(el, panel, reduce) {
+  if (reduce) { el.remove(); return; }
+  const pr = panel.getBoundingClientRect(), r = el.getBoundingClientRect();
+  el.style.position = 'absolute'; el.style.margin = '0'; el.style.width = r.width + 'px';
+  el.style.top = (r.top - pr.top) + 'px'; el.style.left = (r.left - pr.left) + 'px';
+  el.classList.add('card-leave');
+  panel.appendChild(el);                       // detach from its group so survivors reflow
+  const done = () => el.remove();
+  el.addEventListener('transitionend', done, { once: true });
+  setTimeout(done, 700);                        // safety net if transitionend doesn't fire
 }
 
 function filteredRows() {
@@ -4233,21 +4442,23 @@ function renderTiles() {
     const apcStatus  = getApcCellStatus(apcMap[name]   || null);
     const unifiStatus = getUnifiCellStatus(unifiMap[unifiKey(name)] || null);
 
-    const eff   = effectiveStatus(m);
-    const acked = isAcked(name) && (eff === 'down' || eff === 'warn');
-
-    const known = hasKnownIssue(name);
-    // Status pill: acked alerts present as amber "Acknowledged". A known issue is a managed state (like
-    // ack) — the whole tile reads violet "Known issue" and sinks to the bottom, even when the device is
-    // currently offline. An explicit ack still wins; if a tile is BOTH, a ⟳ marker notes the known issue.
+    const cls   = classifyMonitor(m);
+    const eff   = cls.eff;
+    const acked = cls.acked;
+    const known = cls.known;
+    // Tiles stay one-per-site, summarizing the site's incidents (cls = reducer over siteIncidents).
+    // An unacked live condition wins (a full site-down reads red even on a known/acked site); else a
+    // managed site reads amber "Acknowledged" or violet "Known issue". A ⟳ marker flags a tile that
+    // is red/amber AND a known recurring issue; a count chip notes multiple incidents.
     let tileCls, dotCls, textCls, label;
-    if (acked)                  { tileCls = 'tile-ack';    dotCls = 'dot-warn';   textCls = 'warn';   label = 'Acknowledged'; }
+    if (cls.live === 'down')    { tileCls = 'tile-down';   dotCls = 'dot-down';   textCls = 'down';   label = si.cls === 'down' ? si.label : 'Service Down'; }
+    else if (cls.live === 'warn'){ tileCls = 'tile-warn';   dotCls = 'dot-warn';   textCls = 'warn';   label = 'Degraded'; }
+    else if (acked)             { tileCls = 'tile-ack';    dotCls = 'dot-warn';   textCls = 'warn';   label = 'Acknowledged'; }
     else if (known)             { tileCls = 'tile-known';  dotCls = 'dot-known';  textCls = 'known';  label = 'Known issue'; }
-    else if (eff === 'down')    { tileCls = 'tile-down';   dotCls = 'dot-down';   textCls = 'down';   label = si.cls === 'down' ? si.label : 'Service Down'; }
-    else if (eff === 'warn')    { tileCls = 'tile-warn';   dotCls = 'dot-warn';   textCls = 'warn';   label = 'Degraded'; }
     else if (eff === 'paused')  { tileCls = 'tile-paused'; dotCls = 'dot-paused'; textCls = 'paused'; label = si.label; }
     else                        { tileCls = 'tile-up';     dotCls = 'dot-up';     textCls = 'up';     label = si.label; }
-    const kiMark = acked && known ? `<span class="ki-mark" title="Also a known recurring issue">⟳</span>` : '';
+    const kiMark = known && (acked || cls.live) ? `<span class="ki-mark" title="Also a known recurring issue">⟳</span>` : '';
+    const countTag = cls.incidentCount > 1 ? `<span class="tile-count" title="${cls.incidentCount} open incidents">${cls.incidentCount}</span>` : '';
 
     // A known (non-acked) tile shows the violet clear-control; otherwise the normal ack control.
     const ctrlHtml = (known && !acked) ? knownControlHTML(name, 'known') : ackControlHTML(name, eff);
@@ -4269,7 +4480,7 @@ function renderTiles() {
 
     return `<div class="tile ${tileCls}" onclick="openSiteDetail('${jsStr(name)}')" title="View site details">
       <div class="tile-name">${escHtml(name)}</div>
-      <div class="tile-status"><span class="dot ${dotCls}"></span><span class="text-${textCls}">${label}</span>${kiMark}</div>
+      <div class="tile-status"><span class="dot ${dotCls}"></span><span class="text-${textCls}">${label}</span>${kiMark}${countTag}</div>
       ${statLines ? `<div class="tile-stats">${statLines}</div>` : ''}
       ${ctrlHtml ? `<div class="tile-ack-row">${ctrlHtml}</div>` : ''}
     </div>`;
@@ -4313,8 +4524,8 @@ function updateFilterCounts() {
 function effectiveStatusSortVal(m) {
   const si = STATUS_INFO[m.status] || STATUS_INFO[1];
   const name = m.friendly_name;
-  if (isAcked(name)) return 3;        // acknowledged → treated as all-clear
-  if (hasKnownIssue(name)) return 3;  // managed known issue → sinks to the bottom, like an ack
+  const cls = classifyMonitor(m);
+  if (!cls.live && (cls.acked || cls.known)) return 3;  // nothing actively alarming, just managed → sink
 
   const ovrc = getOvrcCellStatus(ovrcMap[name] || null);
   const apc  = getApcCellStatus(apcMap[name]  || null);
@@ -4377,18 +4588,20 @@ function renderTable() {
     const apcStatus  = getApcCellStatus(apcMap[name]   || null);
     const unifiStatus = getUnifiCellStatus(unifiMap[unifiKey(name)] || null);
 
-    // First-column status, folding in OvrC/APC/UniFi and acknowledgements.
-    const eff   = effectiveStatus(m);
-    const acked = isAcked(name) && (eff === 'down' || eff === 'warn');
-    const known = hasKnownIssue(name);
+    // First-column status, via classifyMonitor (same source of truth as panel/tiles/banner): a NEW,
+    // worse live condition breaking through a known/acked site reads red, not violet/amber.
+    const cls   = classifyMonitor(m);
+    const eff   = cls.eff;
+    const acked = cls.acked;
+    const known = cls.known;
     let dotCls, textCls, label;
-    if (acked)                 { dotCls = 'dot-warn';   textCls = 'warn';   label = 'Acknowledged'; }
+    if (cls.live === 'down')   { dotCls = 'dot-down';   textCls = 'down';   label = si.cls === 'down' ? si.label : 'Service Down'; }
+    else if (cls.live === 'warn'){ dotCls = 'dot-warn';   textCls = 'warn';   label = 'Degraded'; }
+    else if (acked)            { dotCls = 'dot-warn';   textCls = 'warn';   label = 'Acknowledged'; }
     else if (known)            { dotCls = 'dot-known';  textCls = 'known';  label = 'Known issue'; }
-    else if (eff === 'down')   { dotCls = 'dot-down';   textCls = 'down';   label = si.cls === 'down' ? si.label : 'Service Down'; }
-    else if (eff === 'warn')   { dotCls = 'dot-warn';   textCls = 'warn';   label = 'Degraded'; }
     else if (eff === 'paused') { dotCls = 'dot-paused'; textCls = 'paused'; label = si.label; }
     else                       { dotCls = 'dot-up';     textCls = 'up';     label = si.label; }
-    const kiMark = acked && known ? `<span class="ki-mark" title="Also a known recurring issue">⟳</span>` : '';
+    const kiMark = known && (acked || cls.live) ? `<span class="ki-mark" title="Also a known recurring issue">⟳</span>` : '';
 
     const ctrlHtml = (known && !acked) ? knownControlHTML(name, 'known') : ackControlHTML(name, eff);
     const aqLogo = airthingsFor(name)
@@ -4455,6 +4668,128 @@ function effectiveStatus(m) {
   return 'up';
 }
 
+// Enumerate the DISTINCT incidents at one site — each becomes its own alert card and is
+// independently acknowledgeable (the ack key IS the incident id). A site that has the monitor down
+// + N offline devices + a chronic flapping device yields N+2 cards. Incident object:
+//   { id, monName, m, sev:'down'|'warn', kind:'outage'|'dev'|'flap'|'ovrc'|'apc',
+//     known, acked, ack, mac, gid, device, ticket, title }
+function siteIncidents(m) {
+  const name = m.friendly_name;
+  const code = propCode(name);
+  const si = STATUS_INFO[m.status] || STATUS_INFO[1];
+  const unifiData = unifiMap[unifiKey(name)] || null;
+  const out = [];
+
+  // Chronic / known-issue tickets — one violet card each. Track their device MACs so a
+  // currently-offline device that IS the chronic device folds into the known card (MAC join),
+  // not a second degraded card.
+  const knownMacs = new Set();
+  (knownIssueMap[name] || []).forEach((t, i) => {
+    const mac = t.mac ? normMac(t.mac) : null;
+    if (mac) knownMacs.add(mac);
+    out.push({ id: 'flap:' + (mac || t.gid || (code + ':' + i)), monName: name, m, sev: 'warn',
+               kind: t.kind === 'flap' ? 'flap' : 'known', known: true, gid: t.gid || null, mac,
+               ticket: t, title: 'Recurring — known issue' });
+  });
+
+  // Outage — the monitor (WAN/UDM) itself unreachable. The only red kind, the only klaxon source.
+  if (si.cls === 'down') {
+    // Failover: WAN1's monitor is down, but the UniFi console is still reachable (its gateway is up
+    // and reporting → the site HAS working internet) and a backup uplink is online → the site failed
+    // over to that backup. Still urgent (no redundancy left, burning cellular), so it stays
+    // red/klaxon — we just relabel it "on backup" and name the carrying uplink instead of the false
+    // "site unreachable / no local telemetry". If the console is stale/dark, this stays a real outage.
+    const liveConsole = unifiData && !unifiData.stale &&
+      !effectiveOffline(unifiData).some(d => d.cls === 'gateway');
+    const backup = liveConsole ? activeBackupType(name) : null;
+    out.push(backup
+      ? { id: 'mon:' + code, monName: name, m, sev: 'down', kind: 'outage', onBackup: true,
+          activeBackup: backup, title: 'Primary ISP down — on ' + (BACKUP_LABEL[backup] || backup) + ' backup' }
+      : { id: 'mon:' + code, monName: name, m, sev: 'down', kind: 'outage', title: 'Site unreachable' });
+  }
+
+  // Whole-site blackout from UniFi's own view: the gateway/console is offline (everything is
+  // downstream of it) OR every device the cloud still lists is offline. Either way the per-device
+  // drops are symptoms of ONE event — don't spray a card per device. Ignore stale (last-known) data.
+  // Gateway-offline is the robust signal: it separates a dark site (power/internet loss) from a
+  // switch-cascade where the gateway stays up (a genuine degraded state — keep per-device cards).
+  const off = effectiveOffline(unifiData);
+  const liveU = unifiData && !unifiData.stale;
+  const dc = liveU ? (unifiData.deviceCount || 0) : 0;
+  const unifiBlackout = liveU && dc >= 2 &&
+    (off.some(d => d.cls === 'gateway') || (unifiData.offlineDeviceCount || 0) === dc);
+
+  // Offline UniFi devices — one amber card each (stable MAC id). Skip a device already represented
+  // by a chronic flap ticket (MAC join) so it shows once, as the violet known card. But when the
+  // WHOLE site is dark (gateway down / everything offline), those drops are all the same outage:
+  // fold them into one card instead of N. A down WAN monitor alone is NOT a blackout — the LAN can
+  // be fine with a few devices independently offline — so this keys on unifiBlackout, not si.cls.
+  if (unifiBlackout) {
+    // The red outage card above covers it once UptimeRobot confirms; until then surface ONE amber
+    // "whole site offline" card (no klaxon — that stays UptimeRobot's job, the only red source).
+    if (si.cls !== 'down')
+      out.push({ id: 'netout:' + code, monName: name, m, sev: 'warn', kind: 'netout',
+                 title: 'Whole site offline — ' + off.length + ' device' + (off.length === 1 ? '' : 's') + ' down' });
+  } else {
+    off.forEach(dv => {
+      const mac = normMac(dv.mac);
+      if (mac && knownMacs.has(mac)) return;   // MAC join: it's the chronic device → already a known card
+      out.push({ id: 'dev:' + (mac || dv.name), monName: name, m, sev: 'warn', kind: 'dev', mac,
+                 device: dv, title: (dv.name || 'Device') + ' offline' });
+    });
+  }
+
+  // OvrC exposes only an offline COUNT (no per-device MACs) → one aggregated card.
+  const ovrc = getOvrcCellStatus(ovrcMap[name] || null);
+  const ovrcOff = (ovrcMap[name] || {}).offlineDeviceCount || 0;
+  if (ovrc && ovrc.dot !== 'dot-up' && ovrcOff > 0)
+    out.push({ id: 'ovrc:' + code, monName: name, m, sev: 'warn', kind: 'ovrc',
+               title: ovrcOff + ' OvrC device' + (ovrcOff === 1 ? '' : 's') + ' offline' });
+
+  // APC UPS not OK → one aggregated card.
+  const apc = getApcCellStatus(apcMap[name] || null);
+  if (apc && apc.dot !== 'dot-up')
+    out.push({ id: 'apc:' + code, monName: name, m, sev: 'warn', kind: 'apc', title: 'APC ' + apc.text + ' UPS' });
+
+  out.forEach(inc => { const r = incidentAckResolve(inc); inc.ack = r && r.rec; inc.ackKey = r && r.key; inc.acked = !!r; });
+  return out;
+}
+
+// Resolve the live ack for a SPECIFIC incident → { rec, key } or null. An exact per-incident ack
+// (keyed by inc.id) wins. Otherwise a pre-existing whole-site ack (keyed by friendly_name or
+// Property Code — from before per-incident acks, or placed from a tile) bridges, so live acks aren't
+// stranded on deploy: a site ack covers the OUTAGE only if it was a down-level / legacy (no-sev)
+// ack — a degraded (warn) site ack must NOT silence a new outage; it covers degraded incidents
+// instead. Known-issue incidents are managed via their own control, never auto-acked by a site ack.
+// Returning the resolved `key` lets the ACK countdown read the record under the right key.
+function incidentAckResolve(inc) {
+  const exact = liveAck(inc.id);
+  if (exact) return { rec: exact, key: inc.id };
+  if (inc.known) return null;
+  const code = propCode(inc.monName);
+  for (const key of [inc.monName, code]) {
+    if (!key || key === inc.id) continue;
+    const rec = liveAck(key);
+    if (!rec) continue;
+    const ssev = rec.sev;   // undefined = legacy full-coverage ack
+    const covers = inc.kind === 'outage' ? (ssev === undefined || ssev === 'down')
+                                         : (ssev === undefined || ssev === 'warn');
+    if (covers) return { rec, key };
+  }
+  return null;
+}
+
+// Tiles / list / banner stay one-per-site: reduce the incident list to a single site state.
+//   live  — worst UNACKED live severity ('down'|'warn'|null)
+//   known — any known-issue incident   ·   acked — any incident acknowledged
+function classifyMonitor(m) {
+  const incs = siteIncidents(m);
+  const live = incs.some(i => i.sev === 'down' && !i.acked) ? 'down'
+             : incs.some(i => i.sev === 'warn' && !i.acked && !i.known) ? 'warn' : null;
+  return { eff: effectiveStatus(m), live, known: incs.some(i => i.known),
+           acked: incs.some(i => i.acked), incidentCount: incs.length, incidents: incs };
+}
+
 function nowHM() { return new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', hour12: false }); }
 
 // Acks are shared server-side (Netlify Blobs) so every screen stays in sync. We keep
@@ -4465,8 +4800,11 @@ function saveAcks() { try { localStorage.setItem(LS_ACK, JSON.stringify(ackMap))
 // (asana-comment/asana-tickets/engine poll.js). KEEP IN SYNC. The wall acks by friendly_name, but
 // the Asana reverse-sync writes acks keyed by Property Code, so a property is acked if EITHER key
 // carries a live ack — propCode bridges friendly_name → that code.
-const PROPERTY_OVERRIDES = { BY7G: 'BY78G', LIGHTHILL131COMMAVE: 'CM31', LIGHTHILL131COMMAVEUNVR: 'CM31' };
+const PROPERTY_OVERRIDES = { BY7G: 'BY78G', ESTATE131COMMAVE: 'CM31', ESTATE131COMMAVEUNVR: 'CM31' };
 const normCode = (s) => String(s || '').toUpperCase().replace(/[^A-Z0-9]/g, '');
+// Canonical MAC (lowercase hex, no separators) so a chronic ticket's MAC and a live UniFi device's
+// MAC compare equal regardless of colon formatting — drives the per-incident dedupe join.
+const normMac = (s) => String(s || '').toLowerCase().replace(/[^a-f0-9]/g, '');
 // Site code for a per-day outage item's amber tag — blanked when the label already contains
 // the code, so the tooltip doesn't echo it twice (e.g. "HL32B HL32B" / "Monitor Down: OL15 OL15").
 const siteTag = (label, code) => (code && !normCode(label).includes(normCode(code))) ? code : '';
@@ -4481,7 +4819,7 @@ const isDeviceOffline = (title) => { const t = String(title || ''); return /offl
 // is only a fallback for older payloads without an explicit `kind`.
 const isDegradedIncident = (inc) => inc && (inc.kind ? (inc.kind === 'dev' || inc.kind === 'netout' || inc.kind === 'flap') : isDeviceOffline(inc.title));
 function propCode(name) {
-  let s = String(name || '').toUpperCase().replace(/^\s*LIGHT HILL\s*-\s*/, '');
+  let s = String(name || '').toUpperCase().replace(/^\s*ESTATE\s*-\s*/, '');
   if (/\bU?NVR\b/.test(s) || /\bTEST\b/.test(s)) s = s.replace(/\bU?NVR\b|\bTEST\b/g, ' ');
   s = s.replace(/_\d{4}\b/, ' ');
   const m = s.match(/[A-Z]{2,5}\d{1,3}[A-Z]{0,3}/);
@@ -4527,6 +4865,9 @@ function effAck(name) {
   return (code && code !== name) ? liveAck(code) : null;
 }
 function isAcked(name) { return !!effAck(name); }
+// The live ack RECORD for a property (or null) — same resolution as isAcked, exposed so callers
+// can read the severity the ack was placed at (its `sev`); see classifyMonitor.
+function ackInfo(name) { return effAck(name); }
 function ackBy(name) {
   const a = effAck(name);
   const e = a && a.by;
@@ -4666,30 +5007,37 @@ function mirrorToAsana(action, name, durationMs) {
     }
   }).catch(() => showToast(`${verb}: couldn't reach Asana`, { warn: true }));
 }
-async function ackProperty(name) {
+// `key` is the ack STORAGE key — an incident id (e.g. 'dev:<mac>', 'mon:<code>') from a per-incident
+// card, or a site friendly_name when acking a whole site from a tile. `monName` (default = key) is
+// the site used to resolve the Asana ticket(s) to mirror onto; `sev` is the acked severity (display
+// + the legacy site-ack coverage bridge in incidentAck). Single-arg calls remain site-level.
+async function ackProperty(key, monName, sev) {
+  monName = monName || key;
   const durationMs = getAckDurationMs();
   // Optimistic: show the ack instantly. The local `at` makes the merge keep it until the
   // server echoes its own (canonical) record; a lagging poll can no longer drop it.
-  const prev = ackMap[name];
-  ackMap[name] = { until: Date.now() + durationMs, by: currentUserEmail, at: Date.now() };
+  const prev = ackMap[key];
+  if (!sev) { const mon = monitors.find(x => x.friendly_name === monName); sev = mon ? effectiveStatus(mon) : 'down'; }
+  ackMap[key] = { until: Date.now() + durationMs, by: currentUserEmail, at: Date.now(), sev };
   saveAcks(); renderView(); updateStatusBanner();
-  const { ok, data } = await callFn(FN_ACKS, { action: 'set', name, durationMs });
+  const { ok, data } = await callFn(FN_ACKS, { action: 'set', name: key, durationMs, sev });
   if (ok && data && data.acks) applyServerAcks(data.acks);
-  else { if (prev) ackMap[name] = prev; else delete ackMap[name]; saveAcks(); }  // revert on failure
+  else { if (prev) ackMap[key] = prev; else delete ackMap[key]; saveAcks(); }  // revert on failure
   renderView(); updateStatusBanner();
-  if (ok) mirrorToAsana('ack', name, durationMs);  // only after the ack actually persisted
+  if (ok) mirrorToAsana('ack', monName, durationMs);  // only after the ack actually persisted
 }
-async function unackProperty(name) {
-  const prev = ackMap[name];
+async function unackProperty(key, monName) {
+  monName = monName || key;
+  const prev = ackMap[key];
   // Optimistic clear = local tombstone (never a bare delete), so a stale poll can't
   // resurrect it; the merge keeps whichever fact is newest.
-  ackMap[name] = { deleted: true, at: Date.now() };
+  ackMap[key] = { deleted: true, at: Date.now() };
   saveAcks(); renderView(); updateStatusBanner();
-  const { ok, data } = await callFn(FN_ACKS, { action: 'clear', name });
+  const { ok, data } = await callFn(FN_ACKS, { action: 'clear', name: key });
   if (ok && data && data.acks) applyServerAcks(data.acks);
-  else { if (prev) ackMap[name] = prev; else delete ackMap[name]; saveAcks(); }  // revert on failure
+  else { if (prev) ackMap[key] = prev; else delete ackMap[key]; saveAcks(); }  // revert on failure
   renderView(); updateStatusBanner();
-  if (ok) mirrorToAsana('clear', name);  // only after the clear actually persisted
+  if (ok) mirrorToAsana('clear', monName);  // only after the clear actually persisted
 }
 
 // ─── Ignored devices (shared via the ignores function; offline-on-purpose) ──────
@@ -4802,10 +5150,10 @@ function jsStr(s) { return String(s).replace(/\\/g, '\\\\').replace(/'/g, "\\'")
 function escHtml(s) { return String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;'); }
 
 // Ack control for a property — only shown when it's alerting (down/warn).
-function ackControlHTML(name, eff) {
+function ackControlHTML(name, eff, force) {
   if (eff !== 'down' && eff !== 'warn') return '';
   const js = jsStr(name);
-  const a = effAck(name);
+  const a = force ? null : effAck(name);   // force = render the plain ACK button even if already acked
   if (a) {
     const by = ackBy(name);
     // An Asana-origin ack is managed from Asana (clearing it here would just re-sync back), so
@@ -5010,18 +5358,16 @@ function updateStatusBanner() {
     return;
   }
 
-  // Per-property, honoring acknowledgements (acked properties don't raise the alarm).
-  // alertingMonitors() folds in the synthetic property while Test alert is on.
-  // A known issue is a managed condition (like ack): it never sounds the alarm, even when the device
-  // is currently offline — it's counted as `known` (shown below degraded), not down/warn.
+  // Counted per INCIDENT (the same source of truth as the panel — see siteIncidents).
+  // alertingMonitors() folds in the synthetic property while Test alert is on. Only an UNACKED
+  // outage incident arms the klaxon; degraded/known never do. An acked incident counts as `acked`,
+  // a known issue as `known` — so a site with several incidents contributes to several buckets.
   let down = 0, warn = 0, acked = 0, known = 0;
-  alertingMonitors().forEach(m => {
-    const name = m.friendly_name;
-    if (hasKnownIssue(name) && !isAcked(name)) { known++; return; }
-    const eff = effectiveStatus(m);
-    if (eff !== 'down' && eff !== 'warn') return;
-    if (isAcked(name)) { acked++; return; }
-    if (eff === 'down') down++; else warn++;
+  alertingMonitors().flatMap(siteIncidents).forEach(inc => {
+    if (inc.acked) acked++;
+    else if (inc.known) known++;
+    else if (inc.sev === 'down') down++;
+    else warn++;
   });
   const ackNote = acked > 0 ? ` · ${acked} ACK` : '';
   const knownNote = known > 0 ? ` · ${known} KNOWN` : '';
@@ -5169,7 +5515,7 @@ async function refreshAll() {
 const OPERATORS = {
   'chris@example.com': { name: 'Gachot' },
   'kevin@example.com': { name: 'Keenan' },
-  'ggordillo@lthill.com':  { name: 'Gordillo' },
+  'ggordillo@example.com':  { name: 'Gordillo' },
   'utility@example.com':  { name: 'UTILITY' },
 };
 
@@ -5325,8 +5671,22 @@ async function getJWT() {
 // ─────────────────────────────────────────────────────────────────────────────
 // Bump BUILD on every deploy so the header always reflects what is live.
 // User-facing changelog, newest first; the entry matching BUILD is marked "Now".
-const BUILD = 'v3.26';
+const BUILD = 'v3.31';
 const RELEASE_NOTES = [
+  { v: 'v3.31', d: '2026-06-27 12:00', items: [
+    '**A site running on its backup uplink now says so, instead of reading as a flat outage.** When a property’s primary internet (WAN1) drops but the site is still online via its LTE/5G/Starlink backup, the alert now reads **“Primary ISP down — on LTE backup”** and names the carrying uplink, instead of the misleading “site unreachable / no local telemetry.” It stays a red alert (a site on backup has no redundancy left and is burning cellular — worth fixing fast), but the cause is now accurate. Detected when WAN1’s monitor is down yet the UniFi console is still reachable with a backup uplink online. _Note:_ Starlink-as-backup sites must be listed in the backup overrides to be recognized.',
+  ]},
+  { v: 'v3.30', d: '2026-06-25 19:01', items: [
+    '**A whole-site power or internet outage now shows as ONE card, not one per device.** When a site goes fully dark (its UniFi gateway/console drops, or every device falls offline at once) the wall used to spray a separate "Device offline" card for every downstream device. Now those drops fold into a single "Site offline" card, since they\'re all the same outage. It reads amber until UptimeRobot confirms the site is unreachable, then becomes the usual red site-down alert. A site that\'s still reachable with individual devices offline is unchanged — you still get one card per device.',
+    'The alert panel now updates **in place** instead of rebuilding every refresh: new incidents slide/fade in, recovered ones fade out, and cards that change priority glide to their new spot — so the wall is calmer to watch and no longer flickers on each poll. Motion is automatically disabled if your system prefers reduced motion.',
+  ]},
+  { v: 'v3.29', d: '2026-06-23 08:50', items: [
+    '**Each problem at a site is now its own alert card, acknowledged independently.** The wall used to show one card per site that lumped everything together — so a recurring "known issue" could swallow a brand-new outage, and acknowledging one thing silenced the whole site. Now the monitor-down, *each* offline device, and *each* chronic "known issue" are **separate cards**: a site with the internet down + three cameras offline + one chronic camera shows five cards. **Acknowledge them one at a time** — silencing the outage leaves the cameras still alarming. A full site-down always sounds the alarm regardless of any known issue. Cards sort worst-first (outage → degraded → known → acknowledged); each site tile shows a count when it has several open incidents.',
+    'A chronic device that is *also* currently offline shows as a single "known issue" card (not duplicated). _Known limitations:_ OvrC devices (no per-device data) still show as one combined card; acknowledging/marking a device still notes it on the whole site’s Asana ticket(s).',
+  ]},
+  { v: 'v3.27', d: '2026-06-22 21:43', items: [
+    '**Starlink** now shows its own logo as a primary internet provider, not just as a backup uplink. Sites whose WAN reports as Starlink get the Starlink mark on the wall, detail page, and ISP-reliability board (previously they fell back to plain text).',
+  ]},
   { v: 'v3.26', d: '2026-06-22 18:27', items: [
     '**Verizon Business** now shows its own logo, separate from consumer Verizon. Sites whose internet provider reports as a Verizon *business* line get the distinct Verizon Business emblem on the wall, detail page, and ISP-reliability board; regular Verizon sites are unchanged.',
   ]},

@@ -286,6 +286,7 @@ function sopHTML(){return `
   <ul>
     <li><b>Alert!</b>: active, the site is still down.</li>
     <li><b>Acknowledged</b>: an operator has seen this and silenced the wall alarm on the <a href="beacon.html">Beacon dashboard</a> for a set window (a timestamped note is added here when they do). The ticket stays open and reverts to Alert! automatically when the window lapses if the site is still down.</li>
+    <li><b>Known Issue</b>: an active status for a recurring fault that's being tracked. A device that keeps flapping is opened straight here (or promoted by an operator), so a single ticket stays open through the up/down cycles instead of filing a fresh alarm each time — and it will <b>not</b> auto-recover when the device comes back. The <a href="beacon.html">Beacon dashboard</a> shows it as a managed known issue rather than a new alarm. Close it with <b>Fixed via Intervention</b>, or clear the known-issue mark on Beacon to resume normal auto-recovery.</li>
     <li><b>Recovered</b>: set automatically once the site comes back online, which closes the ticket. No action needed.</li>
     <li><b>Fixed via Intervention</b>: set this yourself if a human had to step in to bring it back.</li>
   </ul>

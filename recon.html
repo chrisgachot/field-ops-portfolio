@@ -1270,7 +1270,10 @@
 // v2.8  Follow-up tasks are titled with the issue described during the check
 //       ("{emoji} {System} — {issue}") instead of a generic "Follow-up at
 //       {code} — {date}" label; falls back to "{emoji} {System}" when no note.
-const BUILD = 'v2.8';
+// v2.9  Reliability & security hardening: a release note is filed automatically
+//       on every deploy, the Asana proxy is locked down, notes are escaped, and
+//       CSP/HSTS headers added. No change to the field workflow.
+const BUILD = 'v2.9';
 // PAT is NOT stored here — it lives in Netlify environment variables.
 // The page calls /.netlify/functions/asana-proxy, which holds the PAT server-side.
 const ASANA_API        = '/.netlify/functions/asana-proxy';
@@ -2257,6 +2260,9 @@ function initLight() {
 // User-facing changelog shown when the version label is clicked. Newest first;
 // the entry matching BUILD is marked "now". Keep to the last several releases.
 const RELEASE_NOTES = [
+  { v: 'v2.9', items: [
+    'Behind-the-scenes reliability and security hardening — nothing changes in how you run a check.',
+  ]},
   { v: 'v2.8', items: [
     'Follow-up tasks are now named after the issue you describe, so they’re easier to scan in Asana.',
   ]},
