@@ -161,13 +161,24 @@ main{max-width:1100px; margin:0 auto; padding:22px 24px 70px; display:flex; flex
   .tk-name{font-size:15.5px;} .sop{max-height:none;}
   .tk-actions .btn{flex:1 1 auto; text-align:center;}
 }
+/* Scenario picker */
+.scen{display:grid; grid-template-columns:repeat(3,1fr); gap:10px;}
+.scen-btn{background:var(--panel); border:1px solid var(--border); border-radius:10px; padding:12px 14px; text-align:left; cursor:pointer;
+  color:var(--muted); font-family:var(--mono); font-size:11.5px; line-height:1.45; transition:all .12s;}
+.scen-btn b{display:block; font-family:var(--disp); font-style:italic; font-weight:800; font-size:14px; text-transform:uppercase; letter-spacing:.04em; color:var(--text); margin-bottom:3px;}
+.scen-btn:hover:not(:disabled){border-color:var(--blue);}
+.scen-btn.on{border-color:var(--cyan); box-shadow:0 0 0 1px rgba(67,214,196,.3);}
+.scen-btn.on b{color:var(--cyan);}
+.scen-btn:disabled{cursor:not-allowed; opacity:.55;}
+.scen-btn.on:disabled{opacity:1;}
+@media(max-width:600px){ .scen{grid-template-columns:1fr;} }
 </style>
 </head>
 <body>
 
 <div class="demobar">
   <span class="tag">● Demo, fictional data, no live systems</span>
-  <a href="index.html">◀ All Models</a>
+  <a href="index.html">◀ All demos</a>
 </div>
 
 <header>
@@ -175,28 +186,37 @@ main{max-width:1100px; margin:0 auto; padding:22px 24px 70px; display:flex; flex
     <span class="mk">ENG</span>
     <div>
       <h1>Engine</h1>
-      <div class="sub">UniFi · Uptime → Asana · auto-ticketing</div>
+      <div class="sub">UniFi · UptimeRobot · UPS events → Asana · auto-ticketing</div>
     </div>
   </div>
   <div class="controls">
     <span class="poll" id="pollLbl">poll #0 · idle</span>
-    <button class="btn danger" id="knockBtn" onclick="knockOut()">⚡ Knock a site offline</button>
+    <button class="btn danger" id="knockBtn" onclick="knockOut()">⚡ Trigger incident</button>
     <button class="btn good" id="restoreBtn" onclick="restore()" disabled>✓ Bring it back</button>
   </div>
 </header>
 
 <main>
 
+  <div>
+    <div class="col-h">Pick an incident <span class="cnt">same engine, three ways a site fails</span></div>
+    <div class="scen" id="scenBar">
+      <button class="scen-btn on" data-s="site" onclick="pickScenario('site')"><b>Whole site down</b><span>Internet or power lost. Every device dark, monitor down.</span></button>
+      <button class="scen-btn" data-s="backup" onclick="pickScenario('backup')"><b>Primary ISP down</b><span>WAN1 fails, the site rides its LTE backup.</span></button>
+      <button class="scen-btn" data-s="power" onclick="pickScenario('power')"><b>Power lost, on UPS</b><span>Mains power cut. Network running on battery.</span></button>
+    </div>
+  </div>
+
   <div class="pipe">
-    <div class="stage" id="st1"><div class="n">1 · Poll</div><div class="d">Fetch every device &amp; monitor across all consoles, every 5 min.</div></div>
-    <div class="stage" id="st2"><div class="n">2 · Confirm</div><div class="d">Flap protection. Must stay down 2 cycles before filing.</div></div>
-    <div class="stage" id="st3"><div class="n">3 · File</div><div class="d">One incident, one ticket, with an SOP anyone can act on.</div></div>
-    <div class="stage" id="st4"><div class="n">4 · Resolve</div><div class="d">Auto-recovers, or a human marks it fixed. Comments track it all.</div></div>
+    <div class="stage" id="st1"><div class="n">1 · Poll</div><div class="d">Every 5 min: UniFi devices across all consoles, UptimeRobot monitors, live UPS events.</div></div>
+    <div class="stage" id="st2"><div class="n">2 · Confirm</div><div class="d">Flap protection. Must stay down 2 polls before filing (UPS alarms are already debounced).</div></div>
+    <div class="stage" id="st3"><div class="n">3 · File</div><div class="d">One incident, one ticket, titled by severity, with an SOP and a push to the on-call team.</div></div>
+    <div class="stage" id="st4"><div class="n">4 · Resolve</div><div class="d">Closes after 2 clean polls, then checks the close actually held.</div></div>
   </div>
 
   <div class="row2">
     <div>
-      <div class="col-h">Live device feed <span class="cnt" id="devCnt"></span></div>
+      <div class="col-h">Live feed: Cedar Ridge (CR12) <span class="cnt" id="devCnt"></span></div>
       <div class="list" id="devList"></div>
     </div>
     <div>
@@ -207,67 +227,75 @@ main{max-width:1100px; margin:0 auto; padding:22px 24px 70px; display:flex; flex
 
   <div>
     <div class="col-h">The Asana ticket it files <span class="cnt">SOP + live comment thread</span></div>
-    <div id="ticketHost"><div class="tk-empty">No open ticket. Knock the site offline to watch Engine file one, complete with a troubleshooting SOP and an automated comment trail.</div></div>
+    <div id="ticketHost"></div>
   </div>
 
   <p class="note">
-    Faithful demo of Engine. The real service files this exact ticket body (a triage SOP, the device list, a lifecycle
+    Faithful demo of Engine. The real service files this ticket body (a triage SOP, the affected equipment, a lifecycle
     explainer, and a hidden <code>beacon-entity</code> tag for idempotent auto-close) and posts the comments below as the
-    incident moves. Acknowledge it, mark it fixed by hand, or click <b>Bring it back</b> to watch it auto-recover.
+    incident moves. The creation and recovery comments mention the on-call team, so both land as a phone push.
+    Acknowledge it, mark it fixed by hand, or click <b>Bring it back</b> to watch it auto-recover.
   </p>
   <p class="note">
-    Engine titles every ticket by severity: <b>[OUTAGE]</b> when a whole site or its outside-in monitor is down (the
-    scenario above), <b>[DEGRADED]</b> when individual devices drop but the site itself stays reachable. A device that
-    keeps flapping gets a single sticky <b>[CHRONIC]</b> ticket instead of repeat noise, and new tickets are held during
-    scheduled <b>maintenance windows</b> (overnight console auto-updates) so routine reboots never page anyone.
+    <b>Severity in the title.</b> <b>[OUTAGE]</b> when a whole site or its outside-in monitor is down, <b>[DEGRADED]</b>
+    when devices drop or a site is running on UPS battery but still reachable. A site that loses its primary ISP but
+    stays up on LTE or 5G is still an outage (no redundancy left), relabeled so nobody drives out for a dead site.
+    <b>One incident, one ticket:</b> a dark UniFi site and a down monitor for the same property share one ticket keyed by
+    property code, and it only closes once every source that drove it reports clear.
+  </p>
+  <p class="note">
+    <b>Noise control.</b> A device that drops 3 times in 14 days gets one sticky <b>[CHRONIC]</b> ticket at
+    <b>Known Issue</b> that stays open across recoveries instead of a fresh alarm per drop. Short drops that recover
+    before confirmation are logged as blips for analytics, never ticketed. Devices on Beacon's ignore list are skipped.
+    During the weekly console auto-update window, new device tickets are held; during a property's planned maintenance
+    window (set on the Beacon wall) the engine stands down for that site entirely, except power alarms.
+  </p>
+  <p class="note">
+    <b>Trust, but verify.</b> A close is a write the engine does not fully control: a project rule can reopen it a second
+    later. The engine checks on the next poll, and after 3 reopens it stops and leaves one comment asking a person to
+    close it. A ticket held open because a device vanished from the API escalates with a comment after 3 days. And the
+    engine only ever touches ticket kinds it files itself, so Beacon's maintenance and water tickets are never auto-closed.
   </p>
 
 </main>
 
 <script>
-const PROP="Cedar Ridge Estate", CODE="CR", HOST="7a3f-c91";
+const PROP='Cedar Ridge', CODE='CR12', HOST='7a3f-c91';
 const DEVICES=[
-  {name:'CR · Gateway (UDM Pro)', cls:'Gateway', ip:'10.20.0.1'},
-  {name:'CR · Core Switch (USW-24-PoE)', cls:'Switch', ip:'10.20.0.2'},
-  {name:'CR · AP, Great Room (U6-Pro)', cls:'Access point', ip:'10.20.0.14'},
-  {name:'CR · AP, Guest Wing (U6-Lite)', cls:'Access point', ip:'10.20.0.16'},
-  {name:'CR · NVR / Cameras (UNVR)', cls:'NVR', ip:'10.20.0.30'},
-  {name:'CR · Patio PDU (USP-PDU)', cls:'PDU / power', ip:'10.20.0.41'},
+  {id:'gw',  name:'Gateway (UDM Pro)',        cls:'Gateway',      ip:'10.20.0.1'},
+  {id:'sw',  name:'Core Switch (USW-24-PoE)', cls:'Switch',       ip:'10.20.0.2'},
+  {id:'ap1', name:'AP, Living Room (U6-Pro)', cls:'Access point', ip:'10.20.0.14'},
+  {id:'ap2', name:'AP, East Wing (U6-Lite)',  cls:'Access point', ip:'10.20.0.16'},
+  {id:'nvr', name:'NVR / Cameras (UNVR)',     cls:'NVR',          ip:'10.20.0.30'},
+  {id:'ups', name:'UPS (UPS 2U)',             cls:'UPS',          ip:'10.20.0.40'},
+  {id:'pdu', name:'Rack PDU (USP-PDU)',       cls:'PDU / power',  ip:'10.20.0.41'},
 ];
-let poll=0, phase='nominal', cycles=0, timer=null, comments=[], tab='activity';
 
-const $=id=>document.getElementById(id);
-function now(){ return new Date().toLocaleTimeString('en-US',{hour12:false}); }
-function setStage(i){ ['st1','st2','st3','st4'].forEach((id,n)=>$(id).classList.toggle('hot', n===i)); }
-function log(msg,cls='t'){ $('log').insertAdjacentHTML('afterbegin',`<div class="ln"><span class="t">[${now()}] poll#${poll} </span><span class="${cls}">${msg}</span></div>`); }
-
-function renderDevices(){
-  const down=(phase!=='nominal'&&phase!=='recovered'&&phase!=='fixed');
-  const confirming=(phase==='confirming');
-  $('devCnt').textContent = down ? '6 offline' : 'all online';
-  $('devList').innerHTML=DEVICES.map(d=>{
-    const cls=down?(confirming?'dev confirming':'dev down'):'dev';
-    const st=down?(confirming?'CONFIRMING':'OFFLINE'):'ONLINE';
-    return `<div class="${cls}"><span class="dot"></span>
-      <span><span class="dname">${d.name}</span><span class="meta">${d.cls} · ${d.ip} · keyed by MAC</span></span>
-      <span class="st">${st}</span></div>`;
-  }).join('');
-}
-
-const STATUS={alert:['alert','● Alert!'],acked:['acked','◍ Acknowledged'],recovering:['alert','● Alert!'],recovered:['recovered','✓ Recovered'],fixed:['fixed','🔧 Fixed via Intervention']};
-function sopHTML(){return `
-  <h1>🚨 Whole site outage: ${PROP}</h1>
-  <p>Every UniFi device at <b>${PROP}</b> is offline (6 of 6). A full-site outage almost always means the property has lost <b>internet or power</b>, or the site gateway/router is down, which takes everything downstream with it.</p>
+/* Each scenario mirrors one of the engine's real ticket bodies. */
+const SCEN={
+  site:{
+    confirm:2, key:'prop:'+CODE, sev:'OUTAGE',
+    title:'[OUTAGE] Whole site down',
+    devState:()=>({all:'OFFLINE'}), cnt:'7 offline',
+    detect:['UniFi reports '+PROP+' ('+CODE+'): all 7 devices offline, gateway unreachable','UptimeRobot monitor '+CODE+' also down (outside-in)'],
+    fileLog:'confirmed down → filing ONE property ticket (prop:'+CODE+'), monitor folded in as confirmation',
+    extraComment:'📡 Outside-in confirmation: the UptimeRobot monitor <b>'+CODE+'</b> also reports this property unreachable, consistent with a site-wide internet or power loss.',
+    persist:CODE+' outage persists, ticket already open, no duplicate filed (idempotent)',
+    back:CODE+' devices responding again, monitor up, starting recovery confirmation',
+    clearedWord:'back online',
+    sop:()=>`
+  <h1>🚨 Whole site down: ${PROP}</h1>
+  <p>Every UniFi device at <b>${PROP}</b> is offline (7 of 7). A full-site outage almost always means the property has lost <b>internet or power</b>, or the site gateway/router is down, which takes everything downstream with it.</p>
   <h2>📋 Site details</h2>
   <ul>
     <li><b>Property / site:</b> ${PROP} (${CODE})</li>
-    <li><b>Devices offline:</b> 6 of 6 (all of them)</li>
+    <li><b>Devices offline:</b> 7 of 7 (all of them)</li>
     <li><b>UniFi console (host ID):</b> <code>${HOST}</code></li>
-    <li><b>First detected offline:</b> just now</li>
+    <li><b>First detected offline:</b> ${firstSeen}</li>
     <li><b>Outside-in confirmation:</b> the UptimeRobot monitor <b>${CODE}</b> also reports this property unreachable, consistent with a site-wide internet or power loss.</li>
   </ul>
   <h2>📡 Affected devices</h2>
-  <ul>${DEVICES.map(d=>`<li><b>${d.name.replace('CR · ','')}</b>, ${d.cls.toLowerCase()}, last IP ${d.ip}</li>`).join('')}</ul>
+  <ul>${DEVICES.map(d=>`<li><b>${d.name}</b>, ${d.cls.toLowerCase()}, last IP ${d.ip}</li>`).join('')}</ul>
   <h2>🛠️ Troubleshooting steps</h2>
   <ol>
     <li>Confirm whether the property has <b>internet and power</b> at all. A whole-site outage usually points to the ISP or a power failure rather than UniFi itself.</li>
@@ -276,27 +304,119 @@ function sopHTML(){return `
     <li>If reachable on site, power-cycle the gateway, then the switches, and wait for devices to re-adopt.</li>
     <li>If the ISP is down, open a ticket with the provider and note the outage here.</li>
   </ol>
-  <h2>🔗 Helpful links</h2>
+  ${linksHTML()}
+  ${aboutHTML('site','fully offline across 2 consecutive checks (about 10 minutes)','comes back online')}`
+  },
+  backup:{
+    confirm:2, key:'prop:'+CODE, sev:'OUTAGE',
+    title:'[OUTAGE] Primary ISP down, on LTE backup',
+    devState:()=>({gw:'ON LTE'}), cnt:'all online · WAN1 down',
+    detect:['UptimeRobot monitor '+CODE+' down (WAN1 unreachable from outside)','UniFi console still reporting: gateway up, LTE uplink online → site has failed over'],
+    fileLog:'confirmed → filing [OUTAGE] relabeled "Primary ISP down, on LTE backup" (prop:'+CODE+')',
+    extraComment:'🔄 Failover detected: the console is still reachable through its <b>LTE</b> backup uplink, so the site is up with no redundancy left. Kept at [OUTAGE] severity, relabeled so nobody treats it as a dark site.',
+    persist:'WAN1 still down, site still on LTE, ticket already open (idempotent)',
+    back:'WAN1 answering again, monitor up, starting recovery confirmation',
+    clearedWord:'back on its primary link',
+    sop:()=>`
+  <h1>🔴 Monitor down: ${PROP} (${CODE})</h1>
+  <p>The UptimeRobot monitor <b>${CODE}</b> is reporting <b>down</b>. From the outside this usually means the property's internet/WAN, its gateway, or the monitored host has become unreachable.</p>
+  <h2>📋 Monitor details</h2>
+  <ul>
+    <li><b>Monitor:</b> ${CODE}</li>
+    <li><b>Checked URL / host:</b> ${CODE.toLowerCase()}.example.net</li>
+    <li><b>Reported status:</b> down</li>
+    <li><b>First detected down:</b> ${firstSeen}</li>
+  </ul>
+  <h2>🛠️ Troubleshooting steps</h2>
+  <ol>
+    <li>Confirm whether the property has <b>internet and power</b>. An outside-in monitor drops when the WAN/ISP is down.</li>
+    <li>Check the property gateway/router and modem for power and a live internet connection.</li>
+    <li>Verify the monitored host/device itself is powered on and reachable on the local network.</li>
+    <li>If the ISP is down, open a ticket with the provider and note it here.</li>
+  </ol>
+  <h2>🔄 Running on LTE backup</h2>
+  <p>The primary internet link (WAN1) is down, but the console is still reachable via its <b>LTE</b> backup uplink. The site is up on backup with no redundancy left. Restore the primary link to clear this.</p>
+  ${aboutHTML('monitor','reporting down across 2 consecutive checks (about 10 minutes)','reports up again')}`
+  },
+  power:{
+    confirm:1, key:'power:'+CODE, sev:'DEGRADED',
+    title:'[DEGRADED] Power lost, on UPS battery: '+CODE,
+    devState:()=>({ups:'ON BATTERY'}), cnt:'all online · on battery',
+    detect:['UPS alarm "Power State: On Battery" received by Beacon (webhook) for '+CODE,'engine reads Beacon live events: site still online, running on UPS'],
+    fileLog:'UPS alarm is pre-debounced (1 cycle) → filing [DEGRADED] power ticket (power:'+CODE+')',
+    extraComment:'🔋 Early warning: if mains power is not restored before the UPS drains, the site will go dark and a separate <b>[OUTAGE]</b> whole-site ticket will follow. This one stays live even inside a maintenance window.',
+    persist:'still on battery, ticket already open (idempotent)',
+    back:'UPS alarm cleared, mains power restored, starting recovery confirmation',
+    clearedWord:'back on mains power',
+    sop:()=>`
+  <h1>🔋 Power lost, on UPS battery: ${CODE}</h1>
+  <p>The UniFi Alarm Manager at <b>${CODE}</b> reported <b>mains power lost</b>. The network equipment there is running on UPS battery. The site is still online (this alert arrived over its own network connection), so this is a <b>degraded</b> state, not an outage, but UPS runtime is limited.</p>
+  <h2>📋 Event details</h2>
+  <ul>
+    <li><b>Property:</b> ${PROP} (${CODE})</li>
+    <li><b>Alarm:</b> UPS Power State: On Battery</li>
+    <li><b>Triggering device(s):</b> UPS (UPS 2U)</li>
+    <li><b>Power lost at:</b> ${firstSeen}</li>
+    <li><b>Source:</b> UniFi Alarm Manager webhook → Beacon live events</li>
+  </ul>
+  <h2>🛠️ What to do</h2>
+  <ol>
+    <li>Determine scope: a building-wide utility outage vs a tripped breaker feeding the network closet. Check the utility's outage map and/or call the site.</li>
+    <li>If it's a breaker/circuit, dispatch someone. UPS runtime is typically well under an hour.</li>
+    <li>If power isn't restored before the UPS drains, the site will go fully dark and a separate <b>[OUTAGE]</b> whole-site ticket will follow. Treat this one as the early warning.</li>
+    <li>When mains power returns the alarm clears and this ticket auto-closes as <b>Recovered</b>; verify devices re-adopted and the UPS is recharging.</li>
+  </ol>
+  ${linksHTML()}
+  ${aboutHTML('site','reported on UPS battery power','has mains power restored and the alarm clears')}`
+  }
+};
+
+let scen='site', poll=0, phase='nominal', cycles=0, timer=null, comments=[], tab='activity', firstSeen='just now', verifyPending=false;
+
+const $=id=>document.getElementById(id);
+const S=()=>SCEN[scen];
+function now(){ return new Date().toLocaleTimeString('en-US',{hour12:false}); }
+function setStage(i){ ['st1','st2','st3','st4'].forEach((id,n)=>$(id).classList.toggle('hot', n===i)); }
+function log(msg,cls='t'){ $('log').insertAdjacentHTML('afterbegin',`<div class="ln"><span class="t">[${now()}] poll#${poll} </span><span class="${cls}">${msg}</span></div>`); }
+
+function linksHTML(){ return `<h2>🔗 Helpful links</h2>
   <ul>
     <li><a href="https://unifi.ui.com" target="_blank" rel="noopener">UniFi Site Manager, open the property console</a></li>
     <li><a href="https://help.ui.com" target="_blank" rel="noopener">Ubiquiti: Troubleshooting Offline UniFi Devices</a></li>
-  </ul>
-  <h2>🤖 How this alert works</h2>
-  <p>Opened automatically by the monitoring engine after the site was fully offline across 2 consecutive checks (about 10 minutes). It is on the <b>ALERT</b> task type and its status tracks the lifecycle:</p>
+  </ul>`; }
+function aboutHTML(subject, how, cleared){ return `<h2>🤖 How this alert works</h2>
+  <p>Opened automatically by the monitoring engine after the ${subject} was ${how}. It is on the <b>ALERT</b> task type and its status tracks the lifecycle:</p>
   <ul>
-    <li><b>Alert!</b>: active, the site is still down.</li>
-    <li><b>Acknowledged</b>: an operator has seen this and silenced the wall alarm on the <a href="beacon.html">Beacon dashboard</a> for a set window (a timestamped note is added here when they do). The ticket stays open and reverts to Alert! automatically when the window lapses if the site is still down.</li>
-    <li><b>Known Issue</b>: an active status for a recurring fault that's being tracked. A device that keeps flapping is opened straight here (or promoted by an operator), so a single ticket stays open through the up/down cycles instead of filing a fresh alarm each time — and it will <b>not</b> auto-recover when the device comes back. The <a href="beacon.html">Beacon dashboard</a> shows it as a managed known issue rather than a new alarm. Close it with <b>Fixed via Intervention</b>, or clear the known-issue mark on Beacon to resume normal auto-recovery.</li>
-    <li><b>Recovered</b>: set automatically once the site comes back online, which closes the ticket. No action needed.</li>
+    <li><b>Alert!</b>: active, the ${subject} is still affected.</li>
+    <li><b>Acknowledged</b>: an operator has seen this and silenced the wall alarm on the <a href="beacon.html">Beacon dashboard</a> for a set window (a timestamped note is added here when they do). The ticket stays open and reverts to Alert! automatically when the window lapses if the problem is still there.</li>
+    <li><b>Known Issue</b>: a recurring fault being tracked. A device that keeps flapping is opened straight here (or promoted by an operator), so one ticket stays open through the up/down cycles instead of a fresh alarm each time, and it does <b>not</b> auto-recover when the device comes back.</li>
+    <li><b>Recovered</b>: set automatically once the ${subject} ${cleared}, which closes the ticket. No action needed.</li>
     <li><b>Fixed via Intervention</b>: set this yourself if a human had to step in to bring it back.</li>
   </ul>
   <p class="entity">Please do not edit or remove the line below. The automation uses it to track and auto-close this ticket.</p>
   <hr>
-  <code>beacon-entity: prop:${CODE}</code>`;
+  <code>beacon-entity: ${S().key}</code>`; }
+
+function renderDevices(){
+  const active=(phase!=='nominal'&&phase!=='recovered'&&phase!=='fixed');
+  const confirming=(phase==='confirming');
+  const st=active?S().devState():{};
+  $('devCnt').textContent = active ? (confirming?'confirming · ':'')+S().cnt : 'all online';
+  $('devList').innerHTML=DEVICES.map(d=>{
+    const s=st.all||st[d.id];
+    const cls=s?(confirming?'dev confirming':(s==='OFFLINE'?'dev down':'dev confirming')):'dev';
+    const lbl=s?(confirming&&s==='OFFLINE'?'CONFIRMING':s):'ONLINE';
+    return `<div class="${cls}"><span class="dot"></span>
+      <span><span class="dname">${d.name}</span><span class="meta">${d.cls} · ${d.ip} · keyed by MAC</span></span>
+      <span class="st">${lbl}</span></div>`;
+  }).join('');
 }
+
+const STATUS={alert:['alert','● Alert!'],acked:['acked','◍ Acknowledged'],recovering:['alert','● Alert!'],recovered:['recovered','✓ Recovered'],fixed:['fixed','🔧 Fixed via Intervention']};
+const EMPTY='<div class="tk-empty">No open ticket. Pick an incident and click <b>Trigger incident</b> to watch Engine file one, complete with a troubleshooting SOP and an automated comment trail.</div>';
 function renderTicket(){
   const host=$('ticketHost');
-  if(phase==='nominal'||(!comments.length && phase!=='alert')){ host.innerHTML='<div class="tk-empty">No open ticket. Knock the site offline to watch Engine file one, complete with a troubleshooting SOP and an automated comment trail.</div>'; return; }
+  if(phase==='nominal'||phase==='confirming'||!comments.length){ host.innerHTML=EMPTY; return; }
   const [scls,slabel]=STATUS[phase]||STATUS.alert;
   const completed=(phase==='recovered'||phase==='fixed');
   const canAck=(phase==='alert'); const canFix=(phase==='alert'||phase==='acked');
@@ -311,7 +431,7 @@ function renderTicket(){
         <span class="tk-app">via <b>asana</b> · auto-filed by Engine</span>
         <span class="tk-type">Task type: ALERT</span>
       </div>
-      <div class="tk-name">[OUTAGE] Whole site outage: ${PROP}</div>
+      <div class="tk-name">${S().title}</div>
       <div class="tk-row">
         <span class="chip ${scls}"><span class="d"></span>${slabel}</span>
         ${completed?'<span class="tk-type">✓ Completed</span>':''}
@@ -320,7 +440,7 @@ function renderTicket(){
         <span><b>Assignee</b>A. Rivera</span>
         <span><b>Due</b>Today</span>
         <span><b>Property Code</b>${CODE}</span>
-        <span><b>Project</b>Technology</span>
+        <span><b>Project</b>Incidents</span>
       </div>
       ${actions}
     </div>
@@ -329,7 +449,7 @@ function renderTicket(){
       <span class="tab ${tab==='sop'?'on':''}" onclick="setTab('sop')">Description / SOP</span>
     </div>
     <div class="tabwrap">
-      ${tab==='sop'?`<div class="sop">${sopHTML()}</div>`:`<div class="act">${comments.map(cmtHTML).join('')}</div>`}
+      ${tab==='sop'?`<div class="sop">${S().sop()}</div>`:`<div class="act">${comments.map(cmtHTML).join('')}</div>`}
     </div>
   </div>`;
 }
@@ -342,27 +462,36 @@ function cmtHTML(c){
 }
 function addComment(kind,who,text,status){ comments.push({kind,who,text,time:now(),status:!!status}); renderTicket(); }
 function setTab(t){ tab=t; renderTicket(); }
+const MENTION='<span style="color:var(--blue)">@On-call Team</span>';
+
+function pickScenario(s){
+  if(phase!=='nominal') return;
+  scen=s;
+  document.querySelectorAll('.scen-btn').forEach(b=>b.classList.toggle('on', b.dataset.s===s));
+  log('scenario: '+document.querySelector('.scen-btn.on b').textContent, 'acc');
+}
+function lockScenarios(lock){ document.querySelectorAll('.scen-btn').forEach(b=>b.disabled=lock); }
 
 function knockOut(){
   if(phase!=='nominal') return;
-  phase='confirming'; cycles=0; comments=[];
-  $('knockBtn').disabled=true; $('restoreBtn').disabled=false;
-  log('UniFi reports '+PROP+' (CR), all 6 devices offline', 'err');
-  log('UptimeRobot monitor CR also reporting down (outside-in)', 'warn');
-  log('flap protection engaged, needs 2 confirmed cycles before filing', 'warn');
+  phase='confirming'; cycles=0; comments=[]; firstSeen=new Date().toLocaleString('en-US',{month:'short',day:'numeric',hour:'2-digit',minute:'2-digit',hour12:false});
+  $('knockBtn').disabled=true; $('restoreBtn').disabled=false; lockScenarios(true);
+  S().detect.forEach((m,i)=>log(m, i?'warn':'err'));
+  if(S().confirm>1) log('flap protection engaged, needs '+S().confirm+' confirmed polls before filing', 'warn');
   renderDevices(); renderTicket(); runLoop();
 }
 function fileTicket(){
-  phase='alert'; tab='activity';
-  addComment('bot','Engine','Created this task and placed it on the ALERT task type at status <b>Alert!</b>. Confirmed offline across 2 consecutive checks (about 10 minutes).');
-  addComment('bot','Engine','📡 Outside-in confirmation: the UptimeRobot monitor <b>CR</b> also reports this property unreachable, consistent with a site-wide internet or power loss.');
-  log('confirmed down → filing ONE property-outage ticket (prop:CR) with SOP', 'info');
-  log('task created · ALERT type · status Alert! · synced to Beacon', 'acc');
+  phase='alert'; tab='activity'; $('pollLbl').textContent=`poll #${poll} · 1 open ticket`;
+  addComment('bot','Engine',`[${CODE}] ${S().title}. Status: <b>Alert!</b> ${MENTION}`);
+  addComment('bot','Engine',S().extraComment);
+  log(S().fileLog, 'info');
+  log('task created · ALERT type · status Alert! · on-call team notified by push', 'acc');
+  renderDevices();
 }
 function acknowledge(){
   if(phase!=='alert') return;
   phase='acked';
-  addComment('you','A. Rivera','<b>Acknowledged</b> on the Beacon wall. Wall alarm silenced for 1 hour. The ticket stays open and reverts to Alert! automatically if the site is still down when the window lapses.');
+  addComment('you','A. Rivera','<b>Acknowledged</b> on the Beacon wall. Wall alarm silenced for 1 hour. The ticket stays open and reverts to Alert! automatically if the problem is still there when the window lapses.');
   addComment('sys','Asana','changed status from Alert! to Acknowledged.', true);
   log('operator acknowledged on Beacon → status Acknowledged (synced)', 'warn');
   renderTicket();
@@ -370,57 +499,67 @@ function acknowledge(){
 function fixedIntervention(){
   if(phase!=='alert'&&phase!=='acked') return;
   phase='fixed';
-  addComment('you','A. Rivera','🔧 Marked <b>Fixed via Intervention</b>. A human stepped in on site to restore service, so this was not an automatic recovery.');
+  addComment('you','A. Rivera','🔧 Marked <b>Fixed via Intervention</b>. A human stepped in to restore service, so this was not an automatic recovery.');
   addComment('sys','Asana','changed status to Fixed via Intervention and completed the task.', true);
   log('human marked Fixed via Intervention → task completed', 'ok');
   renderDevices(); renderTicket();
-  endIncident();
+  endIncident(false);
 }
 function restore(){
   if(phase==='nominal'||phase==='recovered'||phase==='fixed') return;
+  if(phase==='confirming'){
+    // Recovered before confirmation: a blip. No ticket, but it is recorded for analytics.
+    log('recovered before confirmation → no ticket filed; logged as a blip for the alert analytics', 'ok');
+    phase='recovered'; renderDevices(); endIncident(false); return;
+  }
   phase='recovering'; cycles=0;
   $('restoreBtn').disabled=true;
-  log('CR devices responding again, starting recovery confirmation', 'ok');
+  log(S().back, 'ok');
   renderDevices();
 }
 function recover(){
   phase='recovered';
-  addComment('bot','Engine','✓ Recovered automatically, back online at '+now()+'. Moved to the Recovered status, which completes the task. No action needed.');
+  addComment('bot','Engine',`[${CODE}] Status: <b>Recovered</b>, ${S().clearedWord} at ${now()}. ${MENTION}`);
   addComment('sys','Asana','changed status to Recovered and completed the task.', true);
   log('every source clear → status Recovered + task completed', 'ok');
   renderDevices(); renderTicket();
-  endIncident();
+  endIncident(true);
 }
-function endIncident(){
+function endIncident(verify){
   if(timer){ clearInterval(timer); timer=null; }
-  setStage(-1); $('pollLbl').textContent=`poll #${poll} · 1 ticket closed`;
-  setTimeout(()=>{
-    phase='nominal'; comments=[]; tab='activity';
-    $('knockBtn').disabled=false; $('restoreBtn').disabled=true;
-    $('pollLbl').textContent=`poll #${poll} · idle · all nominal`;
-    renderDevices(); renderTicket(); log('back to nominal, watching.', 'acc');
-  }, 2600);
+  setStage(verify?3:-1);
+  const wrap=()=>{
+    setStage(-1); $('pollLbl').textContent=`poll #${poll} · ${comments.length?'1 ticket closed':'no ticket needed'}`;
+    setTimeout(()=>{
+      phase='nominal'; comments=[]; tab='activity';
+      $('knockBtn').disabled=false; $('restoreBtn').disabled=true; lockScenarios(false);
+      $('pollLbl').textContent=`poll #${poll} · idle · all nominal`;
+      renderDevices(); renderTicket(); log('back to nominal, watching.', 'acc');
+    }, 2600);
+  };
+  if(!verify) return wrap();
+  setTimeout(()=>{ poll++; log('close verified: task is still completed on the next poll (no rule reopened it)', 'ok'); wrap(); }, 2000);
 }
 function runLoop(){
   if(timer) return;
   timer=setInterval(()=>{
     poll++;
     if(phase==='confirming'){
-      cycles++; setStage(1); $('pollLbl').textContent=`poll #${poll} · confirming (${cycles}/2)`;
-      log(`CR still offline, confirm cycle ${cycles}/2`, 'warn');
-      if(cycles>=2){ setStage(2); fileTicket(); renderTicket(); }
+      cycles++; setStage(1); $('pollLbl').textContent=`poll #${poll} · confirming (${cycles}/${S().confirm})`;
+      log(`${CODE} still affected, confirm poll ${cycles}/${S().confirm}`, 'warn');
+      if(cycles>=S().confirm){ setStage(2); fileTicket(); renderTicket(); }
     } else if(phase==='alert'||phase==='acked'){
       setStage(2); $('pollLbl').textContent=`poll #${poll} · 1 open ticket`;
-      log('CR outage persists, ticket already open, no duplicate filed (idempotent)', 't');
+      log(S().persist, 't');
     } else if(phase==='recovering'){
       cycles++; setStage(3); $('pollLbl').textContent=`poll #${poll} · recovering (${cycles}/2)`;
-      log(`CR clean, recovery cycle ${cycles}/2`, 'ok');
+      log(`${CODE} clear, recovery poll ${cycles}/2`, 'ok');
       if(cycles>=2){ recover(); }
     }
   }, 2000);
 }
 renderDevices(); renderTicket();
-log('engine started · polling UniFi + UptimeRobot every 5 min · 6 entities watched', 'acc');
+log('engine started · polling UniFi + UptimeRobot + UPS events every 5 min · 7 devices watched at '+CODE, 'acc');
 </script>
 </body>
 </html>

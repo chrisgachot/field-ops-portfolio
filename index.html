@@ -5,7 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0" />
 <title>Field Ops, Operations Technology, by Chris Gachot</title>
 <meta name="theme-color" content="#04140f" />
-<meta name="description" content="Seven tireless machines that run a luxury-estate technology operation. Live demonstrations inside: monitoring, field ops, automated ticketing, client reporting, team enablement, vendor scorecards, and property intelligence." />
+<meta name="description" content="Twelve working machines that run technology operations for a portfolio of private properties. Live demonstrations inside: monitoring, automated ticketing, field work, client and vendor portals, reporting, analytics, and access control." />
 <!-- Home-screen / PWA icons -->
 <link rel="apple-touch-icon" href="apple-touch-icon.png" />
 <link rel="icon" href="favicon.ico?v=2" sizes="any" />
@@ -19,7 +19,7 @@
 <meta property="og:type" content="website" />
 <meta property="og:url" content="https://demos.chrisgachot.com/" />
 <meta property="og:title" content="Field Ops, by Chris Gachot" />
-<meta property="og:description" content="Seven tireless machines that run a luxury-estate technology operation. Step up for a live demonstration. No purchase necessary, all data fictional." />
+<meta property="og:description" content="Twelve working machines that run technology operations for a portfolio of private properties. Step up for a live demonstration. No purchase necessary, all data fictional." />
 <meta property="og:image" content="https://demos.chrisgachot.com/og-image.png" />
 <meta property="og:image:secure_url" content="https://demos.chrisgachot.com/og-image.png" />
 <meta property="og:image:type" content="image/png" />
@@ -28,7 +28,7 @@
 <meta property="og:image:alt" content="Field Ops portfolio, teal CRT cassette-futurism cover with app badges" />
 <meta name="twitter:card" content="summary_large_image" />
 <meta name="twitter:title" content="Field Ops, by Chris Gachot" />
-<meta name="twitter:description" content="Seven tireless machines that run a luxury-estate technology operation. Live demonstrations inside." />
+<meta name="twitter:description" content="Twelve working machines that run technology operations for a portfolio of private properties. Live demonstrations inside." />
 <meta name="twitter:image" content="https://demos.chrisgachot.com/og-image.png" />
 <link rel="preconnect" href="https://fonts.googleapis.com" />
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
@@ -98,6 +98,11 @@ h1.title{
 
 /* ---- section head ---- */
 .sec-head{display:flex; align-items:baseline; gap:12px; margin:40px 0 16px;}
+.grp{display:flex; align-items:baseline; gap:12px; margin:26px 0 12px;}
+.grp .t{font-family:var(--disp); font-style:italic; font-weight:800; text-transform:uppercase; letter-spacing:.06em; font-size:16px; color:var(--teal);}
+.grp .s{color:var(--teald); font-size:.7rem; letter-spacing:.1em; text-transform:uppercase;}
+.grp .rule{flex:1; height:1px; background:var(--line); opacity:.6;}
+@media(max-width:760px){ .grp{flex-wrap:wrap; row-gap:2px;} .grp .rule{flex-basis:100%;} }
 .sec-head .t{font-family:var(--disp); font-style:italic; font-weight:800; text-transform:uppercase; letter-spacing:.04em; font-size:24px; color:var(--tealb); text-shadow:var(--glow);}
 .sec-head .s{color:var(--teald); font-size:.74rem; letter-spacing:.12em; text-transform:uppercase;}
 .sec-head .rule{flex:1; height:1px; background:var(--line);}
@@ -135,6 +140,8 @@ a.ch{cursor:pointer;}
 .a-teal{--accent:var(--teal);} .a-cyan{--accent:var(--cyan);} .a-yellow{--accent:var(--yellow);}
 .a-amber{--accent:var(--amber);} .a-mag{--accent:var(--mag);} .a-purple{--accent:var(--purple);}
 .a-blue{--accent:var(--blue);} .a-green{--accent:var(--green);}
+.a-lime{--accent:#b8f04a;} .a-coral{--accent:#ff7a5c;} .a-sky{--accent:#5fc8ff;}
+.a-rose{--accent:#ff8fc8;} .a-silver{--accent:#cfe9e6;}
 
 /* ---- signal flow ---- */
 .signal{margin-top:14px; border:1px solid var(--line); border-radius:12px; background:var(--panel); padding:24px 26px 28px;}
@@ -164,6 +171,8 @@ a.ch{cursor:pointer;}
   .ch .right{grid-column:1 / -1; flex-direction:row; align-items:center; justify-content:space-between;}
   .flow{grid-template-columns:1fr;}
   .hud .readout{margin-left:0; text-align:left;}
+  .sec-head{flex-wrap:wrap; row-gap:4px;}
+  .sec-head .rule{flex-basis:100%;}
 }
 </style>
 </head>
@@ -177,131 +186,190 @@ a.ch{cursor:pointer;}
       <span class="label">Field Ops // Channel 01</span>
       <span class="readout">
         <div class="r1">REC ●  CH.01 / 60FPS</div>
-        <div class="r2">7 models · in stock</div>
+        <div class="r2">12 models · in stock</div>
       </span>
     </div>
 
     <p class="eyebrow"><b>Chris Gachot</b> &nbsp;//&nbsp; Director of Technology &nbsp;//&nbsp; A Live Demonstration</p>
     <h1 class="title">Field Ops</h1>
-    <p class="tagline">Seven tireless machines. One modern estate. Zero dead air.</p>
+    <p class="tagline">Twelve working machines. One quiet operation. Zero dead air.</p>
     <p class="lede">
-      Step right up! Seven honest-to-goodness working machines that took the drudgery clean out of running a portfolio
-      of luxury estates. <b>No more midnight outages! No more hand-written reports! No more guesswork in the field!</b>
-      Each one runs around the clock so the team doesn't have to, catching trouble before the client ever notices and
-      handing back hours of every single week. Step up and take one for a spin. Every demonstration is live, no purchase
-      necessary, and all the data is purely fictional.
+      Twelve working machines that took the drudgery out of running technology for a portfolio of private
+      properties. <b>No midnight surprises. No hand-written reports. No guesswork in the field.</b>
+      Each one runs around the clock so the team doesn't have to, catching trouble before a client ever notices
+      and handing back hours every week. Take any of them for a spin: every demonstration runs live in your
+      browser, no purchase necessary, and all the data is fictional.
     </p>
 
     <div class="stats">
-      <span class="stat"><b>7</b> Working models!</span>
-      <span class="stat"><b>24/7</b> Runs while you sleep!</span>
-      <span class="stat"><b>~0</b> Manual labor!</span>
-      <span class="stat"><b>1</b> Tidy backbone!</span>
+      <span class="stat"><b>12</b> Working models</span>
+      <span class="stat"><b>24/7</b> Runs while you sleep</span>
+      <span class="stat"><b>~0</b> Manual labor</span>
+      <span class="stat"><b>1</b> Shared backbone</span>
     </div>
 
-    <div class="sec-head"><span class="t">The Complete Line</span><span class="s">Step up, every demonstration is live</span><span class="rule"></span></div>
+    <div class="sec-head"><span class="t">The Complete Line</span><span class="s">Every demonstration is live</span><span class="rule"></span></div>
 
     <div class="rack">
-
+      <div class="grp"><span class="t">Operations &amp; Monitoring</span><span class="s">Every site, watched around the clock</span><span class="rule"></span></div>
       <a class="ch a-teal" href="beacon.html">
         <div class="num">Model 01</div>
         <div class="body">
           <div class="name">Beacon</div>
-          <div class="value">Never Caught Off Guard Again!</div>
-          <div class="desc">Presenting Beacon, the tireless electronic sentry for the modern estate. While you sleep, it keeps a steady eye on every network, every circuit, and every device across the whole portfolio. The instant trouble strikes, the board lights up like a marquee, so you know the moment it happens, not when the client reaches for the phone.</div>
+          <div class="value">Never Caught Off Guard Again.</div>
+          <div class="desc">The electronic sentry for the whole portfolio. It keeps a steady eye on every network, circuit, and device across every site, and the instant trouble strikes the board lights up like a marquee, so you know the moment it happens, not when the phone rings.</div>
           <div class="tag"><b>SPEC //</b> uptime + network + UPS telemetry · two-way ticket sync · detect-to-alert in seconds</div>
         </div>
-        <div class="right"><span class="status st-live"><span class="d"></span>In production</span><span class="go">See It In Action! →</span></div>
+        <div class="right"><span class="status st-live"><span class="d"></span>In production</span><span class="go">See It In Action →</span></div>
       </a>
-
       <a class="ch a-cyan" href="engine.html">
         <div class="num">Model 02</div>
         <div class="body">
           <div class="name">Engine</div>
-          <div class="value">It Files the Paperwork So You Don't!</div>
-          <div class="desc">The moment a system goes dark, the Dispatcher springs to action, opening one tidy, properly-labeled, correctly-assigned ticket, then closing it the instant the trouble clears. No missed incidents. No double-filing. No poor soul babysitting a queue. One incident, one ticket, and not a single human hand required.</div>
+          <div class="value">It Files the Paperwork So You Don't.</div>
+          <div class="desc">The moment a system goes dark, Engine opens one tidy, properly labeled, correctly assigned ticket, then closes it the instant the trouble clears. No missed incidents, no double-filing, no one babysitting a queue. One incident, one ticket, no human hands required.</div>
           <div class="tag"><b>SPEC //</b> scheduled polling · idempotent, never double-files · fail-safe by design</div>
         </div>
-        <div class="right"><span class="status st-live"><span class="d"></span>In production</span><span class="go">Watch It Work! →</span></div>
+        <div class="right"><span class="status st-live"><span class="d"></span>In production</span><span class="go">Watch It Work →</span></div>
       </a>
-
-      <a class="ch a-yellow" href="recon.html">
+      <a class="ch a-green" href="sentinel.html">
         <div class="num">Model 03</div>
         <div class="body">
-          <div class="name">Recon</div>
-          <div class="value">A Perfect Inspection, Every Time!</div>
-          <div class="desc">Hand your technician the Inspector and watch the magic: it walks them through every system on the property, top to bottom, and files a spotless, structured report right on the spot. No clipboards. No forgotten checks. No two visits done differently. Just a clean record the whole team can act on, guaranteed consistent.</div>
-          <div class="tag"><b>SPEC //</b> guided field audit · installs on any handset · auto-filed to the work system</div>
+          <div class="name">Sentinel</div>
+          <div class="value">Read the Whole Neighborhood at a Glance.</div>
+          <div class="desc">The watchman that reads the town so you don't have to. It scours permits, landmark filings, weather, and the fine print of City Hall around every property, then prints a tidy newspaper-style brief. When something stirs next door, you hear it first, and one tap flags it for the team to chase.</div>
+          <div class="tag"><b>SPEC //</b> permit + landmark + regulatory feeds · AI research pass · flag-to-follow-up</div>
         </div>
-        <div class="right"><span class="status st-live"><span class="d"></span>In production</span><span class="go">Take the Tour! →</span></div>
+        <div class="right"><span class="status st-live"><span class="d"></span>In production</span><span class="go">Read the Brief →</span></div>
       </a>
-
-      <a class="ch a-amber" href="report.html">
+      <div class="grp"><span class="t">Field Work</span><span class="s">The technician's toolkit</span><span class="rule"></span></div>
+      <a class="ch a-lime" href="field.html">
         <div class="num">Model 04</div>
         <div class="body">
-          <div class="name">Generator</div>
-          <div class="value">Half a Day of Writing, Done in Five Minutes!</div>
-          <div class="desc">Say goodbye to the dreaded report-writing afternoon. The Correspondent gathers up a visit's work, lets you give it a quick polish, and prints a handsome, on-brand client report from a single locked template. Every letter to every principal comes out looking like a million bucks, and identical, every single time.</div>
-          <div class="tag"><b>SPEC //</b> pulls from the work system → locked PDF · pixel-identical output · client-ready</div>
+          <div class="name">Field</div>
+          <div class="value">The Whole Toolbox, in Your Pocket.</div>
+          <div class="desc">The technician's daily companion for phone and iPad. Today's tasks up front, a vendor directory that still works in a basement with no signal, and an asset register with a guided camera that reads equipment data plates, so make, model, and serial number type themselves.</div>
+          <div class="tag"><b>SPEC //</b> phone + iPad · offline vendor search · data-plate camera capture · asset register</div>
         </div>
-        <div class="right"><span class="status st-live"><span class="d"></span>In production</span><span class="go">See the Demo! →</span></div>
+        <div class="right"><span class="status st-live"><span class="d"></span>In production</span><span class="go">Open the App →</span></div>
       </a>
-
-      <a class="ch a-mag" href="tempo.html">
+      <a class="ch a-yellow" href="recon.html">
         <div class="num">Model 05</div>
         <div class="body">
-          <div class="name">Tempo</div>
-          <div class="value">Turn Your Whole Team Into Top Performers!</div>
-          <div class="desc">The Coach keeps score so you don't have to. It measures how well each team member uses the work platform against the marks set by your very best, then quietly delivers tailored coaching right where it's needed. Accountability without a single awkward meeting. The measuring and the follow-up run themselves, week after week.</div>
-          <div class="tag"><b>SPEC //</b> weighted five-bucket scoring · role benchmarks · auto-generated coaching (Phase 2)</div>
+          <div class="name">Recon</div>
+          <div class="value">A Perfect Inspection, Every Time.</div>
+          <div class="desc">Hand a technician Recon and it walks them through every system on the site, top to bottom, then files a clean, structured report on the spot. No clipboards, no forgotten checks, no two visits done differently. Just a consistent record the whole team can act on.</div>
+          <div class="tag"><b>SPEC //</b> guided field audit · installs on any handset · auto-filed to the work platform</div>
         </div>
-        <div class="right"><span class="status st-beta"><span class="d"></span>Phase 1 live</span><span class="go">Check the Scoreboard! →</span></div>
+        <div class="right"><span class="status st-live"><span class="d"></span>In production</span><span class="go">Take the Tour →</span></div>
       </a>
-
-      <a class="ch a-blue" href="vendor.html">
+      <a class="ch a-purple" href="horizon.html">
         <div class="num">Model 06</div>
         <div class="body">
-          <div class="name">Vendor</div>
-          <div class="value">Your Best Contractors, Every Job!</div>
-          <div class="desc">Meet the Quartermaster, the tireless judge of every contractor in your book. It scores each vendor across five weighted marks — quality, delivery, cost, service, and compliance — keeps a hawk's eye on every certificate of insurance and license before it lapses, and stands rivals shoulder-to-shoulder so you hire the proven hand, never the gamble.</div>
-          <div class="tag"><b>SPEC //</b> weighted five-point scorecards · COI &amp; license expiry alerts · head-to-head compare</div>
+          <div class="name">Horizon</div>
+          <div class="value">See Next Year's Replacements Coming.</div>
+          <div class="desc">A lifecycle planner for every device in the portfolio. It tracks age and end of life across sites, flags what is aging out, and forecasts replacement budgets quarter by quarter, so a tired access point becomes a line item instead of a surprise. Still on the workbench, not yet in production.</div>
+          <div class="tag"><b>SPEC //</b> device age + end-of-life tracking · quarterly replacement forecast · budget roll-up · prototype</div>
         </div>
-        <div class="right"><span class="status st-live"><span class="d"></span>In production</span><span class="go">Inspect the Books! →</span></div>
+        <div class="right"><span class="status st-concept"><span class="d"></span>Prototype</span><span class="go">Try the Prototype →</span></div>
       </a>
-
-      <a class="ch a-green" href="sentinel.html">
+      <div class="grp"><span class="t">Client &amp; Vendor Portals</span><span class="s">Simple on the outside, routed on the inside</span><span class="rule"></span></div>
+      <a class="ch a-coral" href="requests.html">
         <div class="num">Model 07</div>
         <div class="body">
-          <div class="name">Sentinel</div>
-          <div class="value">Read the Whole Town at a Glance!</div>
-          <div class="desc">Presenting Sentinel, the watchman that reads the whole town so you don't have to. Day and night it scours permits, landmark filings, weather, and the fine print of City Hall around every property in the portfolio, then prints a tidy weekly brief sorted by principal. The moment something stirs next door, you hear it first — and a single tap flags it for the team to chase.</div>
-          <div class="tag"><b>SPEC //</b> permit + landmark + regulatory feeds · weekly brief by principal · flag-to-follow-up</div>
+          <div class="name">Requests</div>
+          <div class="value">Ask for Anything. Watch It Get Done.</div>
+          <div class="desc">A request portal as easy as sending a text. Clients ask for anything at their properties in a Messages-style thread and follow it from received to done, no phone tag and no status emails. Behind the curtain, every request lands in the work platform as a properly routed task.</div>
+          <div class="tag"><b>SPEC //</b> messages-style threads · status at a glance · routed to the work platform</div>
         </div>
-        <div class="right"><span class="status st-live"><span class="d"></span>In production</span><span class="go">Read the Brief! →</span></div>
+        <div class="right"><span class="status st-live"><span class="d"></span>In production</span><span class="go">Send a Request →</span></div>
       </a>
-
-      <div class="ch a-purple">
+      <a class="ch a-sky" href="partners.html">
         <div class="num">Model 08</div>
         <div class="body">
+          <div class="name">Partners</div>
+          <div class="value">Compliance Paperwork That Reads Itself.</div>
+          <div class="desc">One link per vendor, an emailed code to sign in, and one place to drop certificates of insurance, W-9s, and NDAs. An AI agent reads each document as it lands, pulls out the terms and dates, and flags the gaps before they become problems. No passwords to forget, no inbox full of attachments.</div>
+          <div class="tag"><b>SPEC //</b> email-code sign-in · AI document review · expiry + gap detection</div>
+        </div>
+        <div class="right"><span class="status st-live"><span class="d"></span>In production</span><span class="go">Visit the Portal →</span></div>
+      </a>
+      <a class="ch a-blue" href="vendor.html">
+        <div class="num">Model 09</div>
+        <div class="body">
+          <div class="name">Vendor</div>
+          <div class="value">Your Best Contractors, Every Job.</div>
+          <div class="desc">The judge of every contractor in the book. It scores each vendor across five weighted marks (quality, delivery, cost, service, and compliance), watches every certificate of insurance and license before it lapses, and lines rivals up side by side so you hire the proven hand, not the gamble.</div>
+          <div class="tag"><b>SPEC //</b> weighted five-point scorecards · COI &amp; license expiry alerts · head-to-head compare</div>
+        </div>
+        <div class="right"><span class="status st-live"><span class="d"></span>In production</span><span class="go">Inspect the Books →</span></div>
+      </a>
+      <div class="grp"><span class="t">Reporting &amp; Analytics</span><span class="s">The numbers, without the spreadsheet</span><span class="rule"></span></div>
+      <a class="ch a-amber" href="report.html">
+        <div class="num">Model 10</div>
+        <div class="body">
+          <div class="name">Generator</div>
+          <div class="value">Half a Day of Writing, Done in Five Minutes.</div>
+          <div class="desc">Say goodbye to the report-writing afternoon. Generator gathers a visit's work, lets you give it a quick polish, and prints a handsome, on-brand client report from a single locked template. Every report looks like a million bucks, and identical, every time.</div>
+          <div class="tag"><b>SPEC //</b> pulls from the work platform → locked PDF · pixel-identical output · client-ready</div>
+        </div>
+        <div class="right"><span class="status st-live"><span class="d"></span>In production</span><span class="go">See the Demo →</span></div>
+      </a>
+      <a class="ch a-rose" href="scorecard.html">
+        <div class="num">Model 11</div>
+        <div class="body">
+          <div class="name">Scorecard</div>
+          <div class="value">The Whole Operation on One Wall.</div>
+          <div class="desc">The ops dashboard that answers “how are we doing?” before anyone asks. Alert analytics show what broke, where, and how fast it was fixed; adoption boards show who is actually living in the work platform. Drill into any tile, or drag the grid into your own order.</div>
+          <div class="tag"><b>SPEC //</b> alerts analytics · adoption boards · drill-downs · drag-to-arrange grid</div>
+        </div>
+        <div class="right"><span class="status st-live"><span class="d"></span>In production</span><span class="go">Check the Board →</span></div>
+      </a>
+      <a class="ch a-mag" href="tempo.html">
+        <div class="num">Model 12</div>
+        <div class="body">
+          <div class="name">Tempo</div>
+          <div class="value">Turn the Whole Team Into Top Performers.</div>
+          <div class="desc">Tempo keeps score so you don't have to. It measures how well each team member uses the work platform against the marks set by your best, then delivers tailored coaching right where it's needed. Accountability without the awkward meeting, week after week.</div>
+          <div class="tag"><b>SPEC //</b> weighted five-bucket scoring · role benchmarks · auto-generated coaching (Phase 2)</div>
+        </div>
+        <div class="right"><span class="status st-beta"><span class="d"></span>Phase 1 live</span><span class="go">See the Scoreboard →</span></div>
+      </a>
+      <div class="grp"><span class="t">Platform</span><span class="s">The keys to every door</span><span class="rule"></span></div>
+      <a class="ch a-silver" href="admin.html">
+        <div class="num">Model 13</div>
+        <div class="body">
+          <div class="name">Admin</div>
+          <div class="value">One Sign-In. Every Door.</div>
+          <div class="desc">The master key cabinet. One sign-in opens every app, and an app-centric access grid shows exactly who can do what, everywhere, on a single screen. Add a person, grant a role, or sign out a lost device, all without touching a line of code.</div>
+          <div class="tag"><b>SPEC //</b> single sign-on across all apps · app-centric access grid · roles + per-person grants</div>
+        </div>
+        <div class="right"><span class="status st-live"><span class="d"></span>In production</span><span class="go">Open the Console →</span></div>
+      </a>
+      <div class="grp"><span class="t">In the Workshop</span><span class="s">Concepts on the bench</span><span class="rule"></span></div>
+      <div class="ch a-purple">
+        <div class="num">Model 14</div>
+        <div class="body">
           <div class="name">Ambient</div>
-          <div class="value">The Machine That Does Your Logging FOR You!</div>
-          <div class="desc">Now in the workshop: a pocket-sized marvel (and someday, a pair of spectacles!) that quietly watches a technician's day and lets a clever bit of artificial intelligence draft the logs and tickets for you, all waiting in a tidy review tray. Nothing goes out without your say-so, and the raw footage vanishes within the day. The busywork? Gone for good.</div>
+          <div class="value">The Machine That Does Your Logging for You.</div>
+          <div class="desc">Now in the workshop: a pocket-sized device (and someday, a pair of glasses) that quietly follows a technician's day and lets AI draft the logs and tickets, all waiting in a tidy review tray. Nothing goes out without your say-so, and the raw footage is gone within the day. The busywork goes with it.</div>
           <div class="tag"><b>SPEC //</b> passive capture · AI-drafted logs &amp; tickets · human-approved · 24-hour purge · concept</div>
         </div>
-        <div class="right"><span class="status st-concept"><span class="d"></span>Prototype</span><span class="go dead">Not Yet In Stores</span></div>
+        <div class="right"><span class="status st-concept"><span class="d"></span>Concept</span><span class="go dead">Not Yet in Stores</span></div>
       </div>
 
     </div>
 
-    <div class="sec-head"><span class="t">They Work Beautifully Together!</span><span class="s">The whole system, as one</span><span class="rule"></span></div>
+    <div class="sec-head"><span class="t">They Work Beautifully Together</span><span class="s">The whole system, as one</span><span class="rule"></span></div>
     <div class="signal">
       <p class="lede" style="max-width:860px;">
-        Here's the real marvel: these aren't seven gadgets in seven boxes. They're <b>one operations platform</b>, all
-        wired to a shared backbone. Watch how the signal flows, inputs on the left, the system of record in the middle,
-        and finished work on the right.
+        Here's the real trick: these aren't twelve gadgets in twelve boxes. They're <b>one operations platform</b>,
+        wired to a shared backbone: the work platform every app reads from and writes to (Asana today, but nothing
+        here depends on that). Signals come in on the left, the system of record sits in the middle, and finished
+        work goes out on the right.
       </p>
-      <div class="diagram" role="img" aria-label="Signal flow diagram: Engine, Recon and Sentinel feed the shared Asana backbone, Beacon syncs two ways, and Generator, Tempo and Vendor turn it into client reports, coaching and vendor scorecards.">
-        <svg viewBox="0 0 1000 560" xmlns="http://www.w3.org/2000/svg">
+      <div class="diagram" role="img" aria-label="Signal flow diagram: Engine, Sentinel, Recon, Field, Requests and Partners feed the shared work platform; Beacon syncs two ways; Admin provides one sign-in for every app; Generator, Scorecard, Tempo, Vendor and the Horizon prototype turn it into client reports, analytics, coaching, vendor scorecards and replacement plans.">
+        <svg viewBox="0 0 1000 670" xmlns="http://www.w3.org/2000/svg">
   <defs>
     <marker id="ar" markerWidth="12" markerHeight="12" refX="8" refY="4" orient="auto-start-reverse"><path d="M0,0 L9,4 L0,8 Z" fill="#3fe0d8"/></marker>
     <filter id="glow" x="-50%" y="-50%" width="200%" height="200%"><feDropShadow dx="0" dy="0" stdDeviation="3" flood-color="#3fe0d8" flood-opacity="0.55"/></filter>
@@ -311,62 +379,94 @@ a.ch{cursor:pointer;}
       .nm{font-family:'Barlow Condensed',sans-serif;font-style:italic;font-weight:800;fill:#ecfffc;}
       .rl{font-family:'Share Tech Mono',monospace;fill:#a9ddd7;}
       .fl{fill:none;stroke:#3fe0d8;stroke-width:2;opacity:.9;}
-      .lb{font-family:'Share Tech Mono',monospace;fill:#3a9690;}
+      .fd{fill:none;stroke:#3fe0d8;stroke-width:2;opacity:.75;stroke-dasharray:6 5;}
+      .lb{font-family:'Share Tech Mono',monospace;fill:#5fb8b1;paint-order:stroke;stroke:#05170f;stroke-width:4px;stroke-linejoin:round;}
       .colh{font-family:'Barlow Condensed',sans-serif;font-style:italic;font-weight:800;fill:#3a9690;letter-spacing:.14em;}
     </style>
   </defs>
   <text class="colh" x="135" y="22" text-anchor="middle" font-size="15">INPUTS</text>
   <text class="colh" x="500" y="22" text-anchor="middle" font-size="15">COORDINATE</text>
   <text class="colh" x="865" y="22" text-anchor="middle" font-size="15">OUTPUTS</text>
-  <path class="fl" d="M500,120 L500,250" marker-end="url(#ar)" marker-start="url(#ar)"/>
-  <text class="lb" x="514" y="190" font-size="12">live status, ack sync</text>
-  <path class="fl" d="M240,170 C332,182 322,262 398,284" marker-end="url(#ar)"/>
-  <text class="lb" x="300" y="202" font-size="12">outage tickets</text>
-  <path class="fl" d="M240,292 C320,298 330,300 398,302" marker-end="url(#ar)"/>
-  <text class="lb" x="300" y="284" font-size="12">field audits</text>
-  <path class="fl" d="M240,414 C332,402 322,342 398,320" marker-end="url(#ar)"/>
-  <text class="lb" x="298" y="410" font-size="12">flagged findings</text>
-  <path class="fl" d="M602,284 C678,262 668,182 758,170" marker-end="url(#ar)"/>
-  <text class="lb" x="650" y="202" font-size="12">the work</text>
-  <path class="fl" d="M602,302 C668,300 680,298 758,292" marker-end="url(#ar)"/>
-  <text class="lb" x="648" y="284" font-size="12">usage signals</text>
-  <path class="fl" d="M602,320 C678,342 668,402 758,414" marker-end="url(#ar)"/>
-  <text class="lb" x="648" y="410" font-size="12">job outcomes</text>
-  <rect class="hub" x="400" y="258" width="200" height="88" rx="12" filter="url(#glow)"/>
-  <text class="nm" x="500" y="296" text-anchor="middle" font-size="30">ASANA</text>
-  <text class="rl" x="500" y="318" text-anchor="middle" font-size="11">the shared system of record</text>
-  <text class="rl" x="500" y="334" text-anchor="middle" font-size="11">every app reads &amp; writes</text>
-  <rect class="nr" x="405" y="44" width="190" height="76" rx="10" stroke="#3fe0d8"/>
-      <text class="nm" x="500" y="82.0" text-anchor="middle" font-size="22">BEACON</text>
-      <text class="rl" x="500" y="102.0" text-anchor="middle" font-size="11">live status wall</text>
-  <rect class="nr" x="30" y="132" width="210" height="76" rx="10" stroke="#19e3ff"/>
-      <text class="nm" x="135" y="170.0" text-anchor="middle" font-size="22">ENGINE</text>
-      <text class="rl" x="135" y="190.0" text-anchor="middle" font-size="11">files &amp; clears tickets</text>
-  <rect class="nr" x="30" y="254" width="210" height="76" rx="10" stroke="#ffd23f"/>
-      <text class="nm" x="135" y="292.0" text-anchor="middle" font-size="22">RECON</text>
-      <text class="rl" x="135" y="312.0" text-anchor="middle" font-size="11">files field audits</text>
-  <rect class="nr" x="30" y="376" width="210" height="76" rx="10" stroke="#3fe08a"/>
-      <text class="nm" x="135" y="414.0" text-anchor="middle" font-size="22">SENTINEL</text>
-      <text class="rl" x="135" y="434.0" text-anchor="middle" font-size="11">watches permits &amp; filings</text>
-  <rect class="nr" x="760" y="132" width="210" height="76" rx="10" stroke="#ff9e3d"/>
-      <text class="nm" x="865" y="170.0" text-anchor="middle" font-size="21">GENERATOR</text>
-      <text class="rl" x="865" y="190.0" text-anchor="middle" font-size="11">builds client reports</text>
-  <rect class="nr" x="760" y="254" width="210" height="76" rx="10" stroke="#ff2e88"/>
-      <text class="nm" x="865" y="292.0" text-anchor="middle" font-size="22">TEMPO</text>
-      <text class="rl" x="865" y="312.0" text-anchor="middle" font-size="11">measures &amp; coaches</text>
-  <rect class="nr" x="760" y="376" width="210" height="76" rx="10" stroke="#6f9bff"/>
-      <text class="nm" x="865" y="414.0" text-anchor="middle" font-size="22">VENDOR</text>
-      <text class="rl" x="865" y="434.0" text-anchor="middle" font-size="11">scores the contractors</text>
+  <path class="fl" d="M500,100 L500,282" marker-end="url(#ar)" marker-start="url(#ar)"/>
+  <text class="lb" x="512" y="196" font-size="12">live status, ack sync</text>
+  <path class="fd" d="M500,384 L500,582" marker-end="url(#ar)" marker-start="url(#ar)"/>
+  <text class="lb" x="512" y="488" font-size="12">one sign-in, every app</text>
+  <path class="fl" d="M240,141 C322,141 318,298 398,298" marker-end="url(#ar)"/>
+  <path class="fl" d="M240,217 C322,217 318,311 398,311" marker-end="url(#ar)"/>
+  <path class="fl" d="M240,293 C322,293 318,324 398,324" marker-end="url(#ar)"/>
+  <path class="fl" d="M240,369 C322,369 318,337 398,337" marker-end="url(#ar)"/>
+  <path class="fl" d="M240,445 C322,445 318,350 398,350" marker-end="url(#ar)"/>
+  <path class="fl" d="M240,521 C322,521 318,363 398,363" marker-end="url(#ar)"/>
+  <path class="fl" d="M602,300 C682,300 678,179 758,179" marker-end="url(#ar)"/>
+  <path class="fl" d="M602,315 C682,315 678,255 758,255" marker-end="url(#ar)"/>
+  <path class="fl" d="M602,330 C682,330 678,331 758,331" marker-end="url(#ar)"/>
+  <path class="fl" d="M602,345 C682,345 678,407 758,407" marker-end="url(#ar)"/>
+  <path class="fd" d="M602,360 C682,360 678,483 758,483" marker-end="url(#ar)"/>
+  <text class="lb" x="246" y="135" font-size="10.5">outage tickets</text>
+  <text class="lb" x="246" y="211" font-size="10.5">flagged findings</text>
+  <text class="lb" x="246" y="287" font-size="10.5">field audits</text>
+  <text class="lb" x="246" y="383" font-size="10.5">tasks + assets</text>
+  <text class="lb" x="246" y="459" font-size="10.5">client requests</text>
+  <text class="lb" x="246" y="535" font-size="10.5">vetted documents</text>
+  <text class="lb" x="754" y="173" text-anchor="end" font-size="10.5">the work</text>
+  <text class="lb" x="754" y="249" text-anchor="end" font-size="10.5">alert history</text>
+  <text class="lb" x="754" y="325" text-anchor="end" font-size="10.5">usage signals</text>
+  <text class="lb" x="754" y="421" text-anchor="end" font-size="10.5">job outcomes</text>
+  <text class="lb" x="754" y="497" text-anchor="end" font-size="10.5">device register</text>
+  <rect class="hub" x="400" y="286" width="200" height="92" rx="12" filter="url(#glow)"/>
+  <text class="nm" x="500" y="316" text-anchor="middle" font-size="22">THE WORK PLATFORM</text>
+  <text class="rl" x="500" y="336" text-anchor="middle" font-size="11">shared system of record</text>
+  <text class="rl" x="500" y="352" text-anchor="middle" font-size="11">(Asana today, swappable)</text>
+  <text class="rl" x="500" y="368" text-anchor="middle" font-size="11">every app reads &amp; writes</text>
+  <rect class="nr" x="405" y="38" width="190" height="62" rx="10" stroke="#3fe0d8"/>
+  <text class="nm" x="500" y="67" text-anchor="middle" font-size="22">BEACON</text>
+  <text class="rl" x="500" y="85" text-anchor="middle" font-size="11">live status wall</text>
+  <rect class="nr" x="405" y="584" width="190" height="62" rx="10" stroke="#cfe9e6"/>
+  <text class="nm" x="500" y="613" text-anchor="middle" font-size="22">ADMIN</text>
+  <text class="rl" x="500" y="631" text-anchor="middle" font-size="11">sign-in + access grid</text>
+  <rect class="nr" x="30" y="110" width="210" height="62" rx="10" stroke="#19e3ff"/>
+  <text class="nm" x="135" y="139" text-anchor="middle" font-size="20">ENGINE</text>
+  <text class="rl" x="135" y="157" text-anchor="middle" font-size="11">files &amp; clears tickets</text>
+  <rect class="nr" x="30" y="186" width="210" height="62" rx="10" stroke="#3fe08a"/>
+  <text class="nm" x="135" y="215" text-anchor="middle" font-size="20">SENTINEL</text>
+  <text class="rl" x="135" y="233" text-anchor="middle" font-size="11">watches permits &amp; filings</text>
+  <rect class="nr" x="30" y="262" width="210" height="62" rx="10" stroke="#ffd23f"/>
+  <text class="nm" x="135" y="291" text-anchor="middle" font-size="20">RECON</text>
+  <text class="rl" x="135" y="309" text-anchor="middle" font-size="11">guided site audits</text>
+  <rect class="nr" x="30" y="338" width="210" height="62" rx="10" stroke="#b8f04a"/>
+  <text class="nm" x="135" y="367" text-anchor="middle" font-size="20">FIELD</text>
+  <text class="rl" x="135" y="385" text-anchor="middle" font-size="11">tasks + asset capture</text>
+  <rect class="nr" x="30" y="414" width="210" height="62" rx="10" stroke="#ff7a5c"/>
+  <text class="nm" x="135" y="443" text-anchor="middle" font-size="20">REQUESTS</text>
+  <text class="rl" x="135" y="461" text-anchor="middle" font-size="11">client request portal</text>
+  <rect class="nr" x="30" y="490" width="210" height="62" rx="10" stroke="#5fc8ff"/>
+  <text class="nm" x="135" y="519" text-anchor="middle" font-size="20">PARTNERS</text>
+  <text class="rl" x="135" y="537" text-anchor="middle" font-size="11">vendor compliance portal</text>
+  <rect class="nr" x="760" y="148" width="210" height="62" rx="10" stroke="#ff9e3d"/>
+  <text class="nm" x="865" y="177" text-anchor="middle" font-size="20">GENERATOR</text>
+  <text class="rl" x="865" y="195" text-anchor="middle" font-size="11">builds client reports</text>
+  <rect class="nr" x="760" y="224" width="210" height="62" rx="10" stroke="#ff8fc8"/>
+  <text class="nm" x="865" y="253" text-anchor="middle" font-size="20">SCORECARD</text>
+  <text class="rl" x="865" y="271" text-anchor="middle" font-size="11">alerts + adoption boards</text>
+  <rect class="nr" x="760" y="300" width="210" height="62" rx="10" stroke="#ff2e88"/>
+  <text class="nm" x="865" y="329" text-anchor="middle" font-size="20">TEMPO</text>
+  <text class="rl" x="865" y="347" text-anchor="middle" font-size="11">measures &amp; coaches</text>
+  <rect class="nr" x="760" y="376" width="210" height="62" rx="10" stroke="#6f9bff"/>
+  <text class="nm" x="865" y="405" text-anchor="middle" font-size="20">VENDOR</text>
+  <text class="rl" x="865" y="423" text-anchor="middle" font-size="11">scores the contractors</text>
+  <rect class="nr" x="760" y="452" width="210" height="62" rx="10" stroke="#a07bff" stroke-dasharray="6 5"/>
+  <text class="nm" x="865" y="481" text-anchor="middle" font-size="20">HORIZON</text>
+  <text class="rl" x="865" y="499" text-anchor="middle" font-size="11">plans replacements (prototype)</text>
 </svg>
       </div>
       <p class="diagram-note">Built decoupled on purpose: every machine stands on its own, so a fault in one never takes the others down.</p>
     </div>
 
     <p class="foot">
-      Field Ops · All seven systems nominal · A Chris Gachot production
+      Field Ops · All twelve systems nominal · A Chris Gachot production
       <span class="fineprint">
-        Every demonstration runs right here in your browser, no live systems, no obligation, no salesman will call.
-        Names, properties, and figures are purely fictional and any resemblance to a real estate is coincidental.
+        Every demonstration runs right here in your browser: no live systems, no obligation, no salesman will call.
+        Names, properties, and figures are fictional, and any resemblance to a real property is coincidental.
         Company specifics generalized for your protection. Batteries not included. Results may vary in haunted houses.
       </span>
     </p>
